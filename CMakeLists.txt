@@ -63,6 +63,8 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        marianinterface.cpp
+        marianinterface.h
         ${TS_FILES}
 )
 
@@ -86,4 +88,4 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets bergamot-translator pthread) #@TODO pthread on windows... I think not
