@@ -26,8 +26,8 @@ include(CMakeDependentOption)
 #    endif()
 #endif()
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools Network REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools Network REQUIRED)
 
 # Marian submodule things
 # Documentation: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
@@ -88,4 +88,4 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets bergamot-translator pthread) #@TODO pthread on windows... I think not
+target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread) #@TODO pthread on windows... I think not
