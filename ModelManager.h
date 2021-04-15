@@ -6,7 +6,7 @@
 #include <QList>
 
 struct modelDir {
-    QString path;
+    QString path; // This is full path to the directory
     QString name;
     QString shortName;
     QString type;
@@ -22,10 +22,15 @@ public:
     QSettings qset_;
     QDir configDir_;
 
-    QStringList archives_;
+    QStringList archives_; // Only archive name, not full path
     QList<modelDir> models_;
 private:
     void startupLoad();
+    void extractTarGz(QString filename);
+    modelDir parseModelInfo(QString path);
+
+signals:
+    void newModelAdded(int index);
 
 
 };

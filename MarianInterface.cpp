@@ -1,11 +1,12 @@
-#include "marianinterface.h"
+#include "MarianInterface.h"
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 
 namespace  {
-marian::Ptr<marian::Options> MakeOptions() {
-    std::vector<std::string> args = {"marian-decoder", "-c", "/mnt/Storage/students/esen/enes.student.tiny11/config.yml", "--cpu-threads", "8", "--mini-batch-words", "1000"};
+marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
+    std::string model_path = path_to_model_dir.toStdString() + "config.intgemm8bitalpha.yml";
+    std::vector<std::string> args = {"marian-decoder", "-c", model_path, "--cpu-threads", "8", "--mini-batch-words", "1000"};
 
     std::vector<char *> argv;
     argv.reserve(args.size());
@@ -19,9 +20,7 @@ marian::Ptr<marian::Options> MakeOptions() {
 }
 } // Anonymous namespace
 
-MarianInterface::MarianInterface() : service_(MakeOptions()) {
-
-}
+MarianInterface::MarianInterface(QString path_to_model_dir) : service_(MakeOptions(path_to_model_dir)) {}
 
 QString MarianInterface::translate(QString in) {
     std::string input = in.toStdString();

@@ -26,6 +26,13 @@ include(CMakeDependentOption)
 #    endif()
 #endif()
 
+find_package(LibArchive REQUIRED)
+if(LibArchive_FOUND)
+    list (APPEND ${INCLUDE_DIRECTORIES} ${LibArchive_INCLUDE_DIRS})
+else(LibArchive_FOUND)
+  MESSAGE(FATAL_ERROR "Could not find the libarchive library and development files.")
+endif( LibArchive_FOUND )
+
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools Network REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools Network REQUIRED)
 
@@ -63,8 +70,12 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
-        marianinterface.cpp
-        marianinterface.h
+        MarianInterface.cpp
+        MarianInterface.h
+        ModelManager.cpp
+        ModelManager.h
+        Network.cpp
+        Network.h
         ${TS_FILES}
 )
 
@@ -88,4 +99,4 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread) #@TODO pthread on windows... I think not
+target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES}) #@TODO pthread on windows... I think not
