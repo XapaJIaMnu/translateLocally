@@ -16,39 +16,19 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="1">
-     <widget class="QComboBox" name="localModels"/>
+     <widget class="QComboBox" name="localModels">
+      <property name="minimumSize">
+       <size>
+        <width>196</width>
+        <height>0</height>
+       </size>
+      </property>
+     </widget>
     </item>
     <item row="1" column="1">
      <widget class="QPushButton" name="translateButton">
       <property name="text">
        <string>Translate</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="2">
-     <widget class="QPushButton" name="modelDownload">
-      <property name="text">
-       <string>ModelDownload</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="2">
-     <widget class="QComboBox" name="Models">
-      <property name="currentText">
-       <string/>
-      </property>
-      <property name="placeholderText">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0" colspan="2">
-     <widget class="QTextBrowser" name="outputBox"/>
-    </item>
-    <item row="0" column="0" rowspan="2">
-     <widget class="QPlainTextEdit" name="inputBox">
-      <property name="placeholderText">
-       <string>Enter text to be translated here...</string>
       </property>
      </widget>
     </item>
@@ -65,6 +45,33 @@
       </property>
       <property name="value">
        <number>24</number>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0" colspan="2">
+     <widget class="QTextBrowser" name="outputBox"/>
+    </item>
+    <item row="0" column="0" rowspan="2">
+     <widget class="QPlainTextEdit" name="inputBox">
+      <property name="placeholderText">
+       <string>Enter text to be translated here...</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <widget class="QComboBox" name="Models">
+      <property name="currentText">
+       <string/>
+      </property>
+      <property name="placeholderText">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="2">
+     <widget class="QPushButton" name="modelDownload">
+      <property name="text">
+       <string>ModelDownload</string>
       </property>
      </widget>
     </item>
