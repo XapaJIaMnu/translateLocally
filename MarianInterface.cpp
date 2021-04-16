@@ -37,9 +37,7 @@ QString MarianInterface::translate(QString in) {
 
 MarianInterface::~MarianInterface() {
     // We need to manually destroy the loggers, as marian doesn't do that.
-    std::cerr << "Run destructor" << std::endl;
     spdlog::drop("general");
     spdlog::drop("valid");
-    std::cerr << "Run destructor" << std::endl;
 }
 

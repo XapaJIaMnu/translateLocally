@@ -63,7 +63,9 @@ void MainWindow::on_translateButton_clicked()
     if (translator_) {
         if (ui->inputBox->toPlainText() != QString("")) {
             ui->outputBox->setText("Translating, please wait...");
-            ui->outputBox->setText(translator_->translate(ui->inputBox->toPlainText()));
+            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
+            QString translation = translator_->translate(ui->inputBox->toPlainText());
+            ui->outputBox->setText(translation);
         } else {
             // Empty input crashes the translator
             ui->outputBox->setText("Write something to be translated first.");
