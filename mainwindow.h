@@ -37,7 +37,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    std::unique_ptr<MarianInterface> translator_;// = nullptr;
+    MarianInterface * translator_; // Initialised to nullptr. Can't use smart ptrs due to destructor needing to run
     void resetTranslator(QString dirname);
 
     // Keep track of the models

@@ -19,6 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , models_(ModelManager(this))
     , network_(Network(this))
+    , translator_(nullptr)
 {
     ui->setupUi(this);
 
@@ -37,23 +38,41 @@ MainWindow::MainWindow(QWidget *parent)
         resetTranslator(models_.models_[0].path);
     }
     // @TODO something is broken, this gets called n+1 times with every new model
-    auto updateLocalModels = [&](int index){ui->localModels->addItem(models_.models_[index].name);};
+    // This updates the local models and activates the newly downloaded one.
+    auto updateLocalModels = [&](int index){
+        ui->localModels->addItem(models_.models_[index].name);
+        on_localModels_activated(index);
+        ui->localModels->setCurrentIndex(index);
+    };
     connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    if (translator_) {
+        delete  translator_; // Free the translator
+    }
 }
 
 
 void MainWindow::on_translateButton_clicked()
 {
+    ui->localModels->setEnabled(false); // Disable changing the model while translating
+    ui->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
     if (translator_) {
-        ui->outputBox->setText(translator_->translate(ui->inputBox->toPlainText()));
+        if (ui->inputBox->toPlainText() != QString("")) {
+            ui->outputBox->setText("Translating, please wait...");
+            ui->outputBox->setText(translator_->translate(ui->inputBox->toPlainText()));
+        } else {
+            // Empty input crashes the translator
+            ui->outputBox->setText("Write something to be translated first.");
+        }
     } else {
-        ui->outputBox->setText("You need to download a translation model first. Do that with the interface on the right");
+        ui->outputBox->setText("You need to download a translation model first. Do that with the interface on the right.");
     }
+    ui->localModels->setEnabled(true); // Re-enable model changing
+    ui->translateButton->setEnabled(true); // Re-enable button after translation is done
 }
 
 /**
@@ -84,11 +103,9 @@ void MainWindow::onResult(QJsonObject obj, QString err)
             QString name = arrobj.toObject()["name"].toString();
             QString code = arrobj.toObject()["code"].toString();
             QString url = arrobj.toObject()["url"].toString();
-            QString line = "Name: " + name + " code: " + code + " url " +  url + "\n";
             urls_.append(url);
             codes_.append(code);
             names_.append(name);
-            ui->outputBox->append(line);
         }
         ui->Models->removeItem(0);
         ui->Models->insertItems(0, codes_);
@@ -105,6 +122,8 @@ void MainWindow::handleDownload(QString filename, QByteArray data , QString err)
     } else {
         ui->outputBox->append(err);
     }
+    // Re-enable model downloading interface:
+    ui->Models->setEnabled(true);
 }
 
 /**
@@ -120,6 +139,8 @@ void MainWindow::on_Models_activated(int index)
         connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
         connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
         network_.downloadFile(urls_[index]);
+        // Disable this section of the ui while a model is downloading..
+        ui->Models->setEnabled(false);
     }
 }
 
@@ -145,6 +166,14 @@ void MainWindow::on_localModels_activated(int index) {
 
 void MainWindow::resetTranslator(QString dirname) {
     QString model0_path = dirname + "/";
-    translator_.reset(); // We need to first call the destructor otherwise we run into a crash in spdlog.
-    translator_.reset(new MarianInterface(model0_path)); //@TODO this is broken for now, find a way to safely restart it
+    ui->localModels->setEnabled(false); // Disable changing the model while changing the model
+    ui->translateButton->setEnabled(false); //Disable the translate button before the swap
+
+    if (translator_) {
+        delete translator_; // We need to first call the destructor otherwise we run into a crash in spdlog. No smart pointers reset.
+    }
+    translator_ = new MarianInterface(model0_path);
+
+    ui->translateButton->setEnabled(true); // Reenable it
+    ui->localModels->setEnabled(true); // Disable changing the model while changing the model
 }
