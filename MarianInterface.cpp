@@ -2,6 +2,7 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
+#include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
@@ -32,5 +33,13 @@ QString MarianInterface::translate(QString in) {
     marian::bergamot::Response response = responseFuture.get();
 
     return QString::fromStdString(response.target.text);
+}
+
+MarianInterface::~MarianInterface() {
+    // We need to manually destroy the loggers, as marian doesn't do that.
+    std::cerr << "Run destructor" << std::endl;
+    spdlog::drop("general");
+    spdlog::drop("valid");
+    std::cerr << "Run destructor" << std::endl;
 }
 

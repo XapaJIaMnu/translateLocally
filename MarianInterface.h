@@ -8,6 +8,7 @@ class MarianInterface {
 public:
     MarianInterface(QString path_to_model_dir);
     QString translate(QString in);
+    ~MarianInterface();
 private:
     marian::bergamot::Service service_;
 };

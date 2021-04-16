@@ -145,5 +145,6 @@ void MainWindow::on_localModels_activated(int index) {
 
 void MainWindow::resetTranslator(QString dirname) {
     QString model0_path = dirname + "/";
+    translator_.reset(); // We need to first call the destructor otherwise we run into a crash in spdlog.
     translator_.reset(new MarianInterface(model0_path)); //@TODO this is broken for now, find a way to safely restart it
 }
