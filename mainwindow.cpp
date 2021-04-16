@@ -126,6 +126,8 @@ void MainWindow::handleDownload(QString filename, QByteArray data , QString err)
     }
     // Re-enable model downloading interface:
     ui->Models->setEnabled(true);
+    // Hide progressBar
+    ui->progressBar->hide();
 }
 
 /**

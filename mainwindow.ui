@@ -6,112 +6,76 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1331</width>
-    <height>696</height>
+    <width>900</width>
+    <height>605</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>translateLocally</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPlainTextEdit" name="inputBox">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>50</y>
-      <width>411</width>
-      <height>131</height>
-     </rect>
-    </property>
-    <property name="placeholderText">
-     <string>Enter text to be translated here...</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="translateButton">
-    <property name="geometry">
-     <rect>
-      <x>580</x>
-      <y>90</y>
-      <width>138</width>
-      <height>47</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Translate</string>
-    </property>
-   </widget>
-   <widget class="QTextBrowser" name="outputBox">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>260</y>
-      <width>621</width>
-      <height>191</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="modelDownload">
-    <property name="geometry">
-     <rect>
-      <x>960</x>
-      <y>90</y>
-      <width>201</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>ModelDownload</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="Models">
-    <property name="geometry">
-     <rect>
-      <x>960</x>
-      <y>200</y>
-      <width>231</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="currentText">
-     <string/>
-    </property>
-    <property name="placeholderText">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QProgressBar" name="progressBar">
-    <property name="enabled">
-     <bool>true</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>960</x>
-      <y>270</y>
-      <width>118</width>
-      <height>33</height>
-     </rect>
-    </property>
-    <property name="value">
-     <number>24</number>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="localModels">
-    <property name="geometry">
-     <rect>
-      <x>580</x>
-      <y>20</y>
-      <width>301</width>
-      <height>45</height>
-     </rect>
-    </property>
-   </widget>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="1">
+     <widget class="QComboBox" name="localModels"/>
+    </item>
+    <item row="1" column="1">
+     <widget class="QPushButton" name="translateButton">
+      <property name="text">
+       <string>Translate</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="2">
+     <widget class="QPushButton" name="modelDownload">
+      <property name="text">
+       <string>ModelDownload</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <widget class="QComboBox" name="Models">
+      <property name="currentText">
+       <string/>
+      </property>
+      <property name="placeholderText">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0" colspan="2">
+     <widget class="QTextBrowser" name="outputBox"/>
+    </item>
+    <item row="0" column="0" rowspan="2">
+     <widget class="QPlainTextEdit" name="inputBox">
+      <property name="placeholderText">
+       <string>Enter text to be translated here...</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="2">
+     <widget class="QProgressBar" name="progressBar">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="value">
+       <number>24</number>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1331</width>
+     <width>900</width>
      <height>43</height>
     </rect>
    </property>
