@@ -23,7 +23,7 @@ ModelManager::ModelManager(QObject *parent)
         if (QFileInfo::exists(configDir_.absolutePath())) {
             std::cerr << "We want to store data at a directory at: " << configDir_.absolutePath().toStdString() << " but a file with the same name exists." << std::endl;
         } else {
-            QDir().mkdir(configDir_.absolutePath());
+            QDir().mkpath(configDir_.absolutePath());
         }
     }
     std::cerr << "ConfigDir path is: " << configDir_.absolutePath().toStdString() << std::endl;
