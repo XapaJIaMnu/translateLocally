@@ -140,8 +140,8 @@ void MainWindow::on_Models_activated(int index)
         on_modelDownload_clicked();
     } else { // If models are fetched download the selected model
         //@TODO check if model is already downloaded and prompt user for download confirmation
-        connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
-        connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
+        connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
+        connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
         network_.downloadFile(urls_[index]);
         // Disable this section of the ui while a model is downloading..
         ui->Models->setEnabled(false);
