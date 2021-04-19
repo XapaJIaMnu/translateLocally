@@ -16,22 +16,21 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    , ui_(new Ui::MainWindow)
     , models_(ModelManager(this))
     , network_(Network(this))
-    , translator_(nullptr)
 {
-    ui->setupUi(this);
+    ui_->setupUi(this);
 
     // Initial text of the comboBox
-    ui->Models->insertItem(0, QString("Models"));
+    ui_->Models->insertItem(0, QString("Models"));
 
     // Hide download progress bar
-    ui->progressBar->hide();
+    ui_->progressBar->hide();
 
     // Display local models
     for (auto&& item : models_.models_) {
-        ui->localModels->addItem(item.name);
+        ui_->localModels->addItem(item.name);
     }
     // Load one if we have
     if (models_.models_.size() != 0) {
@@ -40,41 +39,34 @@ MainWindow::MainWindow(QWidget *parent)
     // @TODO something is broken, this gets called n+1 times with every new model
     // This updates the local models and activates the newly downloaded one.
     auto updateLocalModels = [&](int index){
-        ui->localModels->addItem(models_.models_[index].name);
+        ui_->localModels->addItem(models_.models_[index].name);
         on_localModels_activated(index);
-        ui->localModels->setCurrentIndex(index);
+        ui_->localModels->setCurrentIndex(index);
     };
     connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels);
 }
 
-MainWindow::~MainWindow()
-{
-    delete ui;
-    if (translator_) {
-        delete  translator_; // Free the translator
-    }
-}
-
+MainWindow::~MainWindow() {}
 
 void MainWindow::on_translateButton_clicked()
 {
-    ui->localModels->setEnabled(false); // Disable changing the model while translating
-    ui->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
+    ui_->localModels->setEnabled(false); // Disable changing the model while translating
+    ui_->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
     if (translator_) {
-        if (ui->inputBox->toPlainText() != QString("")) {
-            ui->outputBox->setText("Translating, please wait...");
+        if (ui_->inputBox->toPlainText() != QString("")) {
+            ui_->outputBox->setText("Translating, please wait...");
             this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
-            QString translation = translator_->translate(ui->inputBox->toPlainText());
-            ui->outputBox->setText(translation);
+            QString translation = translator_->translate(ui_->inputBox->toPlainText());
+            ui_->outputBox->setText(translation);
         } else {
             // Empty input crashes the translator
-            ui->outputBox->setText("Write something to be translated first.");
+            ui_->outputBox->setText("Write something to be translated first.");
         }
     } else {
-        ui->outputBox->setText("You need to download a translation model first. Do that with the interface on the right.");
+        ui_->outputBox->setText("You need to download a translation model first. Do that with the interface on the right.");
     }
-    ui->localModels->setEnabled(true); // Re-enable model changing
-    ui->translateButton->setEnabled(true); // Re-enable button after translation is done
+    ui_->localModels->setEnabled(true); // Re-enable model changing
+    ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
 }
 
 /**
@@ -95,9 +87,9 @@ void MainWindow::onResult(QJsonObject obj, QString err)
     static bool success = false;
     if (err != "") {
         if (!success) {
-            ui->Models->removeItem(0);
-            ui->Models->insertItem(0, QString("No internet connection"));
-            ui->outputBox->setText(err);
+            ui_->Models->removeItem(0);
+            ui_->Models->insertItem(0, QString("No internet connection"));
+            ui_->outputBox->setText(err);
         }
     } else if (!success) { // Success
         QJsonArray array = obj["models"].toArray();
@@ -109,8 +101,8 @@ void MainWindow::onResult(QJsonObject obj, QString err)
             codes_.append(code);
             names_.append(name);
         }
-        ui->Models->removeItem(0);
-        ui->Models->insertItems(0, codes_);
+        ui_->Models->removeItem(0);
+        ui_->Models->insertItems(0, codes_);
         success = true;
     }
 }
@@ -119,15 +111,15 @@ void MainWindow::handleDownload(QString filename, QByteArray data , QString err)
     if (err == QString("")) {
         QString myerr = models_.writeModel(filename, data);
         if (myerr != QString("")) {
-            ui->outputBox->append(myerr);
+            ui_->outputBox->append(myerr);
         }
     } else {
-        ui->outputBox->append(err);
+        ui_->outputBox->append(err);
     }
     // Re-enable model downloading interface:
-    ui->Models->setEnabled(true);
+    ui_->Models->setEnabled(true);
     // Hide progressBar
-    ui->progressBar->hide();
+    ui_->progressBar->hide();
 }
 
 /**
@@ -144,16 +136,16 @@ void MainWindow::on_Models_activated(int index)
         connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
         network_.downloadFile(urls_[index]);
         // Disable this section of the ui while a model is downloading..
-        ui->Models->setEnabled(false);
+        ui_->Models->setEnabled(false);
     }
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
-    ui->progressBar->show();
-    ui->progressBar->setRange(0,max);
-    ui->progressBar->setValue(ist);
+    ui_->progressBar->show();
+    ui_->progressBar->setRange(0,max);
+    ui_->progressBar->setValue(ist);
     if(max < 0) {
-        ui->progressBar->hide();
+        ui_->progressBar->hide();
     }
 }
 
@@ -170,14 +162,12 @@ void MainWindow::on_localModels_activated(int index) {
 
 void MainWindow::resetTranslator(QString dirname) {
     QString model0_path = dirname + "/";
-    ui->localModels->setEnabled(false); // Disable changing the model while changing the model
-    ui->translateButton->setEnabled(false); //Disable the translate button before the swap
+    ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
+    ui_->translateButton->setEnabled(false); //Disable the translate button before the swap
 
-    if (translator_) {
-        delete translator_; // We need to first call the destructor otherwise we run into a crash in spdlog. No smart pointers reset.
-    }
-    translator_ = new MarianInterface(model0_path);
+    translator_.reset(); // Do this first to free the object.
+    translator_.reset(new MarianInterface(model0_path));
 
-    ui->translateButton->setEnabled(true); // Reenable it
-    ui->localModels->setEnabled(true); // Disable changing the model while changing the model
+    ui_->translateButton->setEnabled(true); // Reenable it
+    ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
 }
