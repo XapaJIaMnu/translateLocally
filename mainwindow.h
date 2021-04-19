@@ -1,8 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QMainWindow>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QPointer>
 #include <QJsonObject>
 #include <memory>
 #include "Network.h"

@@ -16,7 +16,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui_(new Ui::MainWindow)
+    , ui_(std::make_unique<Ui::MainWindow>())
     , models_(ModelManager(this))
     , network_(Network(this))
 {

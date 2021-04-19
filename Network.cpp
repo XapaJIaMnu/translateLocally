@@ -7,7 +7,7 @@
 
 Network::Network(QObject *parent)
     : QObject(parent)
-    , nam_(new QNetworkAccessManager(this)) {}
+    , nam_(std::make_unique<QNetworkAccessManager>(this)) {}
 
 void  Network::downloadFile(QString& urlstr) {
     auto processDownload = [&]() {

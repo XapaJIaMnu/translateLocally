@@ -6,7 +6,7 @@
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkReply>
 #include <QProgressBar>
-#include <QPointer>
+#include <memory>
 #include <QComboBox>
 
 
@@ -17,7 +17,7 @@ public:
     void downloadFile(QString& urlstr);// const std::function<void (QString, QByteArray, QNetworkReply::NetworkError)>& callback);
     void downloadJson(QString& urlstr); // const std::function<void (void /*QJsonObject, QNetworkReply::NetworkError*/)> * callback)
 private:
-    QPointer<QNetworkAccessManager> nam_;
+    std::unique_ptr<QNetworkAccessManager> nam_;
 
 signals:
     void downloadComplete(QString filename, QByteArray data, QString err);
