@@ -10,7 +10,7 @@ make -j5
 ./translateLocally
 ```
 
-Requires `QT>=5 libarchive`
+Requires `QT>=5libarchive`. We make use of the `QT5 network` and `QT5 linguisticTool` components. Depending on your distro, those may be split in separate package from your QT package.
 
 # Acnowledgements
 <img src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" data-canonical-src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" width=10% />
