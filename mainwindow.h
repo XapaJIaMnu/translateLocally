@@ -36,8 +36,8 @@ private slots:
     void on_localModels_activated(int index);
 
 private:
-    Ui::MainWindow *ui;
-    MarianInterface * translator_; // Initialised to nullptr. Can't use smart ptrs due to destructor needing to run
+    std::unique_ptr<Ui::MainWindow> ui_;
+    std::unique_ptr<MarianInterface> translator_;
     void resetTranslator(QString dirname);
 
     // Keep track of the models
