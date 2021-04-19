@@ -30,17 +30,18 @@ ModelManager::ModelManager(QObject *parent)
     startupLoad();
 }
 
-QString ModelManager::writeModel(QString filename, QByteArray data) {
+void ModelManager::writeModel(QString filename, QByteArray data) {
     QString fullpath(configDir_.absolutePath() + QString("/") + filename);
     QSaveFile file(fullpath);
     bool openReady = file.open(QIODevice::WriteOnly);
     if (!openReady) {
-        return QString("Failed to open file: " + fullpath);
+        emit error(QString("Failed to open file: " + fullpath));
     }
     file.write(data);
     bool commitReady = file.commit();
     if (!commitReady) {
-        return QString("Failed to write to file: " + fullpath + " . Did you run out of disk space?");
+        emit error(QString("Failed to write to file: " + fullpath + " . Did you run out of disk space?"));
+        return;
     }
     extractTarGz(filename);
     // Add the new tar to the archives list
@@ -50,12 +51,12 @@ QString ModelManager::writeModel(QString filename, QByteArray data) {
     QString newModelDirName = filename.split(".tar.gz")[0];
     modelDir newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
     if (newmodel.path == QString("")) {
-        return QString("Failed to parse the model_info.json for the newly dowloaded " + filename);
+        emit error(QString("Failed to parse the model_info.json for the newly dowloaded " + filename));
+        return;
     }
     int new_idx = models_.size();
     models_.append(newmodel);
     emit newModelAdded(new_idx);
-    return QString("");
 }
 
 modelDir ModelManager::parseModelInfo(QString path) {

@@ -20,9 +20,10 @@ private:
     std::unique_ptr<QNetworkAccessManager> nam_;
 
 signals:
-    void downloadComplete(QString filename, QByteArray data, QString err);
+    void downloadComplete(QString filename, QByteArray data);
     void progressBar(qint64 ist, qint64 max);
-    void getJson(QJsonObject obj, QString err);
+    void getJson(QJsonObject obj);
+    void error(QString);
 };
 
 #endif // NETWORK_H

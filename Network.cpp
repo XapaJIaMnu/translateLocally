@@ -12,15 +12,12 @@ Network::Network(QObject *parent)
 void  Network::downloadFile(QString& urlstr) {
     auto processDownload = [&]() {
         QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
-        QByteArray result;
         QString filename = reply->url().fileName();
-        QString err("");
         if (reply->error() == QNetworkReply::NoError) { // Success
-            result = reply->readAll();
+            emit downloadComplete(filename, reply->readAll());
          } else {
-            err = reply->errorString();
-        }
-        emit downloadComplete(filename, result, err);
+            emit error(reply->errorString());
+        } 
         reply->deleteLater();
     };
 
@@ -32,16 +29,13 @@ void  Network::downloadFile(QString& urlstr) {
 void  Network::downloadJson(QString& urlstr) {
     auto processJson = [&]() {
         QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
-        QJsonObject obj;
-        QString err("");
         if (reply->error() == QNetworkReply::NoError) { // Success
             QByteArray result = reply->readAll();
             QJsonDocument jsonResponse = QJsonDocument::fromJson(result);
-            obj = jsonResponse.object();
+            emit getJson(jsonResponse.object());
         } else {
-            err = reply->errorString();
+            emit error(reply->errorString());
         }
-        emit getJson(obj, err);
         reply->deleteLater();
     };
     QUrl url(urlstr);

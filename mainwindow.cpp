@@ -13,6 +13,7 @@
 #include <QSettings>
 #include <QSaveFile>
 #include <QDir>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -43,7 +44,11 @@ MainWindow::MainWindow(QWidget *parent)
         on_localModels_activated(index);
         ui_->localModels->setCurrentIndex(index);
     };
-    connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels);
+
+    // Attach slots
+    connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
+    connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
+    connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
 }
 
 MainWindow::~MainWindow() {}
@@ -60,6 +65,7 @@ void MainWindow::on_translateButton_clicked()
             ui_->outputBox->setText(translation);
         } else {
             // Empty input crashes the translator
+            popupError("Write something to be translated first.");
             ui_->outputBox->setText("Write something to be translated first.");
         }
     } else {
@@ -82,16 +88,10 @@ void MainWindow::on_modelDownload_clicked()
 /**
  * @brief MainWindow::onResult reads the json for available models
  */
-void MainWindow::onResult(QJsonObject obj, QString err)
+void MainWindow::onResult(QJsonObject obj)
 {
     static bool success = false;
-    if (err != "") {
-        if (!success) {
-            ui_->Models->removeItem(0);
-            ui_->Models->insertItem(0, QString("No internet connection"));
-            ui_->outputBox->setText(err);
-        }
-    } else if (!success) { // Success
+    if (!success) { // Success
         QJsonArray array = obj["models"].toArray();
         for (auto&& arrobj : array) {
             QString name = arrobj.toObject()["name"].toString();
@@ -107,15 +107,8 @@ void MainWindow::onResult(QJsonObject obj, QString err)
     }
 }
 
-void MainWindow::handleDownload(QString filename, QByteArray data , QString err) {
-    if (err == QString("")) {
-        QString myerr = models_.writeModel(filename, data);
-        if (myerr != QString("")) {
-            ui_->outputBox->append(myerr);
-        }
-    } else {
-        ui_->outputBox->append(err);
-    }
+void MainWindow::handleDownload(QString filename, QByteArray data) {
+    models_.writeModel(filename, data);
     // Re-enable model downloading interface:
     ui_->Models->setEnabled(true);
     // Hide progressBar
@@ -160,6 +153,11 @@ void MainWindow::on_localModels_activated(int index) {
     }
 }
 
+/**
+ * @brief MainWindow::resetTranslator Deletes the old translator object and creates a new one with the new language
+ * @param dirname directory where the model is found
+ */
+
 void MainWindow::resetTranslator(QString dirname) {
     QString model0_path = dirname + "/";
     ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
@@ -170,4 +168,17 @@ void MainWindow::resetTranslator(QString dirname) {
 
     ui_->translateButton->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
+}
+
+/**
+ * @brief MainWindow::popupError this will produce an error message from various subclasses
+ * @param error the error message
+ * NOTES: This message bug will occasionally trigger the harmless but annoying 4 year old bug https://bugreports.qt.io/browse/QTBUG-56893
+ * This is basically some harmless console noise of the type: qt.qpa.xcb: QXcbConnection: XCB error: 3 (BadWindow
+ */
+
+void MainWindow::popupError(QString error) {
+    QMessageBox msgBox(this);
+    msgBox.setText(error);
+    msgBox.exec();
 }

@@ -20,8 +20,8 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     // Network temporaries until I figure out a better way
-    void onResult(QJsonObject obj, QString err);
-    void handleDownload(QString filename, QByteArray data , QString err);
+    void onResult(QJsonObject obj);
+    void handleDownload(QString filename, QByteArray data);
     void downloadProgress(qint64 ist, qint64 max);
 
 private slots:
@@ -32,6 +32,8 @@ private slots:
     void on_Models_activated(int index);
 
     void on_localModels_activated(int index);
+
+    void popupError(QString error);
 
 private:
     std::unique_ptr<Ui::MainWindow> ui_;

@@ -17,7 +17,7 @@ class ModelManager : public QObject {
 public:
     ModelManager(QObject *parent);
     void loadSettings();
-    QString writeModel(QString filename, QByteArray data);
+    void writeModel(QString filename, QByteArray data);
 
     QSettings qset_;
     QDir configDir_;
@@ -31,7 +31,7 @@ private:
 
 signals:
     void newModelAdded(int index);
-
+    void error(QString);
 
 };
 
