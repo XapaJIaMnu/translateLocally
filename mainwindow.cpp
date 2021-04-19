@@ -66,10 +66,9 @@ void MainWindow::on_translateButton_clicked()
         } else {
             // Empty input crashes the translator
             popupError("Write something to be translated first.");
-            ui_->outputBox->setText("Write something to be translated first.");
         }
     } else {
-        ui_->outputBox->setText("You need to download a translation model first. Do that with the interface on the right.");
+        popupError("You need to download a translation model first. Do that with the interface on the right.");
     }
     ui_->localModels->setEnabled(true); // Re-enable model changing
     ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
