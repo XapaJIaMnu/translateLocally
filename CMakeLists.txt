@@ -39,8 +39,8 @@ else(LibArchive_FOUND)
   MESSAGE(FATAL_ERROR "Could not find the libarchive library and development files.")
 endif( LibArchive_FOUND )
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools Network REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools Network DBus REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus REQUIRED)
 
 # Marian submodule things
 # Documentation: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
@@ -117,6 +117,9 @@ else()
 endif()
 
 set(LINK_LIBRARIES
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui
+    Qt${QT_VERSION_MAJOR}::PrintSupport
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::DBus
