@@ -18,13 +18,14 @@ if(APPLE) # When on MacOS, we have a non-standard libarchive location because we
 endif(APPLE)
 if(WIN32) # It's difficult to have all dependencies installed on Windows, so fetch them instead
    include(FetchContent)
+   set(FETCHCONTENT_QUIET_OFF)
+   set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR})
    FetchContent_Declare(libarchive_src
                         URL
                         https://www.libarchive.org/downloads/libarchive-v3.5.1-win64.zip)
    FetchContent_Populate(libarchive_src)
-   set(LibArchive_INCLUDE_DIR "${libarchive_src}/libarchive/include")
-   set(LibArchive_LIBRARY "${libarchive_src}/libarchive/lib")
-   message(${LibArchive_INCLUDE_DIR})
+   set(LibArchive_INCLUDE_DIR "${CMAKE_BINARY_DIR}/libarchive_src-src/include")
+   set(LibArchive_LIBRARY "${CMAKE_BINARY_DIR}/libarchive_src-src/lib/archive_static.lib")
 endif(WIN32)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
