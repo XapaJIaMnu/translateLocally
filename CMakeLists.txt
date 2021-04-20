@@ -15,7 +15,17 @@ if(APPLE) # When on MacOS, we have a non-standard libarchive location because we
 #  This attempts to fix a bug, but in fact doesn't do anything.
 #  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
   set(LibArchive_INCLUDE_DIR "/usr/local/opt/libarchive/include")
-endif()
+endif(APPLE)
+if(WIN32) # It's difficult to have all dependencies installed on Windows, so fetch them instead
+   include(FetchContent)
+   FetchContent_Declare(libarchive_src
+                        URL
+                        https://www.libarchive.org/downloads/libarchive-v3.5.1-win64.zip)
+   FetchContent_Populate(libarchive_src)
+   set(LibArchive_INCLUDE_DIR "${libarchive_src}/libarchive/include")
+   set(LibArchive_LIBRARY "${libarchive_src}/libarchive/lib")
+   message(${LibArchive_INCLUDE_DIR})
+endif(WIN32)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
 
