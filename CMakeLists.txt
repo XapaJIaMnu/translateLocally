@@ -40,7 +40,7 @@ else(LibArchive_FOUND)
 endif( LibArchive_FOUND )
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools Network REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools Network REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools Network DBus REQUIRED)
 
 # Marian submodule things
 # Documentation: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
@@ -116,13 +116,21 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
+set(LINK_LIBRARIES
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::DBus
+    bergamot-translator
+    pthread #@TODO pthread on windows... I think not
+    ${LibArchive_LIBRARIES})
+
 # Reserver the translateLocally name for the MacOS and Windows (potentially) executables. Rename the unix executable to that
-target_link_libraries(translateLocally-bin PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES}) #@TODO pthread on windows... I think not
+target_link_libraries(translateLocally-bin PRIVATE ${LINK_LIBRARIES})
 set_target_properties(translateLocally-bin PROPERTIES OUTPUT_NAME translateLocally)
 
 if(APPLE)
   # Add the .app Target
-  target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES})
+  target_link_libraries(translateLocally PRIVATE ${LINK_LIBRARIES})
   # When on MacOS, we have a non-standard libarchive location because we get it via brew
   target_include_directories(translateLocally-bin PRIVATE ${LibArchive_INCLUDE_DIR})
   target_include_directories(translateLocally PRIVATE ${LibArchive_INCLUDE_DIR})
