@@ -11,6 +11,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(APPLE) # When on MacOS, we have a non-standard libarchive location because we get it via brew
+  set(LibArchive_INCLUDE_DIR "/usr/local/opt/libarchive/include")
+endif()
+
 include(CMakeDependentOption)
 
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
@@ -100,3 +104,7 @@ else()
 endif()
 
 target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES}) #@TODO pthread on windows... I think not
+
+if(APPLE) # When on MacOS, we have a non-standard libarchive location because we get it via brew
+  target_include_directories(translateLocally PRIVATE ${LibArchive_INCLUDE_DIR})
+endif()
