@@ -12,9 +12,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(APPLE) # When on MacOS, we have a non-standard libarchive location because we get it via brew
+#  This attempts to fix a bug, but in fact doesn't do anything.
+#  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
   set(LibArchive_INCLUDE_DIR "/usr/local/opt/libarchive/include")
 endif()
-
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
 
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
@@ -84,27 +86,47 @@ set(PROJECT_SOURCES
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(translateLocally
-        ${PROJECT_SOURCES}
+   if(APPLE)
+     qt_add_executable(translateLocally MACOSX_BUNDLE
+       ${PROJECT_SOURCES}
+     )
+   endif()
+
+    qt_add_executable(translateLocally-bin
+       ${PROJECT_SOURCES}
     )
 
     qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 else()
     if(ANDROID)
-        add_library(translateLocally SHARED
+        add_library(translateLocally-bin SHARED
             ${PROJECT_SOURCES}
         )
     else()
-        add_executable(translateLocally
-            ${PROJECT_SOURCES}
+        if(APPLE)
+          add_executable(translateLocally MACOSX_BUNDLE
+              ${PROJECT_SOURCES}
+          )
+        endif()
+        add_executable(translateLocally-bin
+              ${PROJECT_SOURCES}
         )
     endif()
 
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES}) #@TODO pthread on windows... I think not
+# Reserver the translateLocally name for the MacOS and Windows (potentially) executables. Rename the unix executable to that
+target_link_libraries(translateLocally-bin PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES}) #@TODO pthread on windows... I think not
+set_target_properties(translateLocally-bin PROPERTIES OUTPUT_NAME translateLocally)
 
-if(APPLE) # When on MacOS, we have a non-standard libarchive location because we get it via brew
+if(APPLE)
+  # Add the .app Target
+  target_link_libraries(translateLocally PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network bergamot-translator pthread ${LibArchive_LIBRARIES})
+  # When on MacOS, we have a non-standard libarchive location because we get it via brew
+  target_include_directories(translateLocally-bin PRIVATE ${LibArchive_INCLUDE_DIR})
   target_include_directories(translateLocally PRIVATE ${LibArchive_INCLUDE_DIR})
+  # produce .dmg
+  include(macdeployqt)
+  macdeployqt(translateLocally)
 endif()
