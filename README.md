@@ -10,7 +10,7 @@ make -j5
 ./translateLocally
 ```
 
-Requires `QT>=5.15 libarchive`. We make use of the `QT>=5.15 network` and `QT>=5.15 linguisticTool` components. Depending on your distro, those may be split in separate package from your QT package. QT6 is fully supported and its use is encouraged.
+Requires `QT>=5 libarchive`. We make use of the `QT>=5 network` and `QT>=5 linguisticTool` components. Depending on your distro, those may be split in separate package from your QT package (Eg `qt{6/7}-tools-dev`). QT6 is fully supported and its use is encouraged.
 
 # Acnowledgements
 <img src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" data-canonical-src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" width=10% />

@@ -60,12 +60,6 @@
     </item>
     <item row="1" column="2">
      <widget class="QComboBox" name="Models">
-      <property name="currentText">
-       <string/>
-      </property>
-      <property name="placeholderText">
-       <string/>
-      </property>
      </widget>
     </item>
     <item row="0" column="2">
