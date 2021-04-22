@@ -25,7 +25,7 @@ public:
     void downloadProgress(qint64 ist, qint64 max);
 
 private slots:
-    void on_translateButton_clicked();
+    void on_actionTranslate_triggered();
 
     void on_modelDownload_clicked();
 

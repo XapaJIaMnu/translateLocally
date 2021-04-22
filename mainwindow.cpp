@@ -56,7 +56,7 @@ MainWindow::~MainWindow() {
     delete ui_;
 }
 
-void MainWindow::on_translateButton_clicked()
+void MainWindow::on_actionTranslate_triggered()
 {
     if (translator_) {
         if (ui_->inputBox->toPlainText() != QString("")) {
@@ -164,12 +164,12 @@ void MainWindow::resetTranslator(QString dirname) {
     }
     QString model0_path = dirname + "/";
     ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
-    ui_->translateButton->setEnabled(false); //Disable the translate button before the swap
+    ui_->actionTranslate->setEnabled(false); //Disable the translate button before the swap
 
     translator_.reset(); // Do this first to free the object.
     translator_.reset(new MarianInterface(model0_path, this));
 
-    ui_->translateButton->setEnabled(true); // Reenable it
+    ui_->actionTranslate->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
 
     // Set up the connection to the translator

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>900</width>
-    <height>605</height>
+    <width>600</width>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,58 +15,60 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="1">
-     <widget class="QComboBox" name="localModels">
-      <property name="minimumSize">
-       <size>
-        <width>196</width>
-        <height>0</height>
-       </size>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QPushButton" name="translateButton">
-      <property name="text">
-       <string>Translate</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="2">
-     <widget class="QProgressBar" name="progressBar">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="value">
-       <number>24</number>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0" colspan="2">
-     <widget class="QTextBrowser" name="outputBox"/>
-    </item>
-    <item row="0" column="0" rowspan="2">
+    <item row="3" column="0">
      <widget class="QPlainTextEdit" name="inputBox">
       <property name="placeholderText">
        <string>Enter text to be translated here...</string>
       </property>
      </widget>
     </item>
-    <item row="1" column="2">
-     <widget class="QComboBox" name="Models"/>
+    <item row="6" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QComboBox" name="Models">
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="modelDownload">
+        <property name="text">
+         <string>ModelDownload</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="value">
+         <number>24</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
-    <item row="0" column="2">
-     <widget class="QPushButton" name="modelDownload">
-      <property name="text">
-       <string>ModelDownload</string>
-      </property>
-     </widget>
+    <item row="5" column="0">
+     <widget class="QTextBrowser" name="outputBox"/>
+    </item>
+    <item row="1" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QComboBox" name="localModels">
+        <property name="minimumSize">
+         <size>
+          <width>196</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item row="4" column="2">
      <widget class="QPushButton" name="FontButton">
@@ -82,12 +84,23 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>900</width>
-     <height>43</height>
+     <width>677</width>
+     <height>24</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionTranslate"/>
+   </widget>
+   <addaction name="menuEdit"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionTranslate">
+   <property name="text">
+    <string>Translate</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
