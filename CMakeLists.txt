@@ -137,7 +137,8 @@ set(LINK_LIBRARIES
     Qt${QT_VERSION_MAJOR}::DBus
     bergamot-translator
     ${CMAKE_THREAD_LIBS_INIT} # This should work on all platforms?
-    ${LibArchive_LIBRARIES})
+    ${LibArchive_LIBRARIES}
+    ${CMAKE_DL_LIBS}) # On unix necessary sometimes
 
 # Reserver the translateLocally name for the MacOS and Windows (potentially) executables. Rename the unix executable to that
 target_link_libraries(translateLocally-bin PRIVATE ${LINK_LIBRARIES})
