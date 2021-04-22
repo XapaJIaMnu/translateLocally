@@ -62,26 +62,12 @@ MainWindow::~MainWindow() {
 
 void MainWindow::on_actionTranslate_triggered()
 {
-    ui_->actionTranslate->setEnabled(false); //Disable the translate button before the translation finishes
-    if (translator_) {
-        if (ui_->inputBox->toPlainText() != QString("")) {
-            ui_->localModels->setEnabled(false); // Disable changing the model while translating
-            ui_->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
-            ui_->outputBox->setText("Translating, please wait...");
-            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
-            translator_->translate(ui_->inputBox->toPlainText());
-        } else {
-            ui_->outputBox->setText("");
-        }
-    } else {
-        popupError("You need to download a translation model first. Do that with the interface on the right.");
-    }
-    ui_->actionTranslate->setEnabled(true); // Re-enable button after translation is done
+    translate();
 }
 
 void MainWindow::on_inputBox_textChanged() {
-    inactivityTimer_.stop();
     QString inputText = ui_->inputBox->toPlainText();
+    inactivityTimer_.stop();
 
     if (inputText.isEmpty())
         return;
@@ -92,18 +78,16 @@ void MainWindow::on_inputBox_textChanged() {
     while (lastSpace >= 0 && inputText[lastSpace].isSpace())
         --lastSpace;
 
-    if (lastSpace == -1)
-        return;
+    if (lastSpace != -1)
+        inputText.truncate(lastSpace);
 
-    inputText.truncate(lastSpace);
-
-    if (inputText != prevInputText_) {
-        on_actionTranslate_triggered();
-    } else {
-        inactivityTimer_.start();
+    if (inputText != translationInput_) {
+        translationInput_ = inputText;
+        translate(inputText);
     }
 
-    prevInputText_ = inputText;
+    // Reset our "person stopped typing" timer
+    inactivityTimer_.start();
 }
 
 /**
@@ -179,9 +163,31 @@ void MainWindow::downloadProgress(qint64 ist, qint64 max) {
  */
 
 void MainWindow::on_localModels_activated(int index) {
-    if (models_.models_.size() > 0) {
-        resetTranslator(models_.models_[index].path);
-    }
+    if (models_.models_.size() == 0)
+        return;
+
+    resetTranslator(models_.models_[index].path);
+    translate();
+}
+
+void MainWindow::translate() {
+    translate(ui_->inputBox->toPlainText());
+}
+
+void MainWindow::translate(QString const &text) {
+    ui_->actionTranslate->setEnabled(false); //Disable the translate button before the translation finishes
+    if (translator_) {
+        if (!text.isEmpty()) {
+            ui_->outputBox->setText("Translating, please wait...");
+            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
+            translator_->translate(text);
+        } else {
+            ui_->outputBox->setText("");
+            ui_->actionTranslate->setEnabled(true);
+        }
+    } else {
+        popupError("You need to download a translation model first. Do that with the interface on the right.");
+    }    
 }
 
 /**
@@ -207,7 +213,7 @@ void MainWindow::resetTranslator(QString dirname) {
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
                                                                                                   ui_->localModels->setEnabled(true); // Re-enable model changing
-                                                                                                  ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
+                                                                                                  ui_->actionTranslate->setEnabled(true); // Re-enable button after translation is done
                                                                                                  });
 }
 

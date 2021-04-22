@@ -40,6 +40,10 @@ private slots:
 
     void on_FontButton_clicked();
 
+    void translate();
+
+    void translate(QString const &input);
+
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     std::unique_ptr<MarianInterface> translator_;
@@ -57,6 +61,6 @@ private:
     Network network_;
 
     QTimer inactivityTimer_;
-    QString prevInputText_;
+    QString translationInput_;
 };
 #endif // MAINWINDOW_H
