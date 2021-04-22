@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 #include <QMainWindow>
 #include <QJsonObject>
+#include <QTimer>
 #include <memory>
 #include "Network.h"
 #include "ModelManager.h"
@@ -25,6 +26,8 @@ public:
     void downloadProgress(qint64 ist, qint64 max);
 
 private slots:
+    void on_inputBox_textChanged();
+
     void on_actionTranslate_triggered();
 
     void on_modelDownload_clicked();
@@ -52,5 +55,8 @@ private:
 
     // Network code:
     Network network_;
+
+    QTimer inactivityTimer_;
+    QString prevInputText_;
 };
 #endif // MAINWINDOW_H

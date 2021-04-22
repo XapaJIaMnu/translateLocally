@@ -46,10 +46,14 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->localModels->setCurrentIndex(index);
     };
 
+    inactivityTimer_.setInterval(300);
+    inactivityTimer_.setSingleShot(true);
+    
     // Attach slots
     connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
+    connect(&inactivityTimer_, &QTimer::timeout, this, &MainWindow::on_actionTranslate_triggered);
 }
 
 MainWindow::~MainWindow() {
@@ -58,6 +62,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::on_actionTranslate_triggered()
 {
+    ui_->actionTranslate->setEnabled(false); //Disable the translate button before the translation finishes
     if (translator_) {
         if (ui_->inputBox->toPlainText() != QString("")) {
             ui_->localModels->setEnabled(false); // Disable changing the model while translating
@@ -66,12 +71,39 @@ void MainWindow::on_actionTranslate_triggered()
             this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
             translator_->translate(ui_->inputBox->toPlainText());
         } else {
-            // Empty input crashes the translator
-            popupError("Write something to be translated first.");
+            ui_->outputBox->setText("");
         }
     } else {
         popupError("You need to download a translation model first. Do that with the interface on the right.");
     }
+    ui_->actionTranslate->setEnabled(true); // Re-enable button after translation is done
+}
+
+void MainWindow::on_inputBox_textChanged() {
+    inactivityTimer_.stop();
+    QString inputText = ui_->inputBox->toPlainText();
+
+    if (inputText.isEmpty())
+        return;
+
+    // Remove the last word, because it is likely incomplete
+    auto lastSpace = inputText.lastIndexOf(" ");
+    
+    while (lastSpace >= 0 && inputText[lastSpace].isSpace())
+        --lastSpace;
+
+    if (lastSpace == -1)
+        return;
+
+    inputText.truncate(lastSpace);
+
+    if (inputText != prevInputText_) {
+        on_actionTranslate_triggered();
+    } else {
+        inactivityTimer_.start();
+    }
+
+    prevInputText_ = inputText;
 }
 
 /**
