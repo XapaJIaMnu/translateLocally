@@ -44,6 +44,7 @@ include(CMakeDependentOption)
 #endif()
 
 find_package(LibArchive REQUIRED)
+find_package(Threads REQUIRED) # Cross-platform compatible way to get threads?
 if(LibArchive_FOUND)
     list (APPEND ${INCLUDE_DIRECTORIES} ${LibArchive_INCLUDE_DIRS})
 else(LibArchive_FOUND)
@@ -135,7 +136,7 @@ set(LINK_LIBRARIES
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::DBus
     bergamot-translator
-    pthread #@TODO pthread on windows... I think not
+    ${CMAKE_THREAD_LIBS_INIT} # This should work on all platforms?
     ${LibArchive_LIBRARIES})
 
 # Reserver the translateLocally name for the MacOS and Windows (potentially) executables. Rename the unix executable to that
