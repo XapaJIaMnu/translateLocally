@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: Dependencies
-      run: sudo apt-get install libpcre++-dev qttools5-dev qtbase5-dev # @TODO should also test qt6, but it's not present yet
+      run: sudo apt-get install libpcre++-dev qttools5-dev qtbase5-dev libarchive-dev # @TODO should also test qt6, but it's not present yet
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
