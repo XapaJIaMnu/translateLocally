@@ -1,5 +1,4 @@
 #include "ModelManager.h"
-#include <filesystem>
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
