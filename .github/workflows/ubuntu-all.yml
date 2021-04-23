@@ -1,4 +1,4 @@
-name: Ubuntu-latest
+name: Ubuntu-{16-18-20}.04
 
 on: [push, pull_request]
 
@@ -7,15 +7,28 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build:
-    # The CMake configure and build commands are platform agnostic and should work equally
-    # well on Windows or Mac.  You can convert this to a matrix build if you need
-    # cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+  build-ubuntu:
+    strategy:
+      matrix:
+        include:
+          # Ubuntu 16.04
+          - name: "Ubuntu 16.04"
+            os: ubuntu-16.04
+          # Ubuntu 18.04
+          - name: "Ubuntu 18.04"
+            os: ubuntu-18.04
+          # Ubuntu 20.04
+          - name: "Ubuntu 20.04"
+            os: ubuntu-20.04
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
     
     - name: Dependencies
       run: sudo apt-get install libpcre++-dev qttools5-dev qtbase5-dev libarchive-dev # @TODO should also test qt6, but it's not present yet
