@@ -1,4 +1,4 @@
-name: CMake
+name: Ubuntu-latest
 
 on: [push, pull_request]
 
