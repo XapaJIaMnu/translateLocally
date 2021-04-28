@@ -59,13 +59,19 @@
      </widget>
     </item>
     <item row="1" column="2">
-     <widget class="QComboBox" name="Models">
-     </widget>
+     <widget class="QComboBox" name="Models"/>
     </item>
     <item row="0" column="2">
      <widget class="QPushButton" name="modelDownload">
       <property name="text">
        <string>ModelDownload</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="2">
+     <widget class="QPushButton" name="FontButton">
+      <property name="text">
+       <string>Fonts</string>
       </property>
      </widget>
     </item>

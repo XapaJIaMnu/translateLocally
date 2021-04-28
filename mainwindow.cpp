@@ -14,10 +14,11 @@
 #include <QSaveFile>
 #include <QDir>
 #include <QMessageBox>
+#include <QFontDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui_(std::make_unique<Ui::MainWindow>())
+    , ui_(new Ui::MainWindow)
     , models_(ModelManager(this))
     , network_(Network(this))
 {
@@ -51,7 +52,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
 }
 
-MainWindow::~MainWindow() {}
+MainWindow::~MainWindow() {
+    delete ui_;
+}
 
 void MainWindow::on_translateButton_clicked()
 {
@@ -180,4 +183,9 @@ void MainWindow::popupError(QString error) {
     QMessageBox msgBox(this);
     msgBox.setText(error);
     msgBox.exec();
+}
+
+void MainWindow::on_FontButton_clicked()
+{
+    this->setFont(QFontDialog::getFont(0, this->font()));
 }

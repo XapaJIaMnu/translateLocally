@@ -35,8 +35,10 @@ private slots:
 
     void popupError(QString error);
 
+    void on_FontButton_clicked();
+
 private:
-    std::unique_ptr<Ui::MainWindow> ui_;
+    Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     std::unique_ptr<MarianInterface> translator_;
     void resetTranslator(QString dirname);
 
