@@ -11,10 +11,10 @@ jobs:
     strategy:
       matrix:
         include:
-          # Ubuntu 16.04 Disabled until ssplit-cpp compiles on 16.04
-          #- name: "Ubuntu 16.04"
-          #  os: ubuntu-16.04
-          #  extradeps: qttools5-dev-tools # Ubuntu 16.04 requires additional dependencies
+          # Ubuntu 16.04
+          - name: "Ubuntu 16.04"
+            os: ubuntu-16.04
+            extradeps: qttools5-dev-tools # Ubuntu 16.04 requires additional dependencies
           # Ubuntu 18.04
           - name: "Ubuntu 18.04"
             os: ubuntu-18.04
