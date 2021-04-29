@@ -66,6 +66,7 @@ jobs:
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE -j2
 
-    - name: Output test # @TODO some more complicated test, but for now figure out that it just compiles at least
+    - name: Output test # @TODO some more complicated test, perhaps a unit test
+      working-directory: ${{github.workspace}}/build
       shell: bash
-      run: ls -la ${{github.workspace}}/build
+      run: ./translateLocally --version
