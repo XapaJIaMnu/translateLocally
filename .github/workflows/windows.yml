@@ -36,7 +36,7 @@ jobs:
       uses: lukka/run-vcpkg@v7.3
       with:
         vcpkgArguments: protobuf pcre2 zlib libarchive qt5-base qt5[essentials] qt5-tools qt5-translations
-        vcpkgGitCommitId: 3e6b43c2738e478de01db5675bc21a0cc078659e 
+        vcpkgGitCommitId: 0bf3923f9fab4001c00f0f429682a0853b5749e0 
         vcpkgDirectory: ${{ github.workspace }}/vcpkg/
         vcpkgTriplet: x64-windows-static
 
