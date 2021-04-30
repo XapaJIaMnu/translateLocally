@@ -33,20 +33,19 @@ jobs:
       shell: powershell
 
     - name: Prepare vcpkg
-      uses: lukka/run-vcpkg@main
+      uses: lukka/run-vcpkg@7.2
       with:
         vcpkgArguments: protobuf pcre2 zlib libarchive qt5-base qt5[essentials] qt5-tools qt5-translations
-        vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da 
+        vcpkgGitCommitId: 3e6b43c2738e478de01db5675bc21a0cc078659e 
         vcpkgDirectory: ${{ github.workspace }}/vcpkg/
         vcpkgTriplet: x64-windows-static
 
     # Windows CPU only minimal build
     - name: Build Release # @TODO this is actually a debug build until the ninja generator gets fixed
       uses: lukka/run-cmake@main
-      with: # At the moment VS builds a debug build because it is supposed to take the argument configurationType from CMakeLists.json https://github.com/microsoft/vscode-cmake-tools/issues/1298
-        buildDirectory: ${{ github.workspace }}/build # but ninja is broken for us at the moment due to https://github.com/lukka/run-cmake/issues/47#issuecomment-828942167
-        cmakeAppendedArgs: '-G "Visual Studio 16 2019" -A x64
-          -DconfigurationType="Release"
+      with:
+        buildDirectory: ${{ github.workspace }}/build
+        cmakeAppendedArgs: '-G Ninja
           -DCMAKE_BUILD_TYPE="Release"'
         cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
         cmakeListsTxtPath: ${{ github.workspace }}/CMakeLists.txt
@@ -55,6 +54,6 @@ jobs:
 
 
     - name: Print versions
-      working-directory: build/Debug # This is meant to be changed to release, but currently the generator is broken.
+      working-directory: build/
       run: ./translateLocally --version
       shell: cmd
