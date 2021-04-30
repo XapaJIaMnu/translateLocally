@@ -33,7 +33,7 @@ jobs:
       shell: powershell
 
     - name: Prepare vcpkg
-      uses: lukka/run-vcpkg@7.2
+      uses: lukka/run-vcpkg@v7.3
       with:
         vcpkgArguments: protobuf pcre2 zlib libarchive qt5-base qt5[essentials] qt5-tools qt5-translations
         vcpkgGitCommitId: 3e6b43c2738e478de01db5675bc21a0cc078659e 

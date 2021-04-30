@@ -25,7 +25,6 @@ ModelManager::ModelManager(QObject *parent)
             QDir().mkpath(configDir_.absolutePath());
         }
     }
-    std::cerr << "ConfigDir path is: " << configDir_.absolutePath().toStdString() << std::endl;
     startupLoad();
 }
 
