@@ -33,7 +33,7 @@ jobs:
       shell: powershell
 
     - name: Prepare vcpkg
-      uses: lukka/run-vcpkg@v4
+      uses: lukka/run-vcpkg@main
       with:
         vcpkgArguments: protobuf pcre2 zlib libarchive qt5-base qt5[essentials] qt5-tools qt5-translations
         vcpkgGitCommitId: 6185aa76504a5025f36754324abf307cc776f3da 
@@ -42,7 +42,7 @@ jobs:
 
     # Windows CPU only minimal build
     - name: Build Release # @TODO this is actually a debug build until the ninja generator gets fixed
-      uses: lukka/run-cmake@v3
+      uses: lukka/run-cmake@main
       with: # At the moment VS builds a debug build because it is supposed to take the argument configurationType from CMakeLists.json https://github.com/microsoft/vscode-cmake-tools/issues/1298
         buildDirectory: ${{ github.workspace }}/build # but ninja is broken for us at the moment due to https://github.com/lukka/run-cmake/issues/47#issuecomment-828942167
         cmakeAppendedArgs: '-G "Visual Studio 16 2019" -A x64
