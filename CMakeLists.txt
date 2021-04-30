@@ -16,17 +16,21 @@ if(APPLE) # When on MacOS, we have a non-standard libarchive location because we
 #  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
   set(LibArchive_INCLUDE_DIR "/usr/local/opt/libarchive/include")
 endif(APPLE)
-if(WIN32) # It's difficult to have all dependencies installed on Windows, so fetch them instead
-   include(FetchContent)
-   set(FETCHCONTENT_QUIET_OFF)
-   set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR})
-   FetchContent_Declare(libarchive_src
-                        URL
-                        https://www.libarchive.org/downloads/libarchive-v3.5.1-win64.zip)
-   FetchContent_Populate(libarchive_src)
-   set(LibArchive_INCLUDE_DIR "${CMAKE_BINARY_DIR}/libarchive_src-src/include")
-   set(LibArchive_LIBRARY "${CMAKE_BINARY_DIR}/libarchive_src-src/lib/archive_static.lib")
-endif(WIN32)
+#MSVC can't seem to pick up correct flags otherwise:
+if(MSVC)
+  add_definitions(-DUSE_SSE2=1) # Supposed to fix something in the sse_mathfun.h but not sure it does
+  set(INTRINSICS "/arch:AVX2") # ARCH we're targetting on win32. @TODO variable
+
+  set(CMAKE_CXX_FLAGS           "/EHsc /DWIN32 /D_WINDOWS /DUNICODE /D_UNICODE /D_CRT_NONSTDC_NO_WARNINGS /D_CRT_SECURE_NO_WARNINGS /bigobj")
+  set(CMAKE_CXX_FLAGS_RELEASE   "${CMAKE_CXX_FLAGS} /MT /O2 ${INTRINSICS} /Zi /MP /GL /DNDEBUG")
+  set(CMAKE_CXX_FLAGS_DEBUG     "${CMAKE_CXX_FLAGS} /MTd /Od /Ob0 ${INTRINSICS} /RTC1 /Zi /D_DEBUG")
+
+  # ignores warning LNK4049: locally defined symbol free imported - this comes from zlib
+  set(CMAKE_EXE_LINKER_FLAGS         "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /LTCG:incremental /INCREMENTAL:NO /ignore:4049")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:MSVCRT")
+  set(CMAKE_EXE_LINKER_FLAGS_DEBUG   "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:MSVCRTD")
+  set(CMAKE_STATIC_LINKER_FLAGS      "${CMAKE_STATIC_LINKER_FLAGS} /LTCG:incremental")
+endif(MSVC)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
 
