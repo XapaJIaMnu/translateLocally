@@ -50,6 +50,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
+                                                                                                  ui_->localModels->setEnabled(true); // Re-enable model changing
+                                                                                                  ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
+                                                                                                 });
 }
 
 MainWindow::~MainWindow() {
@@ -64,8 +68,7 @@ void MainWindow::on_translateButton_clicked()
         if (ui_->inputBox->toPlainText() != QString("")) {
             ui_->outputBox->setText("Translating, please wait...");
             this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
-            QString translation = translator_->translate(ui_->inputBox->toPlainText());
-            ui_->outputBox->setText(translation);
+            translator_->translate(ui_->inputBox->toPlainText());
         } else {
             // Empty input crashes the translator
             popupError("Write something to be translated first.");
@@ -73,8 +76,6 @@ void MainWindow::on_translateButton_clicked()
     } else {
         popupError("You need to download a translation model first. Do that with the interface on the right.");
     }
-    ui_->localModels->setEnabled(true); // Re-enable model changing
-    ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
 }
 
 /**
@@ -166,7 +167,7 @@ void MainWindow::resetTranslator(QString dirname) {
     ui_->translateButton->setEnabled(false); //Disable the translate button before the swap
 
     translator_.reset(); // Do this first to free the object.
-    translator_.reset(new MarianInterface(model0_path));
+    translator_.reset(new MarianInterface(model0_path, this));
 
     ui_->translateButton->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model

@@ -1,8 +1,10 @@
 #include "MarianInterface.h"
 #include "3rd_party/bergamot-translator/src/translator/service.h"
+#include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
+#include <thread>
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
@@ -21,18 +23,25 @@ marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
 }
 } // Anonymous namespace
 
-MarianInterface::MarianInterface(QString path_to_model_dir) : service_(MakeOptions(path_to_model_dir)) {}
+MarianInterface::MarianInterface(QString path_to_model_dir, QObject *parent)
+    : QObject(parent)
+    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir))) {}
 
-QString MarianInterface::translate(QString in) {
-    std::string input = in.toStdString();
-    using marian::bergamot::Response;
-
-    // Wait on future until Response is complete
-    std::future<marian::bergamot::Response> responseFuture = service_.translate(std::move(input));
-    responseFuture.wait();
-    marian::bergamot::Response response = responseFuture.get();
-
-    return QString::fromStdString(response.target.text);
+void MarianInterface::translate(QString in) {
+    // Wait on future until Response is complete. Since the future doesn't have a callback or anything
+    // we should put all the processing in a background thread. Normally, if we have a future, we expect
+    // that future to have a method that allows to attach a callback, but this is reserved for c++20? c++22
+    // We have to copy any member variables we use (I'm looking at you QString input, because QString is copy-on-write)
+    auto translateAndSignal = [=]{
+        std::string input = in.toStdString();
+        using marian::bergamot::Response;
+        std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
+        responseFuture.wait();
+        marian::bergamot::Response response = responseFuture.get();
+        emit translationReady(QString::fromStdString(response.target.text));
+    };
+    std::thread mythread(translateAndSignal);
+    mythread.detach();
 }
 
 MarianInterface::~MarianInterface() {

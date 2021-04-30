@@ -1,16 +1,26 @@
 #ifndef MARIANINTERFACE_H
 #define MARIANINTERFACE_H
 #include <QString>
-#include "3rd_party/bergamot-translator/src/translator/service.h"
+#include <QObject>
+#include <memory>
 
+// If we include the actual header, we break QT compilation.
+namespace marian {
+    namespace bergamot {
+    class Service;
+    }
+}
 
-class MarianInterface {
+class MarianInterface : public QObject {
+    Q_OBJECT
 public:
-    MarianInterface(QString path_to_model_dir);
-    QString translate(QString in);
+    MarianInterface(QString path_to_model_dir, QObject * parent);
+    void translate(QString in);
     ~MarianInterface();
 private:
-    marian::bergamot::Service service_;
+    std::unique_ptr<marian::bergamot::Service> service_;
+signals:
+    void translationReady(QString);
 };
 
 #endif // MARIANINTERFACE_H

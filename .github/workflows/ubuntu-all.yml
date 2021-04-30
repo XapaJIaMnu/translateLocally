@@ -35,7 +35,9 @@ jobs:
         submodules: recursive
     
     - name: Dependencies  # @TODO should also test qt6, but it's not present yet
-      run: sudo apt-get install xvfb libpcre++-dev qttools5-dev qtbase5-dev libarchive-dev ${{ matrix.extradeps }}
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libarchive-dev ${{ matrix.extradeps }}
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
