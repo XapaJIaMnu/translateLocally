@@ -32,7 +32,7 @@ void MarianInterface::translate(QString in) {
     // we should put all the processing in a background thread. Normally, if we have a future, we expect
     // that future to have a method that allows to attach a callback, but this is reserved for c++20? c++22
     // We have to copy any member variables we use (I'm looking at you QString input, because QString is copy-on-write)
-    auto translateAndSignal = [=]{
+    auto translateAndSignal = [&, in]{
         std::string input = in.toStdString();
         using marian::bergamot::Response;
         std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
