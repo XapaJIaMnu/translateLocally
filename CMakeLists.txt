@@ -147,7 +147,14 @@ set(LINK_LIBRARIES
 target_link_libraries(translateLocally-bin PRIVATE ${LINK_LIBRARIES})
 set_target_properties(translateLocally-bin PROPERTIES OUTPUT_NAME translateLocally)
 
-if(APPLE)
+if(UNIX)  # Add Linux and apple support for make install
+  include(GNUInstallDirs)
+  install(TARGETS translateLocally-bin
+          RUNTIME
+         )
+endif(UNIX)
+
+if(APPLE) # Apple specific installation of the app
   # Add the .app Target
   target_link_libraries(translateLocally PRIVATE ${LINK_LIBRARIES})
   # When on MacOS, we have a non-standard libarchive location because we get it via brew
@@ -156,4 +163,4 @@ if(APPLE)
   # produce .dmg
   include(macdeployqt)
   macdeployqt(translateLocally)
-endif()
+endif(APPLE)
