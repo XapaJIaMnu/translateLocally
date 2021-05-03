@@ -58,10 +58,10 @@ MainWindow::~MainWindow() {
 
 void MainWindow::on_translateButton_clicked()
 {
-    ui_->localModels->setEnabled(false); // Disable changing the model while translating
-    ui_->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
     if (translator_) {
         if (ui_->inputBox->toPlainText() != QString("")) {
+            ui_->localModels->setEnabled(false); // Disable changing the model while translating
+            ui_->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
             ui_->outputBox->setText("Translating, please wait...");
             this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
             translator_->translate(ui_->inputBox->toPlainText());

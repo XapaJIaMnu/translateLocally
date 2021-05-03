@@ -2,12 +2,17 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QtGlobal>
 #include <iostream>
 #include <mainwindow.h>
 
 Network::Network(QObject *parent)
     : QObject(parent)
-    , nam_(std::make_unique<QNetworkAccessManager>(this)) {}
+    , nam_(std::make_unique<QNetworkAccessManager>(this)) {
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    nam_->setTransferTimeout(10000); // Timeout the connection after 10 seconds
+#endif
+}
 
 void  Network::downloadFile(QString& urlstr) {
     auto processDownload = [&]() {
