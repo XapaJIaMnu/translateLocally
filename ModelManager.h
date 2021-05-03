@@ -26,6 +26,7 @@ public:
     QList<modelDir> models_;
 private:
     void startupLoad();
+    void scanForModels(QString path);
     void extractTarGz(QString filename);
     modelDir parseModelInfo(QString path);
 

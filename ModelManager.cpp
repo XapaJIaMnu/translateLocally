@@ -79,9 +79,10 @@ modelDir ModelManager::parseModelInfo(QString path) {
     }
 }
 
-void ModelManager::startupLoad() {
-    //Iterate over all files in the config folder and take note of available models and archives
-    QDirIterator it(configDir_.absolutePath(), QDir::NoFilter);
+void ModelManager::scanForModels(QString path) {
+    //Iterate over all files in the folder and take note of available models and archives
+    //@TODO currently, archives can only be extracted from the config dir
+    QDirIterator it(path, QDir::NoFilter);
     while (it.hasNext()) {
         QString current = it.next();
         QFileInfo f(current);
@@ -101,6 +102,12 @@ void ModelManager::startupLoad() {
             }
         }
     }
+}
+
+void ModelManager::startupLoad() {
+    //Iterate over all files in the config folder and take note of available models and archives
+    scanForModels(configDir_.absolutePath());
+    scanForModels(QDir::current().path()); // Scan the current directory for models. @TODO archives found in this folder would not be used
 }
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
 void ModelManager::extractTarGz(QString filein) {
