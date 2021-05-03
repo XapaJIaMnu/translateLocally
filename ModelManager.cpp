@@ -138,7 +138,7 @@ void ModelManager::extractTarGz(QString filein) {
     };
 
     auto fail = [&](const char *f, const char *m, int r) {
-        emit error("Critical: " + QString(f) + " " + QString(m) + " libarchive wanted to exit with exit code: " + QString(r) + ". Archive extraction has most likely failed.");
+        emit error("Critical: " + QString(f) + " " + QString(m) + " libarchive wanted to exit with exit code: " + QString::fromStdString(std::to_string(r)) + ". Archive extraction has most likely failed.");
     };
 
     auto copy_data = [=](struct archive *ar, struct archive *aw) {
