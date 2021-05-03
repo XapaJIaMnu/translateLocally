@@ -1,0 +1,36 @@
+# Maintainer: Nikolay Bogoychev <nheart@gmail.com>
+
+pkgname=translateLocally-git
+pkgver=0.01
+pkgrel=1
+pkgdesc='A fast privacy focussed machine translation toolkit that translates on your own machine.'
+arch=('x86_64')
+url='https://github.com/XapaJIaMnu/translateLocally'
+license=('MIT')
+depends=('qt5-base' 'qt5-tools' 'libarchive' 'protobuf')
+makedepends=('git' 'cmake' 'gcc-libs' 'make' 'binutils')
+source=("git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd ${pkgname%-git}
+  # No tags, do this when we have tags
+  # git describe --long | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+  git rev-parse --short HEAD
+}
+
+build() {
+  cd ${pkgname%-git}
+  mkdir -p build
+  cd build
+  cmake .. -DSSPLIT_USE_INTERNAL_PCRE2=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+  make #${MAKEFLAGS}
+  strip -s translateLocally
+}
+
+package() {
+  cd ${pkgname%-git}
+  install -Dm644 LICENCE.md "$pkgdir/usr/share/licenses/$pkgname/LICENCE"
+  cd build
+  make DESTDIR="$pkgdir" install
+}
