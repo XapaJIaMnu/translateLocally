@@ -74,7 +74,7 @@ modelDir ModelManager::parseModelInfo(QString path) {
         // Push it onto the list of models
         return model;
     } else {
-        std::cerr << "Failed to open file: " << (path + "/model_info.json").toStdString() << std::endl; //@TODO popup error
+        emit error("Failed to open file: " + path + "/model_info.json");
         return modelDir{"", "", "", ""}; // Invalid modelDir
     }
 }
@@ -110,7 +110,7 @@ void ModelManager::extractTarGz(QString filein) {
     if (currentpath != configDir_.absolutePath()) {
         bool pathChanged = QDir::setCurrent(configDir_.absolutePath());
         if (!pathChanged) {
-            std::cerr << "Failed to change path to the configuration directory " << configDir_.absolutePath().toStdString() << std::endl; //@TODO connect to slot
+            emit error(QString("Failed to change path to the configuration directory ") + configDir_.absolutePath() + " " + filein + " won't be extracted.");
             return;
         }
     }
@@ -122,16 +122,16 @@ void ModelManager::extractTarGz(QString filein) {
     int verbose = 0;
 
     // Lambdas
-    auto msg = [](const char *m) {
-        std::cerr << m << std::endl; //@TODO connect to slot.
+    auto msg = [&](const char *m) {
+        emit error (QString(m));
     };
 
-    auto warn = [](const char *f, const char *m) {
-        std::cerr << f << " failed " << m << std::endl; //@TODO connect to slot.
+    auto warn = [&](const char *f, const char *m) {
+        emit error("Warning: " + QString(f) + " " + QString(m));
     };
 
-    auto fail = [](const char *f, const char *m, int r) {
-        std::cerr << f << " failed " << m << " libarchive wanted to exit with code " << r << " but we keep running! " << std::endl; //@TODO connect to slot.
+    auto fail = [&](const char *f, const char *m, int r) {
+        emit error("Critical: " + QString(f) + " " + QString(m) + " libarchive wanted to exit with exit code: " + QString(r) + ". Archive extraction has most likely failed.");
     };
 
     auto copy_data = [=](struct archive *ar, struct archive *aw) {
@@ -225,7 +225,7 @@ void ModelManager::extractTarGz(QString filein) {
     if (currentpath != configDir_.absolutePath()) {
         bool pathChanged = QDir::setCurrent(currentpath);
         if (!pathChanged) {
-            std::cerr << "Failed to change path to the configuration directory " << configDir_.absolutePath().toStdString() << std::endl; //@TODO connect to slot
+            emit error(QString("Failed to change path to the current directory ") + currentpath );
             return;
         }
     }
