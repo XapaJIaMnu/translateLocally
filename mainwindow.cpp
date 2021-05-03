@@ -50,10 +50,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
-                                                                                                  ui_->localModels->setEnabled(true); // Re-enable model changing
-                                                                                                  ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
-                                                                                                 });
 }
 
 MainWindow::~MainWindow() {
@@ -162,6 +158,10 @@ void MainWindow::on_localModels_activated(int index) {
  */
 
 void MainWindow::resetTranslator(QString dirname) {
+    // Disconnect existing slots:
+    if (translator_) {
+        disconnect(translator_.get());
+    }
     QString model0_path = dirname + "/";
     ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
     ui_->translateButton->setEnabled(false); //Disable the translate button before the swap
@@ -171,6 +171,12 @@ void MainWindow::resetTranslator(QString dirname) {
 
     ui_->translateButton->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
+
+    // Set up the connection to the translator
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
+                                                                                                  ui_->localModels->setEnabled(true); // Re-enable model changing
+                                                                                                  ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
+                                                                                                 });
 }
 
 /**
