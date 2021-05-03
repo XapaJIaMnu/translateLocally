@@ -1,6 +1,6 @@
 # Maintainer: Nikolay Bogoychev <nheart@gmail.com>
 
-pkgname=translateLocally-git
+pkgname=translatelocally-git
 pkgver=0.01
 pkgrel=1
 pkgdesc='A fast privacy focussed machine translation toolkit that translates on your own machine.'
@@ -13,14 +13,14 @@ source=("git+$url.git")
 sha256sums=('SKIP')
 
 pkgver() {
-  cd ${pkgname%-git}
+  cd translateLocally
   # No tags, do this when we have tags
   # git describe --long | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
   git rev-parse --short HEAD
 }
 
 build() {
-  cd ${pkgname%-git}
+  cd translateLocally
   mkdir -p build
   cd build
   cmake .. -DSSPLIT_USE_INTERNAL_PCRE2=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
@@ -29,7 +29,7 @@ build() {
 }
 
 package() {
-  cd ${pkgname%-git}
+  cd translateLocally
   install -Dm644 LICENCE.md "$pkgdir/usr/share/licenses/$pkgname/LICENCE"
   cd build
   make DESTDIR="$pkgdir" install
