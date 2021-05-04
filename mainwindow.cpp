@@ -35,8 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui_->localModels->setModel(&models_);
     ui_->localModels->setModelColumn(ModelManager::kColumnName);
     
-    // if (models_.rowCount() > 0)
-    //     resetTranslator(models_.models_[0].path);
+    if (models_.rowCount() > 0)
+        resetTranslator(models_.models_[0].path);
 
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
