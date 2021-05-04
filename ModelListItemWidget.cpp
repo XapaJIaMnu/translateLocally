@@ -1,5 +1,5 @@
 #include "ModelListItemWidget.h"
-#include "ui_modellistitemwidget.h"
+#include "ui_ModelListItemWidget.h"
 
 ModelListItemWidget::ModelListItemWidget(QWidget *parent)
 : QWidget(parent)
