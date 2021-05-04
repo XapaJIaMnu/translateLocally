@@ -33,7 +33,8 @@ if(MSVC)
 endif(MSVC)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
-
+include(GetVersionFromFile)
+message("Building ${PROJECT_NAME}-${PROJECT_VERSION_STRING}")
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
 # Check https://doc.qt.io/qt/deployment-android.html for more information.
 # They need to be set before the find_package( ...) calls below.
@@ -152,6 +153,34 @@ if(UNIX)  # Add Linux and apple support for make install
   install(TARGETS translateLocally-bin
           RUNTIME
          )
+  ## Support CPACK package generation on debian like systems
+  #
+  #
+  # Find ubuntu version
+  execute_process (
+                COMMAND bash -c "grep ^NAME /etc/os-release  | tr -d \"\\\"\" | tr -d \"NAME=\" | tr -d \"\\n\""
+                OUTPUT_VARIABLE OS_NAME
+                )
+  execute_process (
+                COMMAND bash -c "grep VERSION_ID= /etc/os-release | tr -d \"\\\"\" | tr -d \"VERSION_ID=\" | tr -d \"\\n\""
+                OUTPUT_VARIABLE OS_VERSION
+                )
+
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "libpcre++-dev, qttools5-dev, qtbase5-dev, libarchive-dev, qttools5-dev-tools, libprotobuf-dev")
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+  set(CPACK_PACKAGE_CONTACT "Nikolay Bogoychev <nheart@gmail.com>")
+  set(CPACK_PACKAGE_DIRECTORY ${CMAKE_BINARY_DIR}/deb)
+  set(CPACK_GENERATOR "DEB")
+  set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
+  set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}-${OS_NAME}-${OS_VERSION})
+  set(CPACK_DEBIAN_PACKAGE_NAME ${PROJECT_NAME})
+  set(CPACK_DEBIAN_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+  set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "A fast privacy focused machine translation client that translates on your own machine.")
+
+  include(CPack)
+  #
+  #
+  ##
 endif(UNIX)
 
 if(APPLE) # Apple specific installation of the app

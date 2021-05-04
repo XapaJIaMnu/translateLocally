@@ -1,9 +1,9 @@
 # Maintainer: Nikolay Bogoychev <nheart@gmail.com>
 
 pkgname=translatelocally-git
-pkgver=0.01
+pkgver=0.0.1
 pkgrel=1
-pkgdesc='A fast privacy focussed machine translation toolkit that translates on your own machine.'
+pkgdesc='A fast privacy focused machine translation client that translates on your own machine.'
 arch=('x86_64')
 url='https://github.com/XapaJIaMnu/translateLocally'
 license=('MIT')
