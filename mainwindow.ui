@@ -70,13 +70,6 @@
       </item>
      </layout>
     </item>
-    <item row="4" column="2">
-     <widget class="QPushButton" name="FontButton">
-      <property name="text">
-       <string>Fonts</string>
-      </property>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -92,13 +85,19 @@
     <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="actionTranslate"/>
+    <addaction name="translateAction"/>
+    <addaction name="fontAction"/>
    </widget>
    <addaction name="menuEdit"/>
   </widget>
-  <action name="actionTranslate">
+  <action name="translateAction">
    <property name="text">
     <string>Translate</string>
+   </property>
+  </action>
+  <action name="fontAction">
+   <property name="text">
+    <string>Set Font…</string>
    </property>
   </action>
  </widget>

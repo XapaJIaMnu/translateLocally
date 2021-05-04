@@ -29,7 +29,9 @@ public:
 private slots:
     void on_inputBox_textChanged();
 
-    void on_actionTranslate_triggered();
+    void on_translateAction_triggered();
+
+    void on_fontAction_triggered();
 
     void on_modelDownload_clicked();
 
@@ -38,8 +40,6 @@ private slots:
     void on_localModels_activated(int index);
 
     void popupError(QString error);
-
-    void on_FontButton_clicked();
 
     void translate();
 
