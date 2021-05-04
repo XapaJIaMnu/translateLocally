@@ -12,8 +12,13 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+const int ModelManager::kColumnName = 0;
+const int ModelManager::kColumnShortName = 1;
+const int ModelManager::kColumnPathName = 2;
+const int ModelManager::kColumnType = 3;
+
 ModelManager::ModelManager(QObject *parent)
-    : QObject(parent)
+    : QAbstractTableModel(parent)
     , qset_(QSettings::NativeFormat, QSettings::UserScope, "translateLocally", "translateLocally"){
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -54,7 +59,7 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
     }
     int new_idx = models_.size();
     models_.append(newmodel);
-    emit newModelAdded(new_idx);
+    emit dataChanged(createIndex(new_idx, 0), createIndex(new_idx, 3));
 }
 
 modelDir ModelManager::parseModelInfo(QString path) {
@@ -241,3 +246,65 @@ void ModelManager::extractTarGz(QString filein) {
 void ModelManager::loadSettings() {
 
 }
+
+QVariant ModelManager::data(QModelIndex const &index, int role) const {
+    Q_UNUSED(role);
+
+    if (index.row() >= models_.size())
+        return QVariant();
+
+    modelDir const &model = models_[index.row()];
+
+    switch (role) {
+        case Qt::UserRole:
+            return QVariant::fromValue(model);
+        case Qt::DisplayRole:
+            switch (index.column()) {
+                case kColumnName:
+                    return model.name;
+                case kColumnShortName:
+                    return model.shortName;
+                case kColumnPathName:
+                    return model.path;
+                case kColumnType:
+                    return model.type;
+                // Intentional fall-through for default
+            }
+        default:
+            return QVariant();
+    }
+}
+
+QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
+    Q_UNUSED(role);
+    Q_UNUSED(orientation);
+
+    if (role != Qt::DisplayRole)
+        return QVariant();
+
+    switch (section) {
+        case kColumnName:
+            return "Name";
+        case kColumnShortName:
+            return "Short name";
+        case kColumnPathName:
+            return "Path";
+        case kColumnType:
+            return "Type";
+        default:
+            return QVariant();
+    }
+}
+
+int ModelManager::columnCount(QModelIndex const &index) const {
+    Q_UNUSED(index);
+
+    return 4;
+}
+
+int ModelManager::rowCount(QModelIndex const &index) const {
+    Q_UNUSED(index);
+
+    return models_.size();
+}
+
