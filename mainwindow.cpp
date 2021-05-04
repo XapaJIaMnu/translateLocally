@@ -20,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
     , models_(this)
+    , localModelDelegate_(this)
     , network_(this)
 {
     ui_->setupUi(this);
@@ -30,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Hide download progress bar
     ui_->progressBar->hide();
 
+    ui_->localModels->setItemDelegate(&localModelDelegate_);
     ui_->localModels->setModel(&models_);
     ui_->localModels->setModelColumn(ModelManager::kColumnName);
     

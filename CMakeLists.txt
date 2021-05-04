@@ -94,6 +94,11 @@ set(PROJECT_SOURCES
         mainwindow.ui
         MarianInterface.cpp
         MarianInterface.h
+        ModelListItemDelegate.cpp
+        ModelListItemDelegate.h
+        ModelListItemWidget.cpp
+        ModelListItemWidget.h
+        ModelListItemWidget.ui
         ModelManager.cpp
         ModelManager.h
         Network.cpp

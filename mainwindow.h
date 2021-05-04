@@ -6,6 +6,7 @@
 #include <memory>
 #include "Network.h"
 #include "ModelManager.h"
+#include "ModelListItemDelegate.h"
 
 class MarianInterface;
 
@@ -56,6 +57,7 @@ private:
 
     // Model and config manager
     ModelManager models_;
+    ModelListItemDelegate localModelDelegate_;
 
     // Network code:
     Network network_;
