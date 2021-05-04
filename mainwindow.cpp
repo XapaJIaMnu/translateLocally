@@ -30,27 +30,16 @@ MainWindow::MainWindow(QWidget *parent)
     // Hide download progress bar
     ui_->progressBar->hide();
 
-    // Display local models
-    for (auto&& item : models_.models_) {
-        ui_->localModels->addItem(item.name);
-    }
-    // Load one if we have
-    if (models_.models_.size() != 0) {
-        resetTranslator(models_.models_[0].path);
-    }
-    // @TODO something is broken, this gets called n+1 times with every new model
-    // This updates the local models and activates the newly downloaded one.
-    auto updateLocalModels = [&](int index){
-        ui_->localModels->addItem(models_.models_[index].name);
-        on_localModels_activated(index);
-        ui_->localModels->setCurrentIndex(index);
-    };
+    ui_->localModels->setModel(&models_);
+    ui_->localModels->setModelColumn(ModelManager::kColumnName);
+    
+    // if (models_.rowCount() > 0)
+    //     resetTranslator(models_.models_[0].path);
 
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
     
     // Attach slots
-    connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&inactivityTimer_, &QTimer::timeout, this, &MainWindow::on_actionTranslate_triggered);
