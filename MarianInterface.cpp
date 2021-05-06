@@ -7,14 +7,17 @@
 #include <thread>
 
 namespace  {
-marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
+marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir, translateLocally::marianSettings& settings) {
     std::string model_path = path_to_model_dir.toStdString() + "config.intgemm8bitalpha.yml";
-    std::vector<std::string> args = {"marian-decoder", "-c", model_path, "--cpu-threads", "8", "--mini-batch-words", "1000"};
+    std::vector<std::string> args = {"marian-decoder", "-c", model_path,
+                                     "--cpu-threads", std::to_string(settings.getCores()),
+                                     "--workspace", std::to_string(settings.getWorkspace()),
+                                     "--mini-batch-words", "1000"};
 
     std::vector<char *> argv;
     argv.reserve(args.size());
 
-    for (int i = 0; i < args.size(); ++i) {
+    for (size_t i = 0; i < args.size(); ++i) {
         argv.push_back(const_cast<char *>(args[i].c_str()));
     }
     auto cp = marian::bergamot::createConfigParser();
@@ -23,11 +26,12 @@ marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
 }
 } // Anonymous namespace
 
-MarianInterface::MarianInterface(QString path_to_model_dir, QObject *parent)
+MarianInterface::MarianInterface(QString path_to_model_dir, translateLocally::marianSettings& settings, QObject *parent)
     : QObject(parent)
-    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir)))
+    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir, settings)))
     , serial_(0)
-    , finished_(0) {}
+    , finished_(0)
+    , mymodel(path_to_model_dir) {}
 
 void MarianInterface::translate(QString in) {
     // Wait on future until Response is complete. Since the future doesn't have a callback or anything

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>450</width>
+    <width>493</width>
     <height>450</height>
    </rect>
   </property>
@@ -121,8 +121,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>450</width>
-     <height>24</height>
+     <width>493</width>
+     <height>44</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuEdit">
@@ -131,6 +131,7 @@
     </property>
     <addaction name="translateAction"/>
     <addaction name="fontAction"/>
+    <addaction name="actionTranslator_Settings"/>
    </widget>
    <addaction name="menuEdit"/>
   </widget>
@@ -142,6 +143,11 @@
   <action name="fontAction">
    <property name="text">
     <string>Set Font…</string>
+   </property>
+  </action>
+  <action name="actionTranslator_Settings">
+   <property name="text">
+    <string>Translator Settings..</string>
    </property>
   </action>
  </widget>

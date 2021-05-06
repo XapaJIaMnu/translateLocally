@@ -38,6 +38,8 @@ ModelManager::ModelManager(QObject *parent)
         }
     }
     startupLoad();
+    // @TODO read settings:
+    settings_ = translateLocally::marianSettings();
 }
 
 void ModelManager::writeModel(QString filename, QByteArray data) {

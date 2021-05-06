@@ -3,6 +3,8 @@
 #include <QString>
 #include <QObject>
 #include <memory>
+#include "types.h"
+#include <thread>
 
 // If we include the actual header, we break QT compilation.
 namespace marian {
@@ -13,14 +15,15 @@ namespace marian {
 
 class MarianInterface : public QObject {
     Q_OBJECT
-public:
-    MarianInterface(QString path_to_model_dir, QObject * parent);
-    void translate(QString in);
-    ~MarianInterface();
 private:
     std::unique_ptr<marian::bergamot::Service> service_;
     std::size_t serial_;
     std::size_t finished_;
+public:
+    MarianInterface(QString path_to_model_dir, translateLocally::marianSettings& settings, QObject * parent);
+    void translate(QString in);
+    ~MarianInterface();
+    const QString mymodel;
 signals:
     void translationReady(QString);
 };

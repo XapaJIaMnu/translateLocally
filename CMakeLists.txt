@@ -92,6 +92,9 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        TranslatorSettingsDialog.ui
+        TranslatorSettingsDialog.cpp
+        TranslatorSettingsDialog.h
         MarianInterface.cpp
         MarianInterface.h
         ModelListItemDelegate.cpp
@@ -103,6 +106,7 @@ set(PROJECT_SOURCES
         ModelManager.h
         Network.cpp
         Network.h
+        types.h
         ${TS_FILES}
 )
 

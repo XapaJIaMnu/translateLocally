@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QList>
 #include <QFuture>
+#include "types.h"
 
 class QNetworkAccessManager;
 
@@ -46,6 +47,10 @@ public:
     static const int kColumnType;
     static const int kLastColumn;
 
+    translateLocally::marianSettings& getSettings() {
+        return settings_;
+    }
+
 public slots:
     void fetchRemoteModels();
     
@@ -62,6 +67,7 @@ private:
     QStringList archives_; // Only archive name, not full path
     QList<LocalModel> localModels_;
     QList<RemoteModel> remoteModels_;
+    translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
     QNetworkAccessManager *nam_;
 

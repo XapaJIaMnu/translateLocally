@@ -25,12 +25,16 @@ MainWindow::MainWindow(QWidget *parent)
     , ui_(new Ui::MainWindow)
     , models_(this)
     , localModelDelegate_(this)
+    , translatorSettingsDialog_(this, models_.getSettings())
     , network_(this)
 {
     ui_->setupUi(this);
 
     // Hide download progress bar
     showDownloadPane(false);
+
+    // Hide settings window
+    translatorSettingsDialog_.setVisible(false);
 
     updateLocalModels();
 
@@ -47,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&inactivityTimer_, &QTimer::timeout, this, &MainWindow::on_translateAction_triggered);
+    connect(&translatorSettingsDialog_, &TranslatorSettingsDialog::settingsChanged, this, &MainWindow::updateModelSettings);
 }
 
 MainWindow::~MainWindow() {
@@ -188,7 +193,7 @@ void MainWindow::resetTranslator(QString dirname) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the swap
 
     translator_.reset(); // Do this first to free the object.
-    translator_.reset(new MarianInterface(model0_path, this));
+    translator_.reset(new MarianInterface(model0_path, models_.getSettings() , this));
 
     ui_->translateAction->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
@@ -219,3 +224,23 @@ void MainWindow::on_fontAction_triggered()
 {
     this->setFont(QFontDialog::getFont(0, this->font()));
 }
+
+void MainWindow::on_actionTranslator_Settings_triggered() {
+    this->translatorSettingsDialog_.setVisible(true);
+}
+
+/**
+ * @brief MainWindow::updateModelSettings updates the memory and cores settings. Also resets the translation model with the new settings
+ *                                        if the translation model is running. Usually called by a signal
+ * @param memory new workspaces value
+ * @param cores new thread count
+ */
+
+void MainWindow::updateModelSettings(size_t memory, size_t cores) {
+    models_.getSettings().setWorkspace(memory);
+    models_.getSettings().setCores(cores);
+    if (translator_) {
+        resetTranslator(translator_->mymodel);
+    }
+}
+
