@@ -5,8 +5,11 @@
 #include <QFile>
 #include <QSaveFile>
 #include <QFileInfo>
-#include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <iostream>
 // libarchive
 #include <archive.h>
@@ -17,9 +20,13 @@ const int ModelManager::kColumnShortName = 1;
 const int ModelManager::kColumnPathName = 2;
 const int ModelManager::kColumnType = 3;
 
+const int ModelManager::kLastColumn = 3;
+
 ModelManager::ModelManager(QObject *parent)
     : QAbstractTableModel(parent)
-    , qset_(QSettings::NativeFormat, QSettings::UserScope, "translateLocally", "translateLocally"){
+    , nam_(new QNetworkAccessManager(this))
+    , qset_(QSettings::NativeFormat, QSettings::UserScope, "translateLocally", "translateLocally")
+{
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
     configDir_ = QFileInfo(QSettings(QSettings::IniFormat, QSettings::UserScope, "translateLocally", "translateLocally").fileName()).absoluteDir();
@@ -52,17 +59,18 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
 
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
-    modelDir newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
+    LocalModel newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
     if (newmodel.path == QString("")) {
         emit error(QString("Failed to parse the model_info.json for the newly dowloaded " + filename));
         return;
     }
-    int new_idx = models_.size();
-    models_.append(newmodel);
-    emit dataChanged(createIndex(new_idx, 0), createIndex(new_idx, 3));
+
+    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size());
+    localModels_.append(newmodel);
+    endInsertRows();
 }
 
-modelDir ModelManager::parseModelInfo(QString path) {
+LocalModel ModelManager::parseModelInfo(QString path) {
     // Check if we can find a model_info.json in the directory. If so, record it as part of the model
     QFile modelInfoFile(path + "/model_info.json");
     bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
@@ -75,19 +83,21 @@ modelDir ModelManager::parseModelInfo(QString path) {
         QString modelName = obj["modelName"].toString();
         QString shortName = obj["shortName"].toString();
         QString type = obj["type"].toString();
-        modelDir model = {path, modelName, shortName, type};
+        LocalModel model = {path, modelName, shortName, type};
         // Push it onto the list of models
         return model;
     } else {
         emit error("Failed to open file: " + path + "/model_info.json");
-        return modelDir{"", "", "", ""}; // Invalid modelDir
+        return LocalModel{"", "", "", ""}; // Invalid modelDir
     }
 }
 
 void ModelManager::scanForModels(QString path) {
+    qDebug() << "Scanning for local models";
     //Iterate over all files in the folder and take note of available models and archives
     //@TODO currently, archives can only be extracted from the config dir
     QDirIterator it(path, QDir::NoFilter);
+    QList<LocalModel> models;
     while (it.hasNext()) {
         QString current = it.next();
         QFileInfo f(current);
@@ -95,9 +105,9 @@ void ModelManager::scanForModels(QString path) {
             // Check if we can find a model_info.json in the directory. If so, record it as part of the model
             QFileInfo modelInfo(current + "/model_info.json");
             if (modelInfo.exists()) {
-                modelDir model = parseModelInfo(current);
+                LocalModel model = parseModelInfo(current);
                 if (model.path != "") {
-                    models_.append(model);
+                    models.append(model);
                 }
             }
         } else {
@@ -107,6 +117,10 @@ void ModelManager::scanForModels(QString path) {
             }
         }
     }
+
+    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size() + models.size() - 1);
+    localModels_ += models;
+    endInsertRows();
 }
 
 void ModelManager::startupLoad() {
@@ -247,31 +261,117 @@ void ModelManager::loadSettings() {
 
 }
 
+void ModelManager::fetchRemoteModels() {
+    QUrl url("http://data.statmt.org/bergamot/models/models.json");
+    QNetworkRequest request(url);
+    QNetworkReply *reply = nam_->get(request);
+    connect(reply, &QNetworkReply::finished, this, [&, reply]() {
+        switch (reply->error()) {
+            case QNetworkReply::NoError:
+                parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
+                emit fetchedRemoteModels();
+                break;
+            default:
+                emit error(reply->errorString());
+                break;
+        }
+        reply->deleteLater();
+    });
+}
+
+void ModelManager::parseRemoteModels(QJsonObject obj) {
+    beginRemoveRows(QModelIndex(),
+        localModels_.size(),
+        localModels_.size() + remoteModels_.size() - 1);
+    remoteModels_.clear();
+    endRemoveRows();
+
+    QList<RemoteModel> models;
+    for (auto&& arrobj : obj["models"].toArray()) {
+        models.append(RemoteModel{
+            arrobj.toObject()["name"].toString(),
+            arrobj.toObject()["code"].toString(),
+            arrobj.toObject()["url"].toString()
+        });
+    }
+
+    beginInsertRows(QModelIndex(),
+        localModels_.size(),
+        localModels_.size() + models.size() - 1);
+    remoteModels_ = models;
+    endInsertRows();
+}
+
+QList<LocalModel> ModelManager::installedModels() const {
+    return localModels_;
+}
+
+QList<RemoteModel> ModelManager::availableModels() const {
+    QList<RemoteModel> filtered;
+    for (auto &&model : remoteModels_) {
+        bool installed = false;
+
+        for (auto &&localModel : localModels_) {
+            if (localModel.name == model.name) {
+                installed = true;
+                break;
+            }
+        }
+
+        if (!installed)
+            filtered.append(model);
+    }
+
+    return filtered;
+}
+
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
     Q_UNUSED(role);
 
-    if (index.row() >= models_.size())
+    if (index.row() <= localModels_.size()) {
+        LocalModel const &model = localModels_[index.row()];
+
+        switch (role) {
+            case Qt::UserRole:
+                return QVariant::fromValue(model);
+            case Qt::DisplayRole:
+                switch (index.column()) {
+                    case kColumnName:
+                        return model.name;
+                    case kColumnShortName:
+                        return model.shortName;
+                    case kColumnPathName:
+                        return model.path;
+                    case kColumnType:
+                        return model.type;
+                    // Intentional fall-through for default
+                }
+            default:
+                return QVariant();
+        }
+    } else if (index.row() - localModels_.size() <= remoteModels_.size()) {
+        RemoteModel const &model = remoteModels_[index.row() - localModels_.size()];
+
+        switch (role) {
+            case Qt::UserRole:
+                return QVariant::fromValue(model);
+            case Qt::DisplayRole:
+                switch (index.column()) {
+                    case kColumnName:
+                        return model.name;
+                    case kColumnShortName:
+                        return model.code;
+                    case kColumnPathName:
+                        return model.url;
+                    case kColumnType:
+                        return QString();
+                    // Intentional fall-through for default
+                }
+            default:
+                return QVariant();
+        }
+    } else {
         return QVariant();
-
-    modelDir const &model = models_[index.row()];
-
-    switch (role) {
-        case Qt::UserRole:
-            return QVariant::fromValue(model);
-        case Qt::DisplayRole:
-            switch (index.column()) {
-                case kColumnName:
-                    return model.name;
-                case kColumnShortName:
-                    return model.shortName;
-                case kColumnPathName:
-                    return model.path;
-                case kColumnType:
-                    return model.type;
-                // Intentional fall-through for default
-            }
-        default:
-            return QVariant();
     }
 }
 
@@ -299,12 +399,12 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
 int ModelManager::columnCount(QModelIndex const &index) const {
     Q_UNUSED(index);
 
-    return 4;
+    return kLastColumn + 1;
 }
 
 int ModelManager::rowCount(QModelIndex const &index) const {
     Q_UNUSED(index);
 
-    return models_.size();
+    return localModels_.size() + remoteModels_.size();
 }
 

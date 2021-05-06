@@ -33,10 +33,6 @@ private slots:
 
     void on_fontAction_triggered();
 
-    void on_modelDownload_clicked();
-
-    void on_Models_activated(int index);
-
     void on_localModels_activated(int index);
 
     void popupError(QString error);
@@ -44,6 +40,8 @@ private slots:
     void translate();
 
     void translate(QString const &input);
+
+    void updateLocalModels();
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
@@ -64,5 +62,7 @@ private:
 
     QTimer inactivityTimer_;
     QString translationInput_;
+
+    static const QString kActionFetchRemoteModels;
 };
 #endif // MAINWINDOW_H
