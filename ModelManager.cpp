@@ -93,7 +93,6 @@ LocalModel ModelManager::parseModelInfo(QString path) {
 }
 
 void ModelManager::scanForModels(QString path) {
-    qDebug() << "Scanning for local models";
     //Iterate over all files in the folder and take note of available models and archives
     //@TODO currently, archives can only be extracted from the config dir
     QDirIterator it(path, QDir::NoFilter);

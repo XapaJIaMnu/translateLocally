@@ -15,7 +15,6 @@ Network::Network(QObject *parent)
 }
 
 QNetworkReply* Network::downloadFile(const QString& urlstr) {
-    qDebug() << "Downloading " << urlstr;
     auto processDownload = [&]() {
         QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
         QString filename = reply->url().fileName();
