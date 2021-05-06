@@ -15,141 +15,162 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QFontDialog>
+#include <QListView>
+
+// TODO: use Q_ENUM for this
+const QString MainWindow::kActionFetchRemoteModels("FETCH_REMOTE_MODELS");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
     , models_(this)
+    , localModelDelegate_(this)
     , network_(this)
 {
     ui_->setupUi(this);
 
-    // Initial text of the comboBox
-    ui_->Models->insertItem(0, QString("Models"));
-
     // Hide download progress bar
-    ui_->progressBar->hide();
+    showDownloadPane(false);
 
-    // Display local models
-    for (auto&& item : models_.models_) {
-        ui_->localModels->addItem(item.name);
-    }
-    // Load one if we have
-    if (models_.models_.size() != 0) {
-        resetTranslator(models_.models_[0].path);
-    }
-    // @TODO something is broken, this gets called n+1 times with every new model
-    // This updates the local models and activates the newly downloaded one.
-    auto updateLocalModels = [&](int index){
-        ui_->localModels->addItem(models_.models_[index].name);
-        on_localModels_activated(index);
-        ui_->localModels->setCurrentIndex(index);
-    };
+    updateLocalModels();
 
+    if (!models_.installedModels().empty())
+        resetTranslator(models_.installedModels().first().path);
+
+    inactivityTimer_.setInterval(300);
+    inactivityTimer_.setSingleShot(true);
+    
     // Attach slots
-    connect(&models_, &ModelManager::newModelAdded, this, updateLocalModels); // When a model is downloaded, update the UI
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
+    connect(&models_, &QAbstractTableModel::dataChanged, this, &MainWindow::updateLocalModels);
+    connect(&models_, &QAbstractTableModel::rowsInserted, this, &MainWindow::updateLocalModels);
+    connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
+    connect(&inactivityTimer_, &QTimer::timeout, this, &MainWindow::on_translateAction_triggered);
 }
 
 MainWindow::~MainWindow() {
     delete ui_;
 }
 
-void MainWindow::on_translateButton_clicked()
+void MainWindow::on_translateAction_triggered()
 {
-    if (translator_) {
-        if (ui_->inputBox->toPlainText() != QString("")) {
-            ui_->localModels->setEnabled(false); // Disable changing the model while translating
-            ui_->translateButton->setEnabled(false); //Disable the translate button before the translation finishes
-            ui_->outputBox->setText("Translating, please wait...");
-            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
-            translator_->translate(ui_->inputBox->toPlainText());
-        } else {
-            // Empty input crashes the translator
-            popupError("Write something to be translated first.");
-        }
-    } else {
-        popupError("You need to download a translation model first. Do that with the interface on the right.");
-    }
+    translate();
 }
 
-/**
- * @brief MainWindow::on_modelDownload_clicked fetches the available models json from the Internet.
- */
-void MainWindow::on_modelDownload_clicked()
-{
-    QString url("http://data.statmt.org/bergamot/models/models.json");
-    connect(&network_, &Network::getJson, this, &MainWindow::onResult);
-    network_.downloadJson(url);
+void MainWindow::on_inputBox_textChanged() {
+    QString inputText = ui_->inputBox->toPlainText();
+    inactivityTimer_.stop();
+
+    if (inputText.isEmpty())
+        return;
+
+    // Remove the last word, because it is likely incomplete
+    auto lastSpace = inputText.lastIndexOf(" ");
+    
+    while (lastSpace >= 0 && inputText[lastSpace].isSpace())
+        --lastSpace;
+
+    if (lastSpace != -1)
+        inputText.truncate(lastSpace);
+
+    if (inputText != translationInput_) {
+        translationInput_ = inputText;
+        translate(inputText);
+    }
+
+    // Reset our "person stopped typing" timer
+    inactivityTimer_.start();
 }
 
-/**
- * @brief MainWindow::onResult reads the json for available models
- */
-void MainWindow::onResult(QJsonObject obj)
+void MainWindow::showDownloadPane(bool visible)
 {
-    static bool success = false;
-    if (!success) { // Success
-        QJsonArray array = obj["models"].toArray();
-        for (auto&& arrobj : array) {
-            QString name = arrobj.toObject()["name"].toString();
-            QString code = arrobj.toObject()["code"].toString();
-            QString url = arrobj.toObject()["url"].toString();
-            urls_.append(url);
-            codes_.append(code);
-            names_.append(name);
-        }
-        ui_->Models->removeItem(0);
-        ui_->Models->insertItems(0, codes_);
-        success = true;
-    }
+    ui_->downloadPane->setVisible(visible);
+    ui_->localModels->setVisible(!visible);
 }
 
 void MainWindow::handleDownload(QString filename, QByteArray data) {
     models_.writeModel(filename, data);
-    // Re-enable model downloading interface:
-    ui_->Models->setEnabled(true);
-    // Hide progressBar
-    ui_->progressBar->hide();
-}
-
-/**
- * @brief MainWindow::on_Models_activated Download available models or setup new ones
- * @param index
- */
-void MainWindow::on_Models_activated(int index)
-{
-    if (names_.size() == 0) { // Fetch the models if they are not there
-        on_modelDownload_clicked();
-    } else { // If models are fetched download the selected model
-        //@TODO check if model is already downloaded and prompt user for download confirmation
-        connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
-        connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
-        network_.downloadFile(urls_[index]);
-        // Disable this section of the ui while a model is downloading..
-        ui_->Models->setEnabled(false);
-    }
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
-    ui_->progressBar->show();
-    ui_->progressBar->setRange(0,max);
-    ui_->progressBar->setValue(ist);
-    if(max < 0) {
-        ui_->progressBar->hide();
-    }
+    ui_->downloadProgress->setRange(0,max);
+    ui_->downloadProgress->setValue(ist);
 }
 
 /**
  * @brief MainWindow::on_localModels_activated Change the loaded translation model to something else.
- * @param index index of model in models_.models_ (model manager)
+ * @param index index of the selected item in the localModels combobox.
  */
 
 void MainWindow::on_localModels_activated(int index) {
-    if (models_.models_.size() > 0) {
-        resetTranslator(models_.models_[index].path);
+    QVariant data = ui_->localModels->itemData(index);
+
+    if (data.canConvert<LocalModel>()) {
+        resetTranslator(data.value<LocalModel>().path);
+    } else if (data.canConvert<RemoteModel>()) {
+        //@TODO check if model is already downloaded and prompt user for download confirmation
+        connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
+        connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
+        RemoteModel model = data.value<RemoteModel>();
+        showDownloadPane(true);
+        ui_->downloadLabel->setText(QString("Downloading %1…").arg(model.name));
+        QNetworkReply *reply = network_.downloadFile(model.url);
+        connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort, Qt::UniqueConnection);
+        connect(reply, &QNetworkReply::finished, this, [&]() {
+            showDownloadPane(false);
+        });
+    } else if (data.userType() == QMetaType::QString && data.toString() == kActionFetchRemoteModels) {
+        connect(&models_, &ModelManager::fetchedRemoteModels, this, [&]() {
+            ui_->localModels->showPopup();
+        });
+        models_.fetchRemoteModels();
+    } else {
+        qDebug() << "Unknown option: " << data;
     }
+}
+
+
+void MainWindow::updateLocalModels() {
+    // Clear out current items
+    ui_->localModels->clear();
+
+    // Add local models
+    if (!models_.installedModels().empty()) {
+        for (auto &&model : models_.installedModels())
+            ui_->localModels->addItem(model.name, QVariant::fromValue(model));
+
+        ui_->localModels->insertSeparator(ui_->localModels->count());
+    }
+
+    // Add any models available for download
+    if (!models_.availableModels().empty()) {
+        for (auto &&model : models_.availableModels())
+            ui_->localModels->addItem(model.name, QVariant::fromValue(model));
+    } else {
+        ui_->localModels->addItem("Download models…", QVariant::fromValue(kActionFetchRemoteModels));
+    }
+}
+
+
+void MainWindow::translate() {
+    translate(ui_->inputBox->toPlainText());
+}
+
+void MainWindow::translate(QString const &text) {
+    ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
+    if (translator_) {
+        if (!text.isEmpty()) {
+            ui_->outputBox->setText("Translating, please wait...");
+            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
+            translator_->translate(text);
+        } else {
+            ui_->outputBox->setText("");
+            ui_->translateAction->setEnabled(true);
+        }
+    } else {
+        popupError("You need to download a translation model first. Do that with the interface on the right.");
+    }    
 }
 
 /**
@@ -164,19 +185,21 @@ void MainWindow::resetTranslator(QString dirname) {
     }
     QString model0_path = dirname + "/";
     ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
-    ui_->translateButton->setEnabled(false); //Disable the translate button before the swap
+    ui_->translateAction->setEnabled(false); //Disable the translate button before the swap
 
     translator_.reset(); // Do this first to free the object.
     translator_.reset(new MarianInterface(model0_path, this));
 
-    ui_->translateButton->setEnabled(true); // Reenable it
+    ui_->translateAction->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
 
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
                                                                                                   ui_->localModels->setEnabled(true); // Re-enable model changing
-                                                                                                  ui_->translateButton->setEnabled(true); // Re-enable button after translation is done
+                                                                                                  ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
                                                                                                  });
+
+    translate();
 }
 
 /**
@@ -192,7 +215,7 @@ void MainWindow::popupError(QString error) {
     msgBox.exec();
 }
 
-void MainWindow::on_FontButton_clicked()
+void MainWindow::on_fontAction_triggered()
 {
     this->setFont(QFontDialog::getFont(0, this->font()));
 }

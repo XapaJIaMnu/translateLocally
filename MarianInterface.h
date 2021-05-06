@@ -19,6 +19,8 @@ public:
     ~MarianInterface();
 private:
     std::unique_ptr<marian::bergamot::Service> service_;
+    std::size_t serial_;
+    std::size_t finished_;
 signals:
     void translationReady(QString);
 };

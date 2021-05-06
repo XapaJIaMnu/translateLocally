@@ -25,22 +25,34 @@ marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir) {
 
 MarianInterface::MarianInterface(QString path_to_model_dir, QObject *parent)
     : QObject(parent)
-    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir))) {}
+    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir)))
+    , serial_(0)
+    , finished_(0) {}
 
 void MarianInterface::translate(QString in) {
     // Wait on future until Response is complete. Since the future doesn't have a callback or anything
     // we should put all the processing in a background thread. Normally, if we have a future, we expect
     // that future to have a method that allows to attach a callback, but this is reserved for c++20? c++22
     // We have to copy any member variables we use (I'm looking at you QString input, because QString is copy-on-write)
-    auto translateAndSignal = [&, in]{
-        std::string input = in.toStdString();
+    auto translateAndSignal = [&](std::string &&input, std::size_t serial) {
         using marian::bergamot::Response;
         std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
         responseFuture.wait();
         marian::bergamot::Response response = responseFuture.get();
+
+        // There is no guarantee that we get/process responses in the same order
+        // as we sent sentences to be translated. So let's make sure we haven't
+        // been overtaken by a further progressed sentence before emitting the
+        // translation.
+        // TODO: race condition on finished_?
+        if (serial < finished_)
+            return;
+        
+        finished_ = serial;
         emit translationReady(QString::fromStdString(response.target.text));
     };
-    std::thread mythread(translateAndSignal);
+
+    std::thread mythread(translateAndSignal, in.toStdString(), ++serial_);
     mythread.detach();
 }
 
