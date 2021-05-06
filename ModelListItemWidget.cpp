@@ -13,7 +13,7 @@ ModelListItemWidget::~ModelListItemWidget()
     //
 }
 
-void ModelListItemWidget::setModel(modelDir const &model)
+void ModelListItemWidget::setModel(LocalModel const &model)
 {
     ui_->nameLabel->setText(model.shortName);
     ui_->descriptionLabel->setText(model.name);
