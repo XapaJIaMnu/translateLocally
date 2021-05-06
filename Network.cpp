@@ -14,7 +14,7 @@ Network::Network(QObject *parent)
 #endif
 }
 
-void  Network::downloadFile(const QString& urlstr) {
+QNetworkReply* Network::downloadFile(const QString& urlstr) {
     qDebug() << "Downloading " << urlstr;
     auto processDownload = [&]() {
         QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
@@ -30,6 +30,7 @@ void  Network::downloadFile(const QString& urlstr) {
     QNetworkReply *reply = nam_->get(QNetworkRequest(QUrl(urlstr)));
     connect(reply, &QNetworkReply::downloadProgress, this, &Network::progressBar);
     connect(reply, &QNetworkReply::finished, this, processDownload);
+    return reply;
 }
 
 void  Network::downloadJson(const QString& urlstr) {

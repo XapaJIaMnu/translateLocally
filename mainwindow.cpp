@@ -30,20 +30,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui_->setupUi(this);
 
     // Hide download progress bar
-    ui_->progressBar->hide();
+    showDownloadPane(false);
 
     updateLocalModels();
 
-    // auto popup = new QWidget(this, Qt::Popup | Qt::FramelessWindowHint);
-    // auto layout = new QVBoxLayout();
-
-    // auto modelList = new QListView(popup);
-    // modelList->setModel(&models_);
-    // modelList->setItemDelegate(&localModelDelegate_);
-    // layout->addWidget(modelList);
-    // popup->setLayout(layout);
-    // popup->show();
-    
     if (!models_.installedModels().empty())
         resetTranslator(models_.installedModels().first().path);
 
@@ -93,19 +83,19 @@ void MainWindow::on_inputBox_textChanged() {
     inactivityTimer_.start();
 }
 
+void MainWindow::showDownloadPane(bool visible)
+{
+    ui_->downloadPane->setVisible(visible);
+    ui_->localModels->setVisible(!visible);
+}
+
 void MainWindow::handleDownload(QString filename, QByteArray data) {
     models_.writeModel(filename, data);
-    // Hide progressBar
-    ui_->progressBar->hide();
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
-    ui_->progressBar->show();
-    ui_->progressBar->setRange(0,max);
-    ui_->progressBar->setValue(ist);
-    if(max < 0) {
-        ui_->progressBar->hide();
-    }
+    ui_->downloadProgress->setRange(0,max);
+    ui_->downloadProgress->setValue(ist);
 }
 
 /**
@@ -122,7 +112,14 @@ void MainWindow::on_localModels_activated(int index) {
         //@TODO check if model is already downloaded and prompt user for download confirmation
         connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
         connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
-        network_.downloadFile(data.value<RemoteModel>().url);
+        RemoteModel model = data.value<RemoteModel>();
+        showDownloadPane(true);
+        ui_->downloadLabel->setText(QString("Downloading %1…").arg(model.name));
+        QNetworkReply *reply = network_.downloadFile(model.url);
+        connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort, Qt::UniqueConnection);
+        connect(reply, &QNetworkReply::finished, this, [&]() {
+            showDownloadPane(false);
+        });
     } else if (data.userType() == QMetaType::QString && data.toString() == kActionFetchRemoteModels) {
         connect(&models_, &ModelManager::fetchedRemoteModels, this, [&]() {
             ui_->localModels->showPopup();

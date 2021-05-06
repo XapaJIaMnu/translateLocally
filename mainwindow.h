@@ -47,6 +47,7 @@ private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     std::unique_ptr<MarianInterface> translator_;
     void resetTranslator(QString dirname);
+    void showDownloadPane(bool visible);
 
     // Keep track of the models
     QStringList urls_;

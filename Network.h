@@ -14,7 +14,7 @@ class Network : public QObject {
     Q_OBJECT
 public:
     Network(QObject *parent);
-    void downloadFile(const QString& urlstr);// const std::function<void (QString, QByteArray, QNetworkReply::NetworkError)>& callback);
+    QNetworkReply *downloadFile(const QString& urlstr);// const std::function<void (QString, QByteArray, QNetworkReply::NetworkError)>& callback);
     void downloadJson(const QString& urlstr); // const std::function<void (void /*QJsonObject, QNetworkReply::NetworkError*/)> * callback)
 private:
     std::unique_ptr<QNetworkAccessManager> nam_;
