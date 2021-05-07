@@ -25,7 +25,7 @@ public:
     ~MarianInterface();
     const QString mymodel;
 signals:
-    void translationReady(QString);
+    void translationReady(QString translation);
 };
 
 #endif // MARIANINTERFACE_H

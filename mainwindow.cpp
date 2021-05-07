@@ -89,9 +89,6 @@ void MainWindow::on_inputBox_textChanged() {
     QString inputText = ui_->inputBox->toPlainText();
     inactivityTimer_.stop();
 
-    if (inputText.isEmpty())
-        return;
-
     // Remove the last word, because it is likely incomplete
     auto lastSpace = inputText.lastIndexOf(" ");
     
@@ -198,15 +195,7 @@ void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
     ui_->translateButton->setEnabled(false);
     if (translator_) {
-        if (!text.isEmpty()) {
-            ui_->outputBox->setText("Translating, please wait...");
-            this->repaint(); // Force update the UI before the translation starts so that it can show the previous text
-            translator_->translate(text);
-        } else {
-            ui_->outputBox->setText("");
-            ui_->translateAction->setEnabled(true);
-            ui_->translateButton->setEnabled(true);
-        }
+        translator_->translate(text);
     } else {
         popupError("You need to download a translation model first. Do that with the interface on the right.");
     }    
@@ -235,11 +224,12 @@ void MainWindow::resetTranslator(QString dirname) {
     ui_->translateButton->setEnabled(true);
 
     // Set up the connection to the translator
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
-                                                                                                  ui_->localModels->setEnabled(true); // Re-enable model changing
-                                                                                                  ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
-                                                                                                  ui_->translateButton->setEnabled(true);
-                                                                                                 });
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
+        ui_->outputBox->setText(translation);
+        ui_->localModels->setEnabled(true); // Re-enable model changing
+        ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
+        ui_->translateButton->setEnabled(true);
+    });
 
     translate();
 }
