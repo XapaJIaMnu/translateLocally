@@ -321,8 +321,6 @@ QList<RemoteModel> ModelManager::availableModels() const {
 }
 
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
-    Q_UNUSED(role);
-
     if (index.row() <= localModels_.size()) {
         LocalModel const &model = localModels_[index.row()];
 
@@ -371,7 +369,6 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
-    Q_UNUSED(role);
     Q_UNUSED(orientation);
 
     if (role != Qt::DisplayRole)
