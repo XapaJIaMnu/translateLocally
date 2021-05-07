@@ -34,16 +34,23 @@ public:
     };
     Q_ENUM(Action);
 
+public slots:
+    void setTranslateImmediately(bool);
+
 private slots:
     void on_inputBox_textChanged();
 
     void on_translateAction_triggered();
+
+    void on_translateButton_clicked();
 
     void on_fontAction_triggered();
 
     void on_actionTranslator_Settings_triggered();
 
     void on_localModels_activated(int index);
+
+    void on_actionTranslateImmediately_toggled(bool);
 
     void popupError(QString error);
 
@@ -76,5 +83,7 @@ private:
 
     QTimer inactivityTimer_;
     QString translationInput_;
+
+    bool translateImmediately_;
 };
 #endif // MAINWINDOW_H

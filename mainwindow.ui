@@ -64,6 +64,47 @@
     <item row="0" column="0">
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
+       <widget class="QWidget" name="modelPane" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QComboBox" name="localModels">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>196</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="translateButton">
+           <property name="text">
+            <string>Translate</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
        <widget class="QWidget" name="downloadPane" native="true">
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <property name="leftMargin">
@@ -102,16 +143,6 @@
         </layout>
        </widget>
       </item>
-      <item>
-       <widget class="QComboBox" name="localModels">
-        <property name="minimumSize">
-         <size>
-          <width>196</width>
-          <height>0</height>
-         </size>
-        </property>
-       </widget>
-      </item>
      </layout>
     </item>
    </layout>
@@ -129,15 +160,20 @@
     <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="translateAction"/>
-    <addaction name="fontAction"/>
     <addaction name="actionTranslator_Settings"/>
+    <addaction name="actionTranslateImmediately"/>
+    <addaction name="translateAction"/>
+    <addaction name="separator"/>
+    <addaction name="fontAction"/>
    </widget>
    <addaction name="menuEdit"/>
   </widget>
   <action name="translateAction">
    <property name="text">
     <string>Translate</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Return</string>
    </property>
   </action>
   <action name="fontAction">
@@ -148,6 +184,17 @@
   <action name="actionTranslator_Settings">
    <property name="text">
     <string>Translator Settings..</string>
+   </property>
+  </action>
+  <action name="actionTranslateImmediately">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Translate as I type</string>
    </property>
   </action>
  </widget>

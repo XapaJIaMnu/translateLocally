@@ -34,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Hide settings window
     translatorSettingsDialog_.setVisible(false);
 
+    // Sync UI to translate preferences
+    setTranslateImmediately(true); // TODO: fetch this from settings
+
     updateLocalModels();
 
     if (!models_.installedModels().empty())
@@ -52,7 +55,8 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Queue translation when user has stopped typing for a bit
     connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
-        translate();
+        if (translateImmediately_)
+            translate();
     });
 
     // Pop open the model list again when remote model list is available
@@ -66,12 +70,22 @@ MainWindow::~MainWindow() {
     delete ui_;
 }
 
-void MainWindow::on_translateAction_triggered()
-{
+void MainWindow::on_actionTranslateImmediately_toggled(bool enable) {
+    setTranslateImmediately(enable);
+}
+
+void MainWindow::on_translateAction_triggered() {
+    translate();
+}
+
+void MainWindow::on_translateButton_clicked() {
     translate();
 }
 
 void MainWindow::on_inputBox_textChanged() {
+    if (!translateImmediately_)
+        return;
+    
     QString inputText = ui_->inputBox->toPlainText();
     inactivityTimer_.stop();
 
@@ -96,10 +110,16 @@ void MainWindow::on_inputBox_textChanged() {
     inactivityTimer_.start();
 }
 
+void MainWindow::setTranslateImmediately(bool enable) {
+    translateImmediately_ = enable;
+    ui_->actionTranslateImmediately->setChecked(enable);
+    ui_->translateButton->setVisible(!enable);
+}
+
 void MainWindow::showDownloadPane(bool visible)
 {
     ui_->downloadPane->setVisible(visible);
-    ui_->localModels->setVisible(!visible);
+    ui_->modelPane->setVisible(!visible);
 }
 
 void MainWindow::handleDownload(QString filename, QByteArray data) {
@@ -176,6 +196,7 @@ void MainWindow::translate() {
 
 void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
+    ui_->translateButton->setEnabled(false);
     if (translator_) {
         if (!text.isEmpty()) {
             ui_->outputBox->setText("Translating, please wait...");
@@ -184,6 +205,7 @@ void MainWindow::translate(QString const &text) {
         } else {
             ui_->outputBox->setText("");
             ui_->translateAction->setEnabled(true);
+            ui_->translateButton->setEnabled(true);
         }
     } else {
         popupError("You need to download a translation model first. Do that with the interface on the right.");
@@ -203,17 +225,20 @@ void MainWindow::resetTranslator(QString dirname) {
     QString model0_path = dirname + "/";
     ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
     ui_->translateAction->setEnabled(false); //Disable the translate button before the swap
+    ui_->translateButton->setEnabled(false);
 
     translator_.reset(); // Do this first to free the object.
     translator_.reset(new MarianInterface(model0_path, models_.getSettings() , this));
 
     ui_->translateAction->setEnabled(true); // Reenable it
     ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
+    ui_->translateButton->setEnabled(true);
 
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation){ui_->outputBox->setText(translation);
                                                                                                   ui_->localModels->setEnabled(true); // Re-enable model changing
                                                                                                   ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
+                                                                                                  ui_->translateButton->setEnabled(true);
                                                                                                  });
 
     translate();
