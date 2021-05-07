@@ -29,16 +29,28 @@ public:
     void downloadProgress(qint64 ist, qint64 max);
     void updateModelSettings(size_t memory, size_t cores);
 
+    enum Action {
+        FetchRemoteModels
+    };
+    Q_ENUM(Action);
+
+public slots:
+    void setTranslateImmediately(bool);
+
 private slots:
     void on_inputBox_textChanged();
 
     void on_translateAction_triggered();
+
+    void on_translateButton_clicked();
 
     void on_fontAction_triggered();
 
     void on_actionTranslator_Settings_triggered();
 
     void on_localModels_activated(int index);
+
+    void on_actionTranslateImmediately_toggled(bool);
 
     void popupError(QString error);
 
@@ -54,6 +66,7 @@ private:
     std::unique_ptr<MarianInterface> translator_;
     void resetTranslator(QString dirname);
     void showDownloadPane(bool visible);
+    void downloadModel(RemoteModel model);
 
     // Keep track of the models
     QStringList urls_;
@@ -71,6 +84,6 @@ private:
     QTimer inactivityTimer_;
     QString translationInput_;
 
-    static const QString kActionFetchRemoteModels;
+    bool translateImmediately_;
 };
 #endif // MAINWINDOW_H

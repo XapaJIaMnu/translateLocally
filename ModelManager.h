@@ -34,18 +34,21 @@ public:
     void writeModel(QString filename, QByteArray data);
 
     QList<LocalModel> installedModels() const;
+    QList<RemoteModel> remoteModels() const;
     QList<RemoteModel> availableModels() const; // remote - local
+
+    enum Column {
+        Name,
+        ShortName,
+        PathName,
+        Type
+    };
+    Q_ENUM(Column);
 
     virtual QVariant data(QModelIndex const &, int role = Qt::DisplayRole) const;
     virtual QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
     virtual int columnCount(QModelIndex const & = QModelIndex()) const;
     virtual int rowCount(QModelIndex const & = QModelIndex()) const;
-
-    static const int kColumnName;
-    static const int kColumnShortName;
-    static const int kColumnPathName;
-    static const int kColumnType;
-    static const int kLastColumn;
 
     translateLocally::marianSettings& getSettings() {
         return settings_;
@@ -70,6 +73,8 @@ private:
     translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
     QNetworkAccessManager *nam_;
+
+    constexpr static int kColumnCount = 4;
 
 signals:
     void newModelAdded(int index);

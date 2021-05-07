@@ -40,9 +40,18 @@ void MarianInterface::translate(QString in) {
     // We have to copy any member variables we use (I'm looking at you QString input, because QString is copy-on-write)
     auto translateAndSignal = [&](std::string &&input, std::size_t serial) {
         using marian::bergamot::Response;
-        std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
-        responseFuture.wait();
-        marian::bergamot::Response response = responseFuture.get();
+        QString translation;
+
+        // If translating empty string, just pass through immediately but do
+        // update the finished_ variable to cancel out all previous translations.
+        if (input.empty()) {
+            translation = "";
+        } else {
+            std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
+            responseFuture.wait();
+            marian::bergamot::Response response = responseFuture.get();
+            translation = QString::fromStdString(response.target.text);
+        }
 
         // There is no guarantee that we get/process responses in the same order
         // as we sent sentences to be translated. So let's make sure we haven't
@@ -53,7 +62,7 @@ void MarianInterface::translate(QString in) {
             return;
         
         finished_ = serial;
-        emit translationReady(QString::fromStdString(response.target.text));
+        emit translationReady(translation);
     };
 
     std::thread mythread(translateAndSignal, in.toStdString(), ++serial_);

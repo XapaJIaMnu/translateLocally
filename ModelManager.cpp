@@ -15,12 +15,6 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-const int ModelManager::kColumnName = 0;
-const int ModelManager::kColumnShortName = 1;
-const int ModelManager::kColumnPathName = 2;
-const int ModelManager::kColumnType = 3;
-
-const int ModelManager::kLastColumn = 3;
 
 ModelManager::ModelManager(QObject *parent)
     : QAbstractTableModel(parent)
@@ -307,12 +301,17 @@ QList<LocalModel> ModelManager::installedModels() const {
     return localModels_;
 }
 
+QList<RemoteModel> ModelManager::remoteModels() const {
+    return remoteModels_;
+}
+
 QList<RemoteModel> ModelManager::availableModels() const {
     QList<RemoteModel> filtered;
     for (auto &&model : remoteModels_) {
         bool installed = false;
 
         for (auto &&localModel : localModels_) {
+            // TODO: matching by name might not be very robust
             if (localModel.name == model.name) {
                 installed = true;
                 break;
@@ -327,8 +326,6 @@ QList<RemoteModel> ModelManager::availableModels() const {
 }
 
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
-    Q_UNUSED(role);
-
     if (index.row() <= localModels_.size()) {
         LocalModel const &model = localModels_[index.row()];
 
@@ -337,13 +334,13 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case kColumnName:
+                    case ModelManager::Column::Name:
                         return model.name;
-                    case kColumnShortName:
+                    case Column::ShortName:
                         return model.shortName;
-                    case kColumnPathName:
+                    case Column::PathName:
                         return model.path;
-                    case kColumnType:
+                    case Column::Type:
                         return model.type;
                     // Intentional fall-through for default
                 }
@@ -358,13 +355,13 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case kColumnName:
+                    case Column::Name:
                         return model.name;
-                    case kColumnShortName:
+                    case Column::ShortName:
                         return model.code;
-                    case kColumnPathName:
+                    case Column::PathName:
                         return model.url;
-                    case kColumnType:
+                    case Column::Type:
                         return QString();
                     // Intentional fall-through for default
                 }
@@ -377,20 +374,19 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
-    Q_UNUSED(role);
     Q_UNUSED(orientation);
 
     if (role != Qt::DisplayRole)
         return QVariant();
 
     switch (section) {
-        case kColumnName:
+        case Column::Name:
             return "Name";
-        case kColumnShortName:
+        case Column::ShortName:
             return "Short name";
-        case kColumnPathName:
+        case Column::PathName:
             return "Path";
-        case kColumnType:
+        case Column::Type:
             return "Type";
         default:
             return QVariant();
@@ -400,7 +396,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
 int ModelManager::columnCount(QModelIndex const &index) const {
     Q_UNUSED(index);
 
-    return kLastColumn + 1;
+    return kColumnCount;
 }
 
 int ModelManager::rowCount(QModelIndex const &index) const {
