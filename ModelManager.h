@@ -34,6 +34,7 @@ public:
     void writeModel(QString filename, QByteArray data);
 
     QList<LocalModel> installedModels() const;
+    QList<RemoteModel> remoteModels() const;
     QList<RemoteModel> availableModels() const; // remote - local
 
     enum Column {

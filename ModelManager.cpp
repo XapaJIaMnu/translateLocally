@@ -301,12 +301,17 @@ QList<LocalModel> ModelManager::installedModels() const {
     return localModels_;
 }
 
+QList<RemoteModel> ModelManager::remoteModels() const {
+    return remoteModels_;
+}
+
 QList<RemoteModel> ModelManager::availableModels() const {
     QList<RemoteModel> filtered;
     for (auto &&model : remoteModels_) {
         bool installed = false;
 
         for (auto &&localModel : localModels_) {
+            // TODO: matching by name might not be very robust
             if (localModel.name == model.name) {
                 installed = true;
                 break;

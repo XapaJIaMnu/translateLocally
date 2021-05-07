@@ -149,11 +149,13 @@ void MainWindow::updateLocalModels() {
     }
 
     // Add any models available for download
-    if (!models_.availableModels().empty()) {
+    if (models_.remoteModels().empty()) {
+        ui_->localModels->addItem("Download models…", QVariant::fromValue(kActionFetchRemoteModels));
+    } else if (models_.availableModels().empty()) {
+        ui_->localModels->addItem("No other models available online");
+    } else {
         for (auto &&model : models_.availableModels())
             ui_->localModels->addItem(model.name, QVariant::fromValue(model));
-    } else {
-        ui_->localModels->addItem("Download models…", QVariant::fromValue(kActionFetchRemoteModels));
     }
 }
 
