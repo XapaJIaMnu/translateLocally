@@ -57,7 +57,6 @@ void MarianInterface::translate(QString in) {
         // as we sent sentences to be translated. So let's make sure we haven't
         // been overtaken by a further progressed sentence before emitting the
         // translation.
-        // TODO: race condition on finished_?
         if (serial < finished_)
             return;
         
