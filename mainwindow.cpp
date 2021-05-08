@@ -27,6 +27,8 @@ MainWindow::MainWindow(QWidget *parent)
     , network_(this)
 {
     ui_->setupUi(this);
+    ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
+    ui_->pendingIndicator->hide();
 
     // Hide download progress bar
     showDownloadPane(false);
@@ -52,7 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&translatorSettingsDialog_, &TranslatorSettingsDialog::settingsChanged, this, &MainWindow::updateModelSettings);
-    
+
     // Queue translation when user has stopped typing for a bit
     connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
         if (translateImmediately_)
@@ -224,6 +226,7 @@ void MainWindow::resetTranslator(QString dirname) {
     ui_->translateButton->setEnabled(true);
 
     // Set up the connection to the translator
+    connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
         ui_->outputBox->setText(translation);
         ui_->localModels->setEnabled(true); // Re-enable model changing

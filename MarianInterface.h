@@ -25,8 +25,10 @@ public:
     void translate(QString in);
     ~MarianInterface();
     const QString mymodel;
+    bool pending() const;
 signals:
     void translationReady(QString translation);
+    void pendingChanged(bool isBusy);
 };
 
 #endif // MARIANINTERFACE_H
