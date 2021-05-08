@@ -94,10 +94,10 @@ void MainWindow::on_inputBox_textChanged() {
     // Remove the last word, because it is likely incomplete
     auto lastSpace = inputText.lastIndexOf(" ");
     
-    while (lastSpace >= 0 && inputText[lastSpace].isSpace())
+    while (lastSpace > 0 && inputText[lastSpace-1].isSpace())
         --lastSpace;
 
-    if (lastSpace != -1)
+    if (lastSpace > 0)
         inputText.truncate(lastSpace);
 
     if (inputText != translationInput_) {
