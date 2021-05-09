@@ -57,15 +57,20 @@ void MarianInterface::translate(QString in) {
         // as we sent sentences to be translated. So let's make sure we haven't
         // been overtaken by a further progressed sentence before emitting the
         // translation.
-        // TODO: race condition on finished_?
         if (serial < finished_)
             return;
         
         finished_ = serial;
+
         emit translationReady(translation);
+
+        if (serial_ == finished_)
+            emit pendingChanged(false);
     };
 
-    std::thread mythread(translateAndSignal, in.toStdString(), ++serial_);
+    std::size_t serial = ++serial_;
+    emit pendingChanged(true);
+    std::thread mythread(translateAndSignal, in.toStdString(), serial);
     mythread.detach();
 }
 
@@ -75,3 +80,6 @@ MarianInterface::~MarianInterface() {
     spdlog::drop("valid");
 }
 
+bool MarianInterface::pending() const {
+    return serial_ == finished_;
+}
