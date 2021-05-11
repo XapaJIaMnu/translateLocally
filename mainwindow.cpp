@@ -25,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     , localModelDelegate_(this)
     , translatorSettingsDialog_(this, models_.getSettings())
     , network_(this)
+    , translator_(new MarianInterface(this))
 {
     ui_->setupUi(this);
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
@@ -41,9 +42,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     updateLocalModels();
 
-    if (!models_.installedModels().empty())
-        resetTranslator(models_.installedModels().first().path);
-
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
     
@@ -54,6 +52,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&translatorSettingsDialog_, &TranslatorSettingsDialog::settingsChanged, this, &MainWindow::updateModelSettings);
+
+    // Set up the connection to the translator
+    connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
+        ui_->outputBox->setText(translation);
+        ui_->localModels->setEnabled(true); // Re-enable model changing
+        ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
+        ui_->translateButton->setEnabled(true);
+    });
 
     // Queue translation when user has stopped typing for a bit
     connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
@@ -66,6 +73,9 @@ MainWindow::MainWindow(QWidget *parent)
         if (!models_.availableModels().empty())
             ui_->localModels->showPopup();
     });
+
+    if (!models_.installedModels().empty())
+        resetTranslator(models_.installedModels().first().path);
 }
 
 MainWindow::~MainWindow() {
@@ -209,31 +219,7 @@ void MainWindow::translate(QString const &text) {
  */
 
 void MainWindow::resetTranslator(QString dirname) {
-    // Disconnect existing slots:
-    if (translator_) {
-        disconnect(translator_.get());
-    }
-    QString model0_path = dirname + "/";
-    ui_->localModels->setEnabled(false); // Disable changing the model while changing the model
-    ui_->translateAction->setEnabled(false); //Disable the translate button before the swap
-    ui_->translateButton->setEnabled(false);
-
-    translator_.reset(); // Do this first to free the object.
-    translator_.reset(new MarianInterface(model0_path, models_.getSettings() , this));
-
-    ui_->translateAction->setEnabled(true); // Reenable it
-    ui_->localModels->setEnabled(true); // Disable changing the model while changing the model
-    ui_->translateButton->setEnabled(true);
-
-    // Set up the connection to the translator
-    connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
-        ui_->outputBox->setText(translation);
-        ui_->localModels->setEnabled(true); // Re-enable model changing
-        ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
-        ui_->translateButton->setEnabled(true);
-    });
-
+    translator_->setModel(dirname + "/", models_.getSettings());
     translate();
 }
 
@@ -270,7 +256,7 @@ void MainWindow::updateModelSettings(size_t memory, size_t cores) {
     models_.getSettings().setWorkspace(memory);
     models_.getSettings().setCores(cores);
     if (translator_) {
-        resetTranslator(translator_->mymodel);
+        resetTranslator(translator_->model());
     }
 }
 
