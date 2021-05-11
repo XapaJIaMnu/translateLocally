@@ -4,7 +4,9 @@
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
+#include <memory>
 #include <thread>
+
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir, translateLocally::marianSettings& settings) {
@@ -28,58 +30,57 @@ marian::Ptr<marian::Options> MakeOptions(QString path_to_model_dir, translateLoc
 
 MarianInterface::MarianInterface(QString path_to_model_dir, translateLocally::marianSettings& settings, QObject *parent)
     : QObject(parent)
-    , service_(new marian::bergamot::Service(MakeOptions(path_to_model_dir, settings)))
-    , serial_(0)
-    , finished_(0)
-    , mymodel(path_to_model_dir) {}
+    , pendingInput_()
+    , pendingInputCount_(0)
+    , mymodel(path_to_model_dir) {
 
-void MarianInterface::translate(QString in) {
-    // Wait on future until Response is complete. Since the future doesn't have a callback or anything
-    // we should put all the processing in a background thread. Normally, if we have a future, we expect
-    // that future to have a method that allows to attach a callback, but this is reserved for c++20? c++22
-    // We have to copy any member variables we use (I'm looking at you QString input, because QString is copy-on-write)
-    auto translateAndSignal = [&](std::string &&input, std::size_t serial) {
-        using marian::bergamot::Response;
-        QString translation;
+    worker_ = std::thread([&](marian::Ptr<marian::Options> options) {
+        marian::bergamot::Service service(options);
 
-        // If translating empty string, just pass through immediately but do
-        // update the finished_ variable to cancel out all previous translations.
-        if (input.empty()) {
-            translation = "";
-        } else {
-            std::future<marian::bergamot::Response> responseFuture = service_->translate(std::move(input));
+        while (true) {
+            // Wait for work
+            pendingInputCount_.acquire();
+
+            std::unique_ptr<std::string> input(pendingInput_.fetchAndStoreAcquire(nullptr));
+            // Empty ptr? pendingInputCount released without valid pointer -> poison (or a bug)
+            if (!input)
+                break;
+
+            emit pendingChanged(true);
+
+            std::future<marian::bergamot::Response> responseFuture = service.translate(std::move(*input));
             responseFuture.wait();
             marian::bergamot::Response response = responseFuture.get();
-            translation = QString::fromStdString(response.target.text);
+            emit translationReady(QString::fromStdString(response.target.text));
+
+            emit pendingChanged(false);
         }
 
-        // There is no guarantee that we get/process responses in the same order
-        // as we sent sentences to be translated. So let's make sure we haven't
-        // been overtaken by a further progressed sentence before emitting the
-        // translation.
-        if (serial < finished_)
-            return;
-        
-        finished_ = serial;
+        // We need to manually destroy the loggers, as marian doesn't do that.
+        spdlog::drop("general");
+        spdlog::drop("valid");
+    }, MakeOptions(path_to_model_dir, settings));
+}
 
-        emit translationReady(translation);
+void MarianInterface::translate(QString in) {
+    std::unique_ptr<std::string> old(pendingInput_.fetchAndStoreAcquire(new std::string(in.toStdString())));
 
-        if (serial_ == finished_)
-            emit pendingChanged(false);
-    };
-
-    std::size_t serial = ++serial_;
-    emit pendingChanged(true);
-    std::thread mythread(translateAndSignal, in.toStdString(), serial);
-    mythread.detach();
+    // notify worker (but only if there wasn't already a pending task)
+    if (!old)
+        pendingInputCount_.release();
 }
 
 MarianInterface::~MarianInterface() {
-    // We need to manually destroy the loggers, as marian doesn't do that.
-    spdlog::drop("general");
-    spdlog::drop("valid");
+    // Poision the worker with a nullptr
+    std::unique_ptr<std::string> old(pendingInput_.fetchAndStoreAcquire(nullptr));
+    if (!old)
+        pendingInputCount_.release();
+    
+    // Wait for worker to join as it depends on resources we still own.
+    // TODO: This might take a long time, can we just .detach() it instead somehow?
+    worker_.join();
 }
 
 bool MarianInterface::pending() const {
-    return serial_ == finished_;
+    return pendingInputCount_.available() != 0;
 }

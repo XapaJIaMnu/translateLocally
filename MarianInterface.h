@@ -2,8 +2,8 @@
 #define MARIANINTERFACE_H
 #include <QString>
 #include <QObject>
-#include <QAtomicInteger>
-#include <memory>
+#include <QAtomicPointer>
+#include <QSemaphore>
 #include "types.h"
 #include <thread>
 
@@ -17,9 +17,9 @@ namespace marian {
 class MarianInterface : public QObject {
     Q_OBJECT
 private:
-    std::unique_ptr<marian::bergamot::Service> service_;
-    QAtomicInteger<std::size_t> serial_;
-    QAtomicInteger<std::size_t> finished_;
+    QAtomicPointer<std::string> pendingInput_;
+    QSemaphore pendingInputCount_;
+    std::thread worker_;
 public:
     MarianInterface(QString path_to_model_dir, translateLocally::marianSettings& settings, QObject * parent);
     void translate(QString in);
