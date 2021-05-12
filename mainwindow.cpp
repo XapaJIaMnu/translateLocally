@@ -56,12 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
-        ui_->outputBox->setText(translation);
-        ui_->localModels->setEnabled(true); // Re-enable model changing
-        ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
-        ui_->translateButton->setEnabled(true);
-    });
+    connect(translator_.get(), &MarianInterface::translationReady, ui_->outputBox, &QTextEdit::setText);
 
     // Queue translation when user has stopped typing for a bit
     connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
@@ -205,8 +200,6 @@ void MainWindow::translate() {
 }
 
 void MainWindow::translate(QString const &text) {
-    ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
-    ui_->translateButton->setEnabled(false);
     if (translator_) {
         translator_->translate(text);
     } else {
