@@ -58,7 +58,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
         ui_->outputBox->setText(translation);
-        ui_->localModels->setEnabled(true); // Re-enable model changing
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
     });
