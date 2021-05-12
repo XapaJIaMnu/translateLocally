@@ -220,7 +220,8 @@ void MainWindow::translate(QString const &text) {
 
 void MainWindow::resetTranslator(QString dirname) {
     translator_->setModel(dirname + "/", models_.getSettings());
-    translate();
+    if (translateImmediately_)
+        translate();
 }
 
 /**
