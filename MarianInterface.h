@@ -37,6 +37,7 @@ public:
 signals:
     void translationReady(QString translation);
     void pendingChanged(bool isBusy);
+    void error(QString message);
 };
 
 #endif // MARIANINTERFACE_H

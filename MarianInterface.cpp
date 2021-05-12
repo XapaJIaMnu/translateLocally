@@ -31,7 +31,7 @@ marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, t
 } // Anonymous namespace
 
 struct ModelDescription {
-    std::string config;
+    std::string config_file;
     translateLocally::marianSettings settings;
 };
 
@@ -67,23 +67,31 @@ MarianInterface::MarianInterface(QObject *parent)
             }
             
             emit pendingChanged(true);
-            
-            if (model) {
-                // Unload marian first (so we can delete loggers after that)
-                service.reset();
 
-                // We need to manually destroy the loggers, as marian doesn't do
-                // that but will complain when a new marian::Config tries to 
-                // initialise loggers with the same name.
-                spdlog::drop("general");
-                spdlog::drop("valid");
+            try {
+                if (model) {
+                    // Unload marian first (so we can delete loggers after that)
+                    service.reset();
 
-                service.reset(new marian::bergamot::Service(MakeOptions(model->config, model->settings)));
-            } else if (input) {
-                std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input));
-                responseFuture.wait();
-                marian::bergamot::Response response = responseFuture.get();
-                emit translationReady(QString::fromStdString(response.target.text));
+                    // We need to manually destroy the loggers, as marian doesn't do
+                    // that but will complain when a new marian::Config tries to 
+                    // initialise loggers with the same name.
+                    spdlog::drop("general");
+                    spdlog::drop("valid");
+
+                    service.reset(new marian::bergamot::Service(MakeOptions(model->config_file, model->settings)));
+                } else if (input) {
+                    if (service) {
+                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input));
+                        responseFuture.wait();
+                        marian::bergamot::Response response = responseFuture.get();
+                        emit translationReady(QString::fromStdString(response.target.text));
+                    } else {
+                        // TODO: What? Raise error? Set model_ to ""?
+                    }
+                }
+            } catch (const std::runtime_error &e) {
+                emit error(QString::fromStdString(e.what()));
             }
 
             emit pendingChanged(false);

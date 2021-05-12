@@ -55,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
+    connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
         ui_->outputBox->setText(translation);
         ui_->localModels->setEnabled(true); // Re-enable model changing
