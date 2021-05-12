@@ -206,10 +206,10 @@ void MainWindow::translate() {
 void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
     ui_->translateButton->setEnabled(false);
-    if (translator_) {
-        translator_->translate(text);
-    } else {
+    if (translator_->model().isEmpty()) {
         popupError("You need to download a translation model first. Do that with the interface on the right.");
+    } else {
+        translator_->translate(text);
     }    
 }
 
@@ -256,8 +256,7 @@ void MainWindow::on_actionTranslator_Settings_triggered() {
 void MainWindow::updateModelSettings(size_t memory, size_t cores) {
     models_.getSettings().setWorkspace(memory);
     models_.getSettings().setCores(cores);
-    if (translator_) {
-        resetTranslator(translator_->model());
-    }
+    if (!translator_->model().isEmpty())
+        translator_->setModel(translator_->model(), models_.getSettings());
 }
 
