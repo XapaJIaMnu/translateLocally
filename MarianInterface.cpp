@@ -39,6 +39,19 @@ MarianInterface::MarianInterface(QObject *parent)
     : QObject(parent)
     , pendingInput_(nullptr)
     , pendingModel_(nullptr) {
+
+    // This worker is the only thread that can interact with Marian. Right now
+    // it basically uses marian::bergamot::Service's non-blocking interface
+    // in a blocking way because std::future is not compatible with Qt's event
+    // loop, and QtConcurrent::run would not work as calls to
+    // Service::translate() are not thread-safe.
+    // This worker basically processes a command queue, except that there are
+    // only two possible commands: load model & translate input. And there are
+    // no actual queues because we always want the last command: we don't care
+    // about previously pending models or translations. The semaphore
+    // indicates whether there are 0, 1, or 2 commands pending. If a command
+    // is pending but both "queues" are empty, we'll treat that as a shutdown
+    // request.
     worker_ = std::thread([&]() {
         std::unique_ptr<marian::bergamot::Service> service;
 
@@ -58,6 +71,8 @@ MarianInterface::MarianInterface(QObject *parent)
                     model = std::move(pendingModel_);
                 
                 // Second check whether command is translating something.
+                // Note: else if because we only process one command per
+                // iteration otherwise commandIssued_ would go out of sync.
                 else if (pendingInput_)
                     input = std::move(pendingInput_);
                 
