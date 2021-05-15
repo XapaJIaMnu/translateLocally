@@ -21,9 +21,10 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
+    , settings_(this)
     , models_(this)
     , localModelDelegate_(this)
-    , translatorSettingsDialog_(this, models_.getSettings())
+    , translatorSettingsDialog_(this, &settings_)
     , network_(this)
     , translator_(new MarianInterface(this))
 {
@@ -51,8 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &QAbstractTableModel::rowsInserted, this, &MainWindow::updateLocalModels);
     connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
-    connect(&translatorSettingsDialog_, &TranslatorSettingsDialog::settingsChanged, this, &MainWindow::updateModelSettings);
-
+    
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
@@ -73,6 +73,10 @@ MainWindow::MainWindow(QWidget *parent)
         if (!models_.availableModels().empty())
             ui_->localModels->showPopup();
     });
+
+    // Connect settings changes to reloading the model.
+    connect(&settings_, &Settings::coresChanged, this, &MainWindow::reloadTranslator);
+    connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::reloadTranslator);
 
     if (!models_.installedModels().empty())
         resetTranslator(models_.installedModels().first().path);
@@ -214,14 +218,24 @@ void MainWindow::translate(QString const &text) {
 }
 
 /**
- * @brief MainWindow::resetTranslator Deletes the old translator object and creates a new one with the new language
- * @param dirname directory where the model is found
+ * @brief MainWindow::resetTranslator Switches out the model in the translator with a different model 
+ * @param dirname directory where the model is found (without trailing slash)
  */
 
 void MainWindow::resetTranslator(QString dirname) {
-    translator_->setModel(dirname + "/", models_.getSettings());
+    translator_->setModel(dirname + "/", settings_.marianSettings());
     if (translateImmediately_)
         translate();
+}
+
+/**
+ * @brief Mainwindow::reloadTranslator Reloads current translation model with new settings.
+ */
+void MainWindow::reloadTranslator(unsigned int unused) {
+    Q_UNUSED(unused);
+    
+    if (!translator_->model().isEmpty())
+        translator_->setModel(translator_->model(), models_.getSettings());
 }
 
 /**
@@ -245,18 +259,3 @@ void MainWindow::on_fontAction_triggered()
 void MainWindow::on_actionTranslator_Settings_triggered() {
     this->translatorSettingsDialog_.setVisible(true);
 }
-
-/**
- * @brief MainWindow::updateModelSettings updates the memory and cores settings. Also resets the translation model with the new settings
- *                                        if the translation model is running. Usually called by a signal
- * @param memory new workspaces value
- * @param cores new thread count
- */
-
-void MainWindow::updateModelSettings(size_t memory, size_t cores) {
-    models_.getSettings().setWorkspace(memory);
-    models_.getSettings().setCores(cores);
-    if (!translator_->model().isEmpty())
-        translator_->setModel(translator_->model(), models_.getSettings());
-}
-

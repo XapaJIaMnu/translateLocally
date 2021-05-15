@@ -13,8 +13,8 @@ namespace  {
 marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
     std::string model_path = path_to_model_dir + "config.intgemm8bitalpha.yml";
     std::vector<std::string> args = {"marian-decoder", "-c", model_path,
-                                     "--cpu-threads", std::to_string(settings.getCores()),
-                                     "--workspace", std::to_string(settings.getWorkspace()),
+                                     "--cpu-threads", std::to_string(settings.cpu_threads),
+                                     "--workspace", std::to_string(settings.workspace),
                                      "--mini-batch-words", "1000"};
 
     std::vector<char *> argv;
@@ -118,7 +118,7 @@ QString const &MarianInterface::model() const {
     return model_;
 }
 
-void MarianInterface::setModel(QString path_to_model_dir, translateLocally::marianSettings& settings) {
+void MarianInterface::setModel(QString path_to_model_dir, const translateLocally::marianSettings &settings) {
     model_ = path_to_model_dir;
     
     // move my shared_ptr from stack to heap

@@ -106,6 +106,8 @@ set(PROJECT_SOURCES
         ModelManager.h
         Network.cpp
         Network.h
+        Settings.cpp
+        Settings.h
         types.h
         ${TS_FILES}
 )

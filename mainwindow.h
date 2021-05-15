@@ -8,7 +8,7 @@
 #include "ModelManager.h"
 #include "ModelListItemDelegate.h"
 #include "TranslatorSettingsDialog.h"
-#include "types.h"
+#include "Settings.h"
 
 class MarianInterface;
 
@@ -60,6 +60,8 @@ private slots:
 
     void updateLocalModels();
 
+    void reloadTranslator(unsigned int);
+
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     // Translator related settings
@@ -74,6 +76,7 @@ private:
     QStringList names_;
 
     // Model and config manager
+    Settings settings_;
     ModelManager models_;
     ModelListItemDelegate localModelDelegate_;
     TranslatorSettingsDialog translatorSettingsDialog_;

@@ -32,7 +32,7 @@ public:
     MarianInterface(QObject * parent);
     ~MarianInterface();
     QString const &model() const;
-    void setModel(QString path_to_model_dir, translateLocally::marianSettings& settings);
+    void setModel(QString path_to_model_dir, const translateLocally::marianSettings& settings);
     void translate(QString in);
 signals:
     void translationReady(QString translation);
