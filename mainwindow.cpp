@@ -77,9 +77,27 @@ MainWindow::MainWindow(QWidget *parent)
     // Connect settings changes to reloading the model.
     connect(&settings_, &Settings::coresChanged, this, &MainWindow::reloadTranslator);
     connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::reloadTranslator);
+    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::resetTranslator);
 
-    if (!models_.installedModels().empty())
-        resetTranslator(models_.installedModels().first().path);
+    // Update selected model when model changes
+    connect(&settings_, &Settings::translationModelChanged, this, [&] (QString path) {
+        for (int i = 0; i < ui_->localModels->count(); ++i) {
+            QVariant item = ui_->localModels->itemData(i);
+            if (item.canConvert<LocalModel>() && item.value<LocalModel>().path == path) {
+                ui_->localModels->setCurrentIndex(i);
+                break;
+            }
+        }
+
+        qDebug() << "Could not find" << path << "among" << ui_->localModels->count() << "items";
+    });
+
+    // TODO: figure out if I can bind variables (Qt6 can, but 5?) so it resets
+    // the translator once on load, and then every time it changes.
+    if (!settings_.translationModel().isEmpty())
+        settings_.setTranslationModel(settings_.translationModel());
+    else if (!models_.installedModels().empty())
+        settings_.setTranslationModel(models_.installedModels().first().path);
 }
 
 MainWindow::~MainWindow() {
@@ -168,7 +186,7 @@ void MainWindow::on_localModels_activated(int index) {
     QVariant data = ui_->localModels->itemData(index);
 
     if (data.canConvert<LocalModel>()) {
-        resetTranslator(data.value<LocalModel>().path);
+        settings_.setTranslationModel(data.value<LocalModel>().path);
     } else if (data.canConvert<RemoteModel>()) {
         downloadModel(data.value<RemoteModel>());
     } else if (data == Action::FetchRemoteModels) {

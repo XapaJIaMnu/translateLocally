@@ -7,16 +7,27 @@
 class Settings : public QObject 
 {
     Q_OBJECT
-    Q_PROPERTY(unsigned int cores MEMBER cpu_cores_ NOTIFY coresChanged)
-    Q_PROPERTY(unsigned int workspace MEMBER workspace_ NOTIFY workspaceChanged)
+    Q_PROPERTY(QString translationModel READ translationModel WRITE setTranslationModel NOTIFY translationModelChanged)
+    Q_PROPERTY(unsigned int cores READ cores WRITE setCores NOTIFY coresChanged)
+    Q_PROPERTY(unsigned int workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged)
 
 private:
     QSettings settings_;
+    QString translation_model_;
     unsigned int cpu_cores_;
     unsigned int workspace_;
 public:
     Settings(QObject *parent = nullptr);
     translateLocally::marianSettings marianSettings() const;
+
+    inline void setTranslationModel(QString path) {
+        translation_model_ = path;
+        emit translationModelChanged(path);
+    }
+
+    inline QString translationModel() const {
+        return translation_model_;
+    }
 
     inline void setCores(unsigned int cores) {
         cpu_cores_ = cores;
@@ -37,6 +48,7 @@ public:
     }
 
 signals:
+    void translationModelChanged(QString path);
     void coresChanged(unsigned int cores);
     void workspaceChanged(unsigned int workspace);
 };
