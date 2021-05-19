@@ -43,6 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     updateLocalModels();
 
+    // If no model is preferred, load the first available one.
+    if (settings_.translationModel().isEmpty() && !models_.installedModels().empty())
+        settings_.setTranslationModel(models_.installedModels().first().path);
+
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
     
@@ -77,17 +81,17 @@ MainWindow::MainWindow(QWidget *parent)
     // Update selected model when model changes
     connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::updateSelectedModel);
 
-
-    // TODO: figure out if I can bind variables (Qt6 can, but 5?) so it resets
-    // the translator once on load, and then every time it changes.
-    if (!settings_.translationModel().isEmpty())
-        settings_.setTranslationModel(settings_.translationModel());
-    else if (!models_.installedModels().empty())
-        settings_.setTranslationModel(models_.installedModels().first().path);
     // Connect settings changes to reloading the model.
     connect(&settings_, &Settings::coresChanged, this, &MainWindow::resetTranslator);
     connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::resetTranslator);
     connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::resetTranslator);
+
+    // Initial state sync between settings & UI
+    // TODO: Does Qt5 not have some form of bi-directional data binding? Looks
+    // like it's only available in QtQuick and starting Qt6 in C++.
+    // Note: both are safe when no model is set.
+    resetTranslator();
+    updateSelectedModel();
 }
 
 MainWindow::~MainWindow() {
