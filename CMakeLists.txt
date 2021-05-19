@@ -56,8 +56,8 @@ else(LibArchive_FOUND)
   MESSAGE(FATAL_ERROR "Could not find the libarchive library and development files.")
 endif( LibArchive_FOUND )
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus Svg REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus Svg REQUIRED)
 
 # Marian submodule things
 # Documentation: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
@@ -107,18 +107,30 @@ set(PROJECT_SOURCES
         Network.cpp
         Network.h
         types.h
+        logo/logo_svg.h
         ${TS_FILES}
 )
+
+# Set icon file for windows
+if(WIN32)
+    set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/logo/translateLocally.rc")
+elseif(APPLE)
+    set(MACOSX_BUNDLE_ICON_FILE "translateLocally.icns")
+    set(APP_ICON_MACOSX ${CMAKE_CURRENT_SOURCE_DIR}/logo/translateLocally.icns)
+    set_source_files_properties(${APP_ICON_MACOSX} PROPERTIES
+           MACOSX_PACKAGE_LOCATION "Resources")
+endif(WIN32)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
    if(APPLE)
      qt_add_executable(translateLocally MACOSX_BUNDLE
-       ${PROJECT_SOURCES}
+       ${PROJECT_SOURCES} ${APP_ICON_MACOSX}
      )
    endif()
 
     qt_add_executable(translateLocally-bin
        ${PROJECT_SOURCES}
+       ${APP_ICON_RESOURCE_WINDOWS}
     )
 
     qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
@@ -130,11 +142,12 @@ else()
     else()
         if(APPLE)
           add_executable(translateLocally MACOSX_BUNDLE
-              ${PROJECT_SOURCES}
+              ${PROJECT_SOURCES} ${APP_ICON_MACOSX}
           )
         endif()
         add_executable(translateLocally-bin
               ${PROJECT_SOURCES}
+              ${APP_ICON_RESOURCE_WINDOWS}
         )
     endif()
 
@@ -148,6 +161,7 @@ set(LINK_LIBRARIES
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::DBus
+    Qt${QT_VERSION_MAJOR}::Svg
     bergamot-translator
     ${CMAKE_THREAD_LIBS_INIT} # This should work on all platforms?
     ${LibArchive_LIBRARIES}
@@ -162,6 +176,10 @@ if(UNIX)  # Add Linux and apple support for make install
   install(TARGETS translateLocally-bin
           RUNTIME
          )
+  install(FILES ${CMAKE_SOURCE_DIR}/dist/translateLocally.desktop DESTINATION share/applications)
+  install(FILES ${CMAKE_SOURCE_DIR}/logo/translateLocally_logo.png DESTINATION share/icons)
+  install(FILES ${CMAKE_SOURCE_DIR}/logo/translateLocally_logo.svg DESTINATION share/icons)
+
   ## Support CPACK package generation on debian like systems
   #
   #

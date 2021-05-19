@@ -37,7 +37,7 @@ jobs:
     - name: Dependencies  # @TODO should also test qt6, but it's not present yet
       run: |
        sudo apt-get update
-       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libarchive-dev ${{ matrix.extradeps }}
+       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ${{ matrix.extradeps }}
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL

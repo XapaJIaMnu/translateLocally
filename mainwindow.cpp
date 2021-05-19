@@ -16,6 +16,9 @@
 #include <QMessageBox>
 #include <QFontDialog>
 #include <QListView>
+#include <QWindow>
+#include "logo/logo_svg.h"
+#include <iostream>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -28,6 +31,13 @@ MainWindow::MainWindow(QWidget *parent)
     , translator_(new MarianInterface(this))
 {
     ui_->setupUi(this);
+
+    // Create icon for the main window
+    QIcon icon = translateLocally::logo::getLogoFromSVG();
+    this->setWindowIcon(icon);
+    std::cerr << this->iconSize().height() << " " << this->iconSize().width() << std::endl;
+
+    // Create the status bar
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
     ui_->pendingIndicator->hide();
 
