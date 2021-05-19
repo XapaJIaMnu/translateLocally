@@ -38,9 +38,6 @@ MainWindow::MainWindow(QWidget *parent)
     // Hide settings window
     translatorSettingsDialog_.setVisible(false);
 
-    // Sync UI to translate preferences
-    setTranslateImmediately(true); // TODO: fetch this from settings
-
     updateLocalModels();
 
     // If no model is preferred, load the first available one.
@@ -68,7 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Queue translation when user has stopped typing for a bit
     connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
-        if (translateImmediately_)
+        if (settings_.translateImmediately())
             translate();
     });
 
@@ -77,6 +74,10 @@ MainWindow::MainWindow(QWidget *parent)
         if (!models_.availableModels().empty())
             ui_->localModels->showPopup();
     });
+
+    // Connect translate immediately toggle in both directions
+    connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_, &Settings::setTranslateImmediately);
+    connect(&settings_, &Settings::translateImmediatelyChanged, this, &MainWindow::updateTranslateImmediately);
 
     // Update selected model when model changes
     connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::updateSelectedModel);
@@ -92,14 +93,16 @@ MainWindow::MainWindow(QWidget *parent)
     // Note: both are safe when no model is set.
     resetTranslator();
     updateSelectedModel();
+    updateTranslateImmediately();
 }
 
 MainWindow::~MainWindow() {
     delete ui_;
 }
 
-void MainWindow::on_actionTranslateImmediately_toggled(bool enable) {
-    setTranslateImmediately(enable);
+void MainWindow::updateTranslateImmediately() {
+    ui_->actionTranslateImmediately->setChecked(settings_.translateImmediately());
+    ui_->translateButton->setVisible(!settings_.translateImmediately());
 }
 
 void MainWindow::on_translateAction_triggered() {
@@ -111,7 +114,7 @@ void MainWindow::on_translateButton_clicked() {
 }
 
 void MainWindow::on_inputBox_textChanged() {
-    if (!translateImmediately_)
+    if (!settings_.translateImmediately())
         return;
     
     QString inputText = ui_->inputBox->toPlainText();
@@ -133,12 +136,6 @@ void MainWindow::on_inputBox_textChanged() {
 
     // Reset our "person stopped typing" timer
     inactivityTimer_.start();
-}
-
-void MainWindow::setTranslateImmediately(bool enable) {
-    translateImmediately_ = enable;
-    ui_->actionTranslateImmediately->setChecked(enable);
-    ui_->translateButton->setVisible(!enable);
 }
 
 void MainWindow::showDownloadPane(bool visible)
@@ -251,7 +248,7 @@ void MainWindow::resetTranslator() {
     translator_->setModel(settings_.translationModel(), settings_.marianSettings());
     
     // Schedule re-translation immediately if we're in automatic mode.
-    if (translateImmediately_)
+    if (settings_.translateImmediately())
         translate();
 }
 

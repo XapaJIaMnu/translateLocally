@@ -13,12 +13,22 @@ class Settings : public QObject
 
 private:
     QSettings settings_;
+    bool translate_immediately_;
     QString translation_model_;
     unsigned int cpu_cores_;
     unsigned int workspace_;
 public:
     Settings(QObject *parent = nullptr);
     translateLocally::marianSettings marianSettings() const;
+
+    inline void setTranslateImmediately(bool enable) {
+        translate_immediately_ = enable;
+        emit translateImmediatelyChanged(enable);
+    }
+
+    inline bool translateImmediately() const {
+        return translate_immediately_;
+    }
 
     inline void setTranslationModel(QString path) {
         translation_model_ = path;
@@ -48,6 +58,7 @@ public:
     }
 
 signals:
+    void translateImmediatelyChanged(bool);
     void translationModelChanged(QString path);
     void coresChanged(unsigned int cores);
     void workspaceChanged(unsigned int workspace);

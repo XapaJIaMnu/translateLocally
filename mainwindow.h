@@ -35,7 +35,7 @@ public:
     Q_ENUM(Action);
 
 public slots:
-    void setTranslateImmediately(bool);
+    
 
 private slots:
     void on_inputBox_textChanged();
@@ -50,8 +50,6 @@ private slots:
 
     void on_localModels_activated(int index);
 
-    void on_actionTranslateImmediately_toggled(bool);
-
     void popupError(QString error);
 
     void translate();
@@ -61,6 +59,8 @@ private slots:
     void updateLocalModels();
 
     void updateSelectedModel();
+
+    void updateTranslateImmediately();
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
@@ -86,7 +86,5 @@ private:
 
     QTimer inactivityTimer_;
     QString translationInput_;
-
-    bool translateImmediately_;
 };
 #endif // MAINWINDOW_H
