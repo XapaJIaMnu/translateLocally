@@ -13,6 +13,7 @@ namespace translateLocally {
 	.st0{fill:#BBBDBF;}\
 	.st1{fill:#FFFFFF;}\
 	.st2{fill:#00ADEE;}\
+	.st3{fill:none;}\
 </style>\
 <g>\
 	<path class=\"st0\" d=\"M262.77,121.95c-130.3,0-235.93,105.63-235.93,235.93c0,70.93,31.31,134.54,80.85,177.79\
@@ -28,15 +29,16 @@ namespace translateLocally {
 	<path class=\"st2\" d=\"M537.23,195.31c130.3,0,235.93,105.63,235.93,235.93c0,70.93-31.31,134.54-80.85,177.79\
 		c2.21,4.61,27.69,54.58,86.65,40.67c-95.06,57.39-165.97,10.53-171.35,6.79c-22.23,6.94-45.87,10.68-70.39,10.68\
 		c-130.3,0-235.93-105.63-235.93-235.93S406.93,195.31,537.23,195.31z\"/>\
-	<path class=\"st1\" d=\"M610.55,559.5h35.24l-93.98-254.94H521.3L427.32,559.5h35.24l20.1-57.86h107.79L610.55,559.5z M493.32,470.95\
+	<path class=\"st1\" d=\"M610.55,559.5h35.24l-93.98-254.94H521.3L427.32,559.5h35.24l20.1-57.86h107.79L610.55,559.5z M493.32,470.9\
 		l43.24-124.49l43.24,124.49H493.32z\"/>\
 </g>\
+<rect class=\"st3\" width=\"800\" height=\"800\"/>\
 </svg>";
 
         static QIcon getLogoFromSVG() {
             QByteArray infile(logoSVG);
             QSvgRenderer rr(infile);
-            QImage image(1024, 751, QImage::Format_ARGB32);
+            QImage image(1024, 1024, QImage::Format_ARGB32);
             QPainter painter(&image);
             image.fill(Qt::transparent);
             rr.render(&painter);
