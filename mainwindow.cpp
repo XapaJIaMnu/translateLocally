@@ -241,7 +241,7 @@ void MainWindow::translate(QString const &text) {
  */
 
 void MainWindow::resetTranslator(QString dirname) {
-    translator_->setModel(dirname + "/", settings_.marianSettings());
+    translator_->setModel(settings_.translationModel(), settings_.marianSettings());
     if (translateImmediately_)
         translate();
 }
