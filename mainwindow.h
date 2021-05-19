@@ -60,13 +60,12 @@ private slots:
 
     void updateLocalModels();
 
-    void reloadTranslator(unsigned int);
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     // Translator related settings
     std::unique_ptr<MarianInterface> translator_;
-    void resetTranslator(QString dirname);
+    void resetTranslator();
     void showDownloadPane(bool visible);
     void downloadModel(RemoteModel model);
 

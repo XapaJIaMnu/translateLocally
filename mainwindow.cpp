@@ -74,11 +74,6 @@ MainWindow::MainWindow(QWidget *parent)
             ui_->localModels->showPopup();
     });
 
-    // Connect settings changes to reloading the model.
-    connect(&settings_, &Settings::coresChanged, this, &MainWindow::reloadTranslator);
-    connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::reloadTranslator);
-    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::resetTranslator);
-
     // Update selected model when model changes
     connect(&settings_, &Settings::translationModelChanged, this, [&] (QString path) {
         for (int i = 0; i < ui_->localModels->count(); ++i) {
@@ -98,6 +93,10 @@ MainWindow::MainWindow(QWidget *parent)
         settings_.setTranslationModel(settings_.translationModel());
     else if (!models_.installedModels().empty())
         settings_.setTranslationModel(models_.installedModels().first().path);
+    // Connect settings changes to reloading the model.
+    connect(&settings_, &Settings::coresChanged, this, &MainWindow::resetTranslator);
+    connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::resetTranslator);
+    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::resetTranslator);
 }
 
 MainWindow::~MainWindow() {
@@ -235,25 +234,16 @@ void MainWindow::translate(QString const &text) {
     }    
 }
 
-/**
- * @brief MainWindow::resetTranslator Switches out the model in the translator with a different model 
- * @param dirname directory where the model is found (without trailing slash)
- */
+void MainWindow::resetTranslator() {
+    // Don't do anything if there is no model selected.
+    if (settings_.translationModel().isEmpty())
+        return;
 
-void MainWindow::resetTranslator(QString dirname) {
     translator_->setModel(settings_.translationModel(), settings_.marianSettings());
+    
+    // Schedule re-translation immediately if we're in automatic mode.
     if (translateImmediately_)
         translate();
-}
-
-/**
- * @brief Mainwindow::reloadTranslator Reloads current translation model with new settings.
- */
-void MainWindow::reloadTranslator(unsigned int unused) {
-    Q_UNUSED(unused);
-    
-    if (!translator_->model().isEmpty())
-        translator_->setModel(translator_->model(), models_.getSettings());
 }
 
 /**
