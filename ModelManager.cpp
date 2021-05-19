@@ -36,18 +36,21 @@ ModelManager::ModelManager(QObject *parent)
     settings_ = translateLocally::marianSettings();
 }
 
-void ModelManager::writeModel(QString filename, QByteArray data) {
+LocalModel ModelManager::writeModel(QString filename, QByteArray data) {
     QString fullpath(configDir_.absolutePath() + QString("/") + filename);
     QSaveFile file(fullpath);
+    LocalModel newmodel;
+    
     bool openReady = file.open(QIODevice::WriteOnly);
     if (!openReady) {
         emit error(QString("Failed to open file: " + fullpath));
+        return newmodel;
     }
     file.write(data);
     bool commitReady = file.commit();
     if (!commitReady) {
         emit error(QString("Failed to write to file: " + fullpath + " . Did you run out of disk space?"));
-        return;
+        return newmodel;
     }
     extractTarGz(filename);
     // Add the new tar to the archives list
@@ -55,15 +58,17 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
 
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
-    LocalModel newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
+    newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
     if (newmodel.path == QString("")) {
         emit error(QString("Failed to parse the model_info.json for the newly dowloaded " + filename));
-        return;
+        return newmodel;
     }
 
     beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size());
     localModels_.append(newmodel);
     endInsertRows();
+
+    return newmodel;
 }
 
 LocalModel ModelManager::parseModelInfo(QString path) {

@@ -14,6 +14,10 @@ struct LocalModel {
     QString name;
     QString shortName;
     QString type;
+
+    inline operator bool() const {
+        return !path.isEmpty();
+    }
 };
 
 Q_DECLARE_METATYPE(LocalModel)
@@ -31,7 +35,7 @@ class ModelManager : public QAbstractTableModel {
 public:
     ModelManager(QObject *parent);
     void loadSettings();
-    void writeModel(QString filename, QByteArray data);
+    LocalModel writeModel(QString filename, QByteArray data);
 
     QList<LocalModel> installedModels() const;
     QList<RemoteModel> remoteModels() const;

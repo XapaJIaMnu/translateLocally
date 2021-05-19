@@ -145,7 +145,9 @@ void MainWindow::showDownloadPane(bool visible)
 }
 
 void MainWindow::handleDownload(QString filename, QByteArray data) {
-    models_.writeModel(filename, data);
+    LocalModel model = models_.writeModel(filename, data);
+    if (model)
+        settings_.setTranslationModel(model.path);
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
@@ -164,6 +166,8 @@ void MainWindow::downloadModel(RemoteModel model) {
     QNetworkReply *reply = network_.downloadFile(model.url);
     connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort, Qt::UniqueConnection);
     connect(reply, &QNetworkReply::finished, this, [&]() {
+        // Hide it here instead of in handleDownload() because finished() also
+        // triggers on abort.
         showDownloadPane(false);
     });
 }
