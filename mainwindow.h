@@ -60,6 +60,7 @@ private slots:
 
     void updateLocalModels();
 
+    void updateSelectedModel();
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is

@@ -75,17 +75,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Update selected model when model changes
-    connect(&settings_, &Settings::translationModelChanged, this, [&] (QString path) {
-        for (int i = 0; i < ui_->localModels->count(); ++i) {
-            QVariant item = ui_->localModels->itemData(i);
-            if (item.canConvert<LocalModel>() && item.value<LocalModel>().path == path) {
-                ui_->localModels->setCurrentIndex(i);
-                break;
-            }
-        }
+    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::updateSelectedModel);
 
-        qDebug() << "Could not find" << path << "among" << ui_->localModels->count() << "items";
-    });
 
     // TODO: figure out if I can bind variables (Qt6 can, but 5?) so it resets
     // the translator once on load, and then every time it changes.
@@ -199,6 +190,7 @@ void MainWindow::on_localModels_activated(int index) {
 void MainWindow::updateLocalModels() {
     // Clear out current items
     ui_->localModels->clear();
+    ui_->localModels->setCurrentIndex(-1);
 
     // Add local models
     if (!models_.installedModels().empty()) {
@@ -217,6 +209,19 @@ void MainWindow::updateLocalModels() {
         for (auto &&model : models_.availableModels())
             ui_->localModels->addItem(model.name, QVariant::fromValue(model));
     }
+}
+
+void MainWindow::updateSelectedModel() {
+    for (int i = 0; i < ui_->localModels->count(); ++i) {
+        QVariant item = ui_->localModels->itemData(i);
+        if (item.canConvert<LocalModel>() && item.value<LocalModel>().path == settings_.translationModel()) {
+            ui_->localModels->setCurrentIndex(i);
+            return;
+        }
+    }
+
+    // Model not found? Don't select any option at all.
+    ui_->localModels->setCurrentIndex(-1);
 }
 
 
