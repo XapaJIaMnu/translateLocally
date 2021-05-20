@@ -94,9 +94,19 @@ MainWindow::MainWindow(QWidget *parent)
     resetTranslator();
     updateSelectedModel();
     updateTranslateImmediately();
+
+    // Restore input text and caret position
+    ui_->inputBox->setPlainText(settings_.inputText());
+    QTextCursor cursor = ui_->inputBox->textCursor();
+    cursor.setPosition(settings_.inputPosition());
+    ui_->inputBox->setTextCursor(cursor);
 }
 
 MainWindow::~MainWindow() {
+    // Safe input text on exit
+    settings_.inputText.setValue(ui_->inputBox->toPlainText());
+    settings_.inputPosition.setValue(ui_->inputBox->textCursor().position());
+
     delete ui_;
 }
 
