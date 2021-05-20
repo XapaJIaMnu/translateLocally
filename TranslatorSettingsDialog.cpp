@@ -38,6 +38,6 @@ TranslatorSettingsDialog::~TranslatorSettingsDialog()
 
 void TranslatorSettingsDialog::on_buttonBox_accepted()
 {
-    settings_->setCores(ui_->coresBox->currentData().toUInt());
-    settings_->setWorkspace(ui_->memoryBox->currentData().toUInt());
+    settings_->cores.setValue(ui_->coresBox->currentData().toUInt());
+    settings_->workspace.setValue(ui_->memoryBox->currentData().toUInt());
 }

@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.installedModels().empty())
-        settings_.setTranslationModel(models_.installedModels().first().path);
+        settings_.translationModel.setValue(models_.installedModels().first().path);
 
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
@@ -76,16 +76,16 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Connect translate immediately toggle in both directions
-    connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_, &Settings::setTranslateImmediately);
-    connect(&settings_, &Settings::translateImmediatelyChanged, this, &MainWindow::updateTranslateImmediately);
+    connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_.translateImmediately, &decltype(Settings::translateImmediately)::setValue);
+    connect(&settings_.translateImmediately, &Setting::valueChanged, this, &MainWindow::updateTranslateImmediately);
 
     // Update selected model when model changes
-    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::updateSelectedModel);
+    connect(&settings_.translationModel, &Setting::valueChanged, this, &MainWindow::updateSelectedModel);
 
     // Connect settings changes to reloading the model.
-    connect(&settings_, &Settings::coresChanged, this, &MainWindow::resetTranslator);
-    connect(&settings_, &Settings::workspaceChanged, this, &MainWindow::resetTranslator);
-    connect(&settings_, &Settings::translationModelChanged, this, &MainWindow::resetTranslator);
+    connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
+    connect(&settings_.workspace, &Setting::valueChanged, this, &MainWindow::resetTranslator);
+    connect(&settings_.translationModel, &Setting::valueChanged, this, &MainWindow::resetTranslator);
 
     // Initial state sync between settings & UI
     // TODO: Does Qt5 not have some form of bi-directional data binding? Looks
@@ -147,7 +147,7 @@ void MainWindow::showDownloadPane(bool visible)
 void MainWindow::handleDownload(QString filename, QByteArray data) {
     LocalModel model = models_.writeModel(filename, data);
     if (model)
-        settings_.setTranslationModel(model.path);
+        settings_.translationModel.setValue(model.path);
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
@@ -181,7 +181,7 @@ void MainWindow::on_localModels_activated(int index) {
     QVariant data = ui_->localModels->itemData(index);
 
     if (data.canConvert<LocalModel>()) {
-        settings_.setTranslationModel(data.value<LocalModel>().path);
+        settings_.translationModel.setValue(data.value<LocalModel>().path);
     } else if (data.canConvert<RemoteModel>()) {
         downloadModel(data.value<RemoteModel>());
     } else if (data == Action::FetchRemoteModels) {
