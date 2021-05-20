@@ -36,10 +36,10 @@ ModelManager::ModelManager(QObject *parent)
     settings_ = translateLocally::marianSettings();
 }
 
-LocalModel ModelManager::writeModel(QString filename, QByteArray data) {
+Model ModelManager::writeModel(QString filename, QByteArray data) {
     QString fullpath(configDir_.absolutePath() + QString("/") + filename);
     QSaveFile file(fullpath);
-    LocalModel newmodel;
+    Model newmodel;
     
     bool openReady = file.open(QIODevice::WriteOnly);
     if (!openReady) {
@@ -58,11 +58,14 @@ LocalModel ModelManager::writeModel(QString filename, QByteArray data) {
 
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
-    newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
-    if (newmodel.path == QString("")) {
-        emit error(QString("Failed to parse the model_info.json for the newly dowloaded " + filename));
+    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
+
+    // The function above should have added the path variable. it will error message if it fails.
+    if (obj.find("path") == obj.end()) {
+        emit error(QString("Failed to find, open or parse the model_info.json for the newly dowloaded " + filename));
         return newmodel;
     }
+    newmodel = parseModelInfo(obj);
 
     beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size());
     localModels_.append(newmodel);
@@ -71,44 +74,96 @@ LocalModel ModelManager::writeModel(QString filename, QByteArray data) {
     return newmodel;
 }
 
-LocalModel ModelManager::parseModelInfo(QString path) {
+QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
     // Check if we can find a model_info.json in the directory. If so, record it as part of the model
-    QFile modelInfoFile(path + "/model_info.json");
-    bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    if (isOpen) {
-        QByteArray bytes = modelInfoFile.readAll();
-        modelInfoFile.close();
-        // Parse the Json
-        QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
-        QJsonObject obj = jsonResponse.object();
-        QString modelName = obj["modelName"].toString();
-        QString shortName = obj["shortName"].toString();
-        QString type = obj["type"].toString();
-        LocalModel model = {path, modelName, shortName, type};
-        // Push it onto the list of models
-        return model;
+    QFileInfo modelInfo(dir + "/model_info.json");
+    if (modelInfo.exists()) {
+        QFile modelInfoFile(modelInfo.absoluteFilePath());
+        bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
+        if (isOpen) {
+            QByteArray bytes = modelInfoFile.readAll();
+            modelInfoFile.close();
+            // Parse the Json
+            QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
+            QJsonObject obj = jsonResponse.object();
+            // Populate the json with path
+            obj.insert(QString("path"), QJsonValue(dir));
+            return obj;
+        } else {
+            emit error("Failed to open json config file: " + modelInfo.absoluteFilePath());
+            return QJsonObject();
+        }
     } else {
-        emit error("Failed to open file: " + path + "/model_info.json");
-        return LocalModel{"", "", "", ""}; // Invalid modelDir
+        // Model info doesn't exist or a configuration file is not found. Handle the error elsewhere.
+        return QJsonObject();
     }
+}
+
+Model ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
+    std::vector<QString> keysSTR = {QString{"shortName"},
+                                    QString{"modelName"},
+                                    QString{"src"},
+                                    QString{"trg"},
+                                    QString{"type"}};
+    std::vector<QString> keysFLT{QString("version"), QString("API")};
+    QString criticalKey = local ? QString("path") : QString("url");
+
+    Model model = {};
+    // Non critical keys. Some of them might be missing from old model versions but we don't care
+    for (auto&& key : keysSTR) {
+        auto iter = obj.find(key);
+        if (iter != obj.end()) {
+            model.set(key, iter.value().toString());
+        } else {
+            model.set(key, "");
+        }
+    }
+
+    // Float Keys depend on whether we have a local or a remote model
+    // Non critical if missing due to older file name
+    for (auto&& key : keysFLT) {
+        QString keyname = local ? "local" + key : "remote" + key;
+        auto iter = obj.find(key);
+        if (iter != obj.end()) {
+            model.set(keyname, (float)iter.value().toDouble());
+        } else {
+            model.set(keyname, "");
+        }
+    }
+
+    // Critical key. If this key is missing the json is completely invalid and needs to be discarded
+    // it's either the path to the model or the url to its download location
+    auto iter = obj.find(criticalKey);
+    if (iter != obj.end()) {
+        model.set(criticalKey, iter.value().toString());
+    } else {
+        emit error ("The json file provided is missing " + criticalKey + " or is corrupted. Please redownload the model.\
+                     If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues");
+    }
+
+    return model;
 }
 
 void ModelManager::scanForModels(QString path) {
     //Iterate over all files in the folder and take note of available models and archives
     //@TODO currently, archives can only be extracted from the config dir
     QDirIterator it(path, QDir::NoFilter);
-    QList<LocalModel> models;
+    QList<Model> models;
     while (it.hasNext()) {
         QString current = it.next();
         QFileInfo f(current);
         if (f.isDir()) {
-            // Check if we can find a model_info.json in the directory. If so, record it as part of the model
-            QFileInfo modelInfo(current + "/model_info.json");
-            if (modelInfo.exists()) {
-                LocalModel model = parseModelInfo(current);
+            QJsonObject obj = getModelInfoJsonFromDir(current);
+            if (!obj.empty()) {
+                Model model = parseModelInfo(obj);
                 if (model.path != "") {
                     models.append(model);
+                } else {
+                    emit error("Corrupted json file: " + current + "/model_info.json" + " . Delete or redownload.");
                 }
+            } else {
+                // We have a folder in our models directory that doesn't contain a model. This is ok.
+                continue;
             }
         } else {
             // Check if this an existing archive
@@ -302,7 +357,7 @@ void ModelManager::parseRemoteModels(QJsonObject obj) {
     endInsertRows();
 }
 
-QList<LocalModel> ModelManager::installedModels() const {
+QList<Model> ModelManager::installedModels() const {
     return localModels_;
 }
 
@@ -317,7 +372,7 @@ QList<RemoteModel> ModelManager::availableModels() const {
 
         for (auto &&localModel : localModels_) {
             // TODO: matching by name might not be very robust
-            if (localModel.name == model.name) {
+            if (localModel.modelName == model.name) {
                 installed = true;
                 break;
             }
@@ -332,15 +387,15 @@ QList<RemoteModel> ModelManager::availableModels() const {
 
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
     if (index.row() <= localModels_.size()) {
-        LocalModel const &model = localModels_[index.row()];
+        Model const &model = localModels_[index.row()];
 
         switch (role) {
             case Qt::UserRole:
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case ModelManager::Column::Name:
-                        return model.name;
+                    case ModelManager::Column::ModelName:
+                        return model.modelName;
                     case Column::ShortName:
                         return model.shortName;
                     case Column::PathName:
@@ -360,7 +415,7 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case Column::Name:
+                    case Column::ModelName:
                         return model.name;
                     case Column::ShortName:
                         return model.code;
@@ -385,7 +440,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         return QVariant();
 
     switch (section) {
-        case Column::Name:
+        case Column::ModelName:
             return "Name";
         case Column::ShortName:
             return "Short name";

@@ -1,0 +1,24 @@
+[Desktop Entry]
+# The type as listed above
+Type=Application
+
+# The name of the application
+Name=translateLocally
+
+# A comment which can/will be used as a tooltip
+Comment=A privacy preserving machine translation tool, which translates locally on your machine.
+
+# The path to the folder in which the executable is run. Could potentially use this later to ship models but for now it's not used
+#Path=/usr/bin/translateLocally
+
+# The executable of the application, possibly with arguments. Potentially if the user put the executable out of their PATH, it'd not work, but we hope they wouldn't do that.
+Exec=translateLocally
+
+# The name of the icon that will be used to display this entry
+Icon=translateLocally_logo
+
+# Describes whether this application needs to be run in a terminal or not
+Terminal=false
+
+# Describes the categories in which this entry should be shown
+Categories=Education;Languages;Utility;Office;Translation

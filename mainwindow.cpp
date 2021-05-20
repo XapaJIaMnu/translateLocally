@@ -16,6 +16,9 @@
 #include <QMessageBox>
 #include <QFontDialog>
 #include <QListView>
+#include <QWindow>
+#include "logo/logo_svg.h"
+#include <iostream>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -29,6 +32,12 @@ MainWindow::MainWindow(QWidget *parent)
     , translator_(new MarianInterface(this))
 {
     ui_->setupUi(this);
+
+    // Create icon for the main window
+    QIcon icon = translateLocally::logo::getLogoFromSVG();
+    this->setWindowIcon(icon);
+
+    // Create the status bar
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
     ui_->pendingIndicator->hide();
 
@@ -155,8 +164,8 @@ void MainWindow::showDownloadPane(bool visible)
 }
 
 void MainWindow::handleDownload(QString filename, QByteArray data) {
-    LocalModel model = models_.writeModel(filename, data);
-    if (model)
+    Model model = models_.writeModel(filename, data);
+    if (model.isLocal())
         settings_.translationModel.setValue(model.path);
 }
 
@@ -190,8 +199,8 @@ void MainWindow::downloadModel(RemoteModel model) {
 void MainWindow::on_localModels_activated(int index) {
     QVariant data = ui_->localModels->itemData(index);
 
-    if (data.canConvert<LocalModel>()) {
-        settings_.translationModel.setValue(data.value<LocalModel>().path);
+    if (data.canConvert<Model>()) {
+        settings_.translationModel.setValue(data.value<Model>().path);
     } else if (data.canConvert<RemoteModel>()) {
         downloadModel(data.value<RemoteModel>());
     } else if (data == Action::FetchRemoteModels) {
@@ -210,7 +219,7 @@ void MainWindow::updateLocalModels() {
     // Add local models
     if (!models_.installedModels().empty()) {
         for (auto &&model : models_.installedModels())
-            ui_->localModels->addItem(model.name, QVariant::fromValue(model));
+            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
 
         ui_->localModels->insertSeparator(ui_->localModels->count());
     }
@@ -229,7 +238,7 @@ void MainWindow::updateLocalModels() {
 void MainWindow::updateSelectedModel() {
     for (int i = 0; i < ui_->localModels->count(); ++i) {
         QVariant item = ui_->localModels->itemData(i);
-        if (item.canConvert<LocalModel>() && item.value<LocalModel>().path == settings_.translationModel()) {
+        if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
             ui_->localModels->setCurrentIndex(i);
             return;
         }

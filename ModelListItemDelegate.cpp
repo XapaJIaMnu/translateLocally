@@ -15,7 +15,7 @@ ModelListItemDelegate::~ModelListItemDelegate()
 
 void ModelListItemDelegate::setEntry(QModelIndex const &index) const
 {
-    view_->setModel(qvariant_cast<LocalModel>(index.data(Qt::UserRole)));
+    view_->setModel(qvariant_cast<Model>(index.data(Qt::UserRole)));
 }
 
 QSize ModelListItemDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const

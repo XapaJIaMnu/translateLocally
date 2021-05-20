@@ -5,22 +5,10 @@
 #include <QDir>
 #include <QList>
 #include <QFuture>
+#include <iostream>
 #include "types.h"
 
 class QNetworkAccessManager;
-
-struct LocalModel {
-    QString path; // This is full path to the directory
-    QString name;
-    QString shortName;
-    QString type;
-
-    inline operator bool() const {
-        return !path.isEmpty();
-    }
-};
-
-Q_DECLARE_METATYPE(LocalModel)
 
 struct RemoteModel {
     QString name;
@@ -30,19 +18,76 @@ struct RemoteModel {
 
 Q_DECLARE_METATYPE(RemoteModel)
 
+struct Model {
+    QString shortName; // Unique model identifier eg en-es-tiny
+    QString modelName; // Long name, to be displayed in a single line
+    QString url;  // This is the url to the model. Only available if we connected to the server
+    QString path; // This is full path to the directory. Only available if the model is local
+    QString src;
+    QString trg;
+    QString type; // Base or tiny
+    float localversion  = -1.0f;
+    float localAPI = -1.0f;
+    float remoteversion = -1.0f;
+    float remoteAPI = -1.0f;
+
+    inline void set(QString key, QString val) {
+        if (key == "shortName") {
+            shortName = key;
+        } else if (key == "modelName") {
+            modelName = val;
+        } else if (key == "url") {
+            url = val;
+        } else if (key == "path") {
+            path = val;
+        } else if (key == "src") {
+            src = val;
+        } else if (key == "trg") {
+            trg = val;
+        } else if (key == "type") {
+            type = val;
+        } else {
+            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+        }
+    }
+    inline void set(QString key, float val) {
+        if (key == "localversion") {
+            localversion = val;
+        } else if (key == "localAPI") {
+            localAPI = val;
+        } else if (key == "remoteversion") {
+            remoteversion = val;
+        } else if (key == "remoteAPI") {
+            remoteAPI = val;
+        } else {
+            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+        }
+    }
+
+    inline bool isLocal() const {
+        return !path.isEmpty();
+    }
+
+    inline bool isRemote() const {
+        return !url.isEmpty();
+    }
+};
+
+Q_DECLARE_METATYPE(Model)
+
 class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
     void loadSettings();
-    LocalModel writeModel(QString filename, QByteArray data);
+    Model writeModel(QString filename, QByteArray data);
 
-    QList<LocalModel> installedModels() const;
+    QList<Model> installedModels() const;
     QList<RemoteModel> remoteModels() const;
     QList<RemoteModel> availableModels() const; // remote - local
 
     enum Column {
-        Name,
+        ModelName,
         ShortName,
         PathName,
         Type
@@ -65,14 +110,15 @@ private:
     void startupLoad();
     void scanForModels(QString path);
     void extractTarGz(QString filename);
-    LocalModel parseModelInfo(QString path);
+    Model parseModelInfo(QJsonObject& obj, bool local=true);
     void parseRemoteModels(QJsonObject obj);
+    QJsonObject getModelInfoJsonFromDir(QString dir);
 
     QSettings qset_;
     QDir configDir_;
 
     QStringList archives_; // Only archive name, not full path
-    QList<LocalModel> localModels_;
+    QList<Model> localModels_;
     QList<RemoteModel> remoteModels_;
     translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
