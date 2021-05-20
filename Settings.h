@@ -3,10 +3,10 @@
 #include <QSettings>
 #include "types.h"
 
-
 class Settings : public QObject 
 {
     Q_OBJECT
+    Q_PROPERTY(bool translateImmediately READ translateImmediately WRITE setTranslateImmediately NOTIFY translateImmediatelyChanged)
     Q_PROPERTY(QString translationModel READ translationModel WRITE setTranslationModel NOTIFY translationModelChanged)
     Q_PROPERTY(unsigned int cores READ cores WRITE setCores NOTIFY coresChanged)
     Q_PROPERTY(unsigned int workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged)
@@ -55,6 +55,14 @@ public:
 
     inline unsigned int workspace() const {
         return workspace_;
+    }
+
+private:
+    template <typename T>
+    void bind(QString name, void (Settings::*signal)(T)) {
+        connect(this, signal, this, [&, name] (T value) {
+            settings_.setValue(name, value);
+        });
     }
 
 signals:
