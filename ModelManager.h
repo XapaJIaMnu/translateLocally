@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QList>
 #include <QFuture>
+#include <iostream>
 #include "types.h"
 
 class QNetworkAccessManager;
@@ -25,6 +26,55 @@ struct RemoteModel {
 };
 
 Q_DECLARE_METATYPE(RemoteModel)
+
+struct Model {
+    QString shortName; // Unique model identifier eg en-es-tiny
+    QString modelName; // Long name, to be displayed in a single line
+    QString url = "";
+    QString path = "";
+    QString src;
+    QString trg;
+    QString type; // Base or tiny
+    float localversion  = -1.0f;
+    float localAPI = -1.0f;
+    float remoteversion = -1.0f;
+    float remoteAPI = -1.0f;
+
+    void set(QString key, QString val) {
+        if (key == "shortName") {
+            shortName = key;
+        } else if (key == "modelName") {
+            modelName = val;
+        } else if (key == "url") {
+            url = val;
+        } else if (key == "path") {
+            path = val;
+        } else if (key == "src") {
+            src = val;
+        } else if (key == "trg") {
+            trg = val;
+        } else if (key == "type") {
+            type = val;
+        } else {
+            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+        }
+    }
+    void set(QString key, float val) {
+        if (key == "localversion") {
+            localversion = val;
+        } else if (key == "localAPI") {
+            localAPI = val;
+        } else if (key == "remoteversion") {
+            remoteversion = val;
+        } else if (key == "remoteAPI") {
+            remoteAPI = val;
+        } else {
+            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+        }
+    }
+};
+
+Q_DECLARE_METATYPE(Model)
 
 class ModelManager : public QAbstractTableModel {
         Q_OBJECT
@@ -61,8 +111,9 @@ private:
     void startupLoad();
     void scanForModels(QString path);
     void extractTarGz(QString filename);
-    LocalModel parseModelInfo(QString path);
+    LocalModel parseModelInfo(QJsonObject& obj, bool local=true);
     void parseRemoteModels(QJsonObject obj);
+    QJsonObject getModelInfoJsonFromDir(QString dir);
 
     QSettings qset_;
     QDir configDir_;

@@ -35,7 +35,6 @@ MainWindow::MainWindow(QWidget *parent)
     // Create icon for the main window
     QIcon icon = translateLocally::logo::getLogoFromSVG();
     this->setWindowIcon(icon);
-    std::cerr << this->iconSize().height() << " " << this->iconSize().width() << std::endl;
 
     // Create the status bar
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);

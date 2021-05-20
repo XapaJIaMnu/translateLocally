@@ -55,9 +55,11 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
 
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
-    LocalModel newmodel = parseModelInfo(configDir_.absolutePath() + QString("/") + newModelDirName);
+    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
+
+    LocalModel newmodel = parseModelInfo(obj);
     if (newmodel.path == QString("")) {
-        emit error(QString("Failed to parse the model_info.json for the newly dowloaded " + filename));
+        emit error(QString("Failed to find, open or parse the model_info.json for the newly dowloaded " + filename));
         return;
     }
 
@@ -66,26 +68,79 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
     endInsertRows();
 }
 
-LocalModel ModelManager::parseModelInfo(QString path) {
+QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
     // Check if we can find a model_info.json in the directory. If so, record it as part of the model
-    QFile modelInfoFile(path + "/model_info.json");
-    bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    if (isOpen) {
-        QByteArray bytes = modelInfoFile.readAll();
-        modelInfoFile.close();
-        // Parse the Json
-        QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
-        QJsonObject obj = jsonResponse.object();
-        QString modelName = obj["modelName"].toString();
-        QString shortName = obj["shortName"].toString();
-        QString type = obj["type"].toString();
-        LocalModel model = {path, modelName, shortName, type};
-        // Push it onto the list of models
-        return model;
+    QFileInfo modelInfo(dir + "/model_info.json");
+    if (modelInfo.exists()) {
+        QFile modelInfoFile(modelInfo.absoluteFilePath());
+        bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
+        if (isOpen) {
+            QByteArray bytes = modelInfoFile.readAll();
+            modelInfoFile.close();
+            // Parse the Json
+            QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
+            QJsonObject obj = jsonResponse.object();
+            // Populate the json with path
+            obj.insert(QString("path"), QJsonValue(dir));
+            return obj;
+        } else {
+            emit error("Failed to open json config file: " + modelInfo.absoluteFilePath());
+            return QJsonObject();
+        }
     } else {
-        emit error("Failed to open file: " + path + "/model_info.json");
-        return LocalModel{"", "", "", ""}; // Invalid modelDir
+        // Model info doesn't exist or a configuration file is not found. Handle the error elsewhere.
+        return QJsonObject();
     }
+}
+
+LocalModel ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
+    std::vector<QString> keysSTR = {QString{"shortName"},
+                                    QString{"modelName"},
+                                    QString{"src"},
+                                    QString{"trg"},
+                                    QString{"type"}};
+    std::vector<QString> keysFLT{QString("version"), QString("API")};
+    QString criticalKey = local ? QString("path") : QString("url");
+
+    Model model = {};
+    // Non critical keys. Some of them might be missing from old model versions but we don't care
+    for (auto&& key : keysSTR) {
+        auto iter = obj.find(key);
+        if (iter != obj.end()) {
+            model.set(key, iter.value().toString());
+        } else {
+            model.set(key, "");
+        }
+    }
+
+    // Float Keys depend on whether we have a local or a remote model
+    // Non critical if missing due to older file name
+    for (auto&& key : keysFLT) {
+        QString keyname = local ? "local" + key : "remote" + key;
+        auto iter = obj.find(key);
+        if (iter != obj.end()) {
+            model.set(keyname, (float)iter.value().toDouble());
+        } else {
+            model.set(keyname, "");
+        }
+    }
+
+    // Critical key. If this key is missing the json is completely invalid and needs to be discarded
+    // it's either the path to the model or the url to its download location
+    auto iter = obj.find(criticalKey);
+    if (iter != obj.end()) {
+        model.set(criticalKey, iter.value().toString());
+    } else {
+        emit error ("The json file provided is missing " + criticalKey + " or is corrupted. Please redownload the model.\
+                     If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues");
+    }
+
+    // Temporary code bridging the legacy software to the new version
+    QString path = model.path;
+    QString modelName = model.modelName;
+    QString shortName = obj["shortName"].toString();
+    QString type = model.type;
+    return {path, modelName, shortName, type};
 }
 
 void ModelManager::scanForModels(QString path) {
@@ -97,13 +152,17 @@ void ModelManager::scanForModels(QString path) {
         QString current = it.next();
         QFileInfo f(current);
         if (f.isDir()) {
-            // Check if we can find a model_info.json in the directory. If so, record it as part of the model
-            QFileInfo modelInfo(current + "/model_info.json");
-            if (modelInfo.exists()) {
-                LocalModel model = parseModelInfo(current);
+            QJsonObject obj = getModelInfoJsonFromDir(current);
+            if (!obj.empty()) {
+                LocalModel model = parseModelInfo(obj);
                 if (model.path != "") {
                     models.append(model);
+                } else {
+                    emit error("Corrupted json file: " + current + "/model_info.json" + " . Delete or redownload.");
                 }
+            } else {
+                // We have a folder in our models directory that doesn't contain a model. This is ok.
+                continue;
             }
         } else {
             // Check if this an existing archive
