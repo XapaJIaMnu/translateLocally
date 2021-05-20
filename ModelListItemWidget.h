@@ -15,7 +15,7 @@ class ModelListItemWidget : public QWidget
 public:
     ModelListItemWidget(QWidget *parent = nullptr);
     ~ModelListItemWidget();
-    void setModel(LocalModel const &model);
+    void setModel(Model const &model);
 private:
     QSharedPointer<Ui::ModelListItemWidget> ui_;
 };

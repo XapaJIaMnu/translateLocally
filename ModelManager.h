@@ -10,15 +10,6 @@
 
 class QNetworkAccessManager;
 
-struct LocalModel {
-    QString path; // This is full path to the directory
-    QString name;
-    QString shortName;
-    QString type;
-};
-
-Q_DECLARE_METATYPE(LocalModel)
-
 struct RemoteModel {
     QString name;
     QString code;
@@ -31,7 +22,7 @@ struct Model {
     QString shortName; // Unique model identifier eg en-es-tiny
     QString modelName; // Long name, to be displayed in a single line
     QString url = "";
-    QString path = "";
+    QString path = ""; // This is full path to the directory
     QString src;
     QString trg;
     QString type; // Base or tiny
@@ -83,12 +74,12 @@ public:
     void loadSettings();
     void writeModel(QString filename, QByteArray data);
 
-    QList<LocalModel> installedModels() const;
+    QList<Model> installedModels() const;
     QList<RemoteModel> remoteModels() const;
     QList<RemoteModel> availableModels() const; // remote - local
 
     enum Column {
-        Name,
+        ModelName,
         ShortName,
         PathName,
         Type
@@ -111,7 +102,7 @@ private:
     void startupLoad();
     void scanForModels(QString path);
     void extractTarGz(QString filename);
-    LocalModel parseModelInfo(QJsonObject& obj, bool local=true);
+    Model parseModelInfo(QJsonObject& obj, bool local=true);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
 
@@ -119,7 +110,7 @@ private:
     QDir configDir_;
 
     QStringList archives_; // Only archive name, not full path
-    QList<LocalModel> localModels_;
+    QList<Model> localModels_;
     QList<RemoteModel> remoteModels_;
     translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 

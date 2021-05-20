@@ -57,7 +57,7 @@ void ModelManager::writeModel(QString filename, QByteArray data) {
     QString newModelDirName = filename.split(".tar.gz")[0];
     QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
 
-    LocalModel newmodel = parseModelInfo(obj);
+    Model newmodel = parseModelInfo(obj);
     if (newmodel.path == QString("")) {
         emit error(QString("Failed to find, open or parse the model_info.json for the newly dowloaded " + filename));
         return;
@@ -93,7 +93,7 @@ QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
     }
 }
 
-LocalModel ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
+Model ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
     std::vector<QString> keysSTR = {QString{"shortName"},
                                     QString{"modelName"},
                                     QString{"src"},
@@ -135,26 +135,21 @@ LocalModel ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
                      If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues");
     }
 
-    // Temporary code bridging the legacy software to the new version
-    QString path = model.path;
-    QString modelName = model.modelName;
-    QString shortName = obj["shortName"].toString();
-    QString type = model.type;
-    return {path, modelName, shortName, type};
+    return model;
 }
 
 void ModelManager::scanForModels(QString path) {
     //Iterate over all files in the folder and take note of available models and archives
     //@TODO currently, archives can only be extracted from the config dir
     QDirIterator it(path, QDir::NoFilter);
-    QList<LocalModel> models;
+    QList<Model> models;
     while (it.hasNext()) {
         QString current = it.next();
         QFileInfo f(current);
         if (f.isDir()) {
             QJsonObject obj = getModelInfoJsonFromDir(current);
             if (!obj.empty()) {
-                LocalModel model = parseModelInfo(obj);
+                Model model = parseModelInfo(obj);
                 if (model.path != "") {
                     models.append(model);
                 } else {
@@ -356,7 +351,7 @@ void ModelManager::parseRemoteModels(QJsonObject obj) {
     endInsertRows();
 }
 
-QList<LocalModel> ModelManager::installedModels() const {
+QList<Model> ModelManager::installedModels() const {
     return localModels_;
 }
 
@@ -371,7 +366,7 @@ QList<RemoteModel> ModelManager::availableModels() const {
 
         for (auto &&localModel : localModels_) {
             // TODO: matching by name might not be very robust
-            if (localModel.name == model.name) {
+            if (localModel.modelName == model.name) {
                 installed = true;
                 break;
             }
@@ -386,15 +381,15 @@ QList<RemoteModel> ModelManager::availableModels() const {
 
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
     if (index.row() <= localModels_.size()) {
-        LocalModel const &model = localModels_[index.row()];
+        Model const &model = localModels_[index.row()];
 
         switch (role) {
             case Qt::UserRole:
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case ModelManager::Column::Name:
-                        return model.name;
+                    case ModelManager::Column::ModelName:
+                        return model.modelName;
                     case Column::ShortName:
                         return model.shortName;
                     case Column::PathName:
@@ -414,7 +409,7 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
                 return QVariant::fromValue(model);
             case Qt::DisplayRole:
                 switch (index.column()) {
-                    case Column::Name:
+                    case Column::ModelName:
                         return model.name;
                     case Column::ShortName:
                         return model.code;
@@ -439,7 +434,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         return QVariant();
 
     switch (section) {
-        case Column::Name:
+        case Column::ModelName:
             return "Name";
         case Column::ShortName:
             return "Short name";

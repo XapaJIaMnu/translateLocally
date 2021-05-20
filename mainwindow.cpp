@@ -172,8 +172,8 @@ void MainWindow::downloadModel(RemoteModel model) {
 void MainWindow::on_localModels_activated(int index) {
     QVariant data = ui_->localModels->itemData(index);
 
-    if (data.canConvert<LocalModel>()) {
-        resetTranslator(data.value<LocalModel>().path);
+    if (data.canConvert<Model>()) {
+        resetTranslator(data.value<Model>().path);
     } else if (data.canConvert<RemoteModel>()) {
         downloadModel(data.value<RemoteModel>());
     } else if (data == Action::FetchRemoteModels) {
@@ -191,7 +191,7 @@ void MainWindow::updateLocalModels() {
     // Add local models
     if (!models_.installedModels().empty()) {
         for (auto &&model : models_.installedModels())
-            ui_->localModels->addItem(model.name, QVariant::fromValue(model));
+            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
 
         ui_->localModels->insertSeparator(ui_->localModels->count());
     }
