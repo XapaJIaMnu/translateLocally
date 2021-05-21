@@ -103,11 +103,9 @@ MainWindow::MainWindow(QWidget *parent)
     resetTranslator();
     updateSelectedModel();
     updateTranslateImmediately();
-    restoreInputText();
 }
 
 MainWindow::~MainWindow() {
-    saveInputText();
     delete ui_;
 }
 
@@ -122,19 +120,6 @@ void MainWindow::on_translateAction_triggered() {
 
 void MainWindow::on_translateButton_clicked() {
     translate();
-}
-
-void MainWindow::saveInputText() {
-    settings_.inputText.setValue(ui_->inputBox->toPlainText());
-    settings_.inputPosition.setValue(ui_->inputBox->textCursor().position());
-}
-
-void MainWindow::restoreInputText() {
-    QSignalBlocker blocker(ui_->inputBox);
-    ui_->inputBox->setPlainText(settings_.inputText());
-    QTextCursor cursor = ui_->inputBox->textCursor();
-    cursor.setPosition(settings_.inputPosition());
-    ui_->inputBox->setTextCursor(cursor);
 }
 
 void MainWindow::on_inputBox_textChanged() {

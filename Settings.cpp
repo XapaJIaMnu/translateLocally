@@ -11,9 +11,7 @@ Settings::Settings(QObject *parent)
 , translateImmediately(backing_, "translate_immediately", true)
 , translationModel(backing_, "translation_model", "")
 , cores(backing_, "cpu_cores", std::thread::hardware_concurrency())
-, workspace(backing_, "workspace", 128)
-, inputText(backing_, "input_text", "") 
-, inputPosition(backing_, "input_position", 0) {
+, workspace(backing_, "workspace", 128) {
     //
 }
 
