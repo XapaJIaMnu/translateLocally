@@ -212,7 +212,7 @@ void MainWindow::updateLocalModels() {
     // Add local models
     if (!models_.getInstalledModels().empty()) {
         for (auto &&model : models_.getInstalledModels()) {
-            QString updated = model.outdated() ? " oudated " : ""; // Write down that the model has been updated
+            QString updated = model.outdated() ? " outdated " : ""; // Write down that the model has been updated
             ui_->localModels->addItem(model.modelName + updated, QVariant::fromValue(model));
         }
 
