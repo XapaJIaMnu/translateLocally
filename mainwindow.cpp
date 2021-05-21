@@ -130,6 +130,7 @@ void MainWindow::saveInputText() {
 }
 
 void MainWindow::restoreInputText() {
+    QSignalBlocker blocker(ui_->inputBox);
     ui_->inputBox->setPlainText(settings_.inputText());
     QTextCursor cursor = ui_->inputBox->textCursor();
     cursor.setPosition(settings_.inputPosition());
