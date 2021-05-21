@@ -99,14 +99,15 @@ QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
     }
 }
 
-Model ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
+Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::Location type) {
+    using namespace translateLocally::models;
     std::vector<QString> keysSTR = {QString{"shortName"},
                                     QString{"modelName"},
                                     QString{"src"},
                                     QString{"trg"},
                                     QString{"type"}};
     std::vector<QString> keysFLT{QString("version"), QString("API")};
-    QString criticalKey = local ? QString("path") : QString("url");
+    QString criticalKey = type==Local ? QString("path") : QString("url");
 
     Model model = {};
     // Non critical keys. Some of them might be missing from old model versions but we don't care
@@ -122,7 +123,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, bool local) {
     // Float Keys depend on whether we have a local or a remote model
     // Non critical if missing due to older file name
     for (auto&& key : keysFLT) {
-        QString keyname = local ? "local" + key : "remote" + key;
+        QString keyname = type==Local ? "local" + key : "remote" + key;
         auto iter = obj.find(key);
         if (iter != obj.end()) {
             model.set(keyname, (float)iter.value().toDouble());
@@ -335,20 +336,19 @@ void ModelManager::fetchRemoteModels() {
 }
 
 void ModelManager::parseRemoteModels(QJsonObject obj) {
+    using namespace translateLocally::models;
     beginRemoveRows(QModelIndex(),
         localModels_.size(),
         localModels_.size() + remoteModels_.size() - 1);
     remoteModels_.clear();
     endRemoveRows();
 
-    QList<RemoteModel> models;
+    QList<Model> models;
     for (auto&& arrobj : obj["models"].toArray()) {
-        models.append(RemoteModel{
-            arrobj.toObject()["name"].toString(),
-            arrobj.toObject()["code"].toString(),
-            arrobj.toObject()["url"].toString()
-        });
+        QJsonObject obj = arrobj.toObject();
+        models.append(parseModelInfo(obj, Remote));
     }
+
 
     beginInsertRows(QModelIndex(),
         localModels_.size(),
@@ -361,18 +361,17 @@ QList<Model> ModelManager::installedModels() const {
     return localModels_;
 }
 
-QList<RemoteModel> ModelManager::remoteModels() const {
+QList<Model> ModelManager::remoteModels() const {
     return remoteModels_;
 }
 
-QList<RemoteModel> ModelManager::availableModels() const {
-    QList<RemoteModel> filtered;
+QList<Model> ModelManager::availableModels() const {
+    QList<Model> filtered;
     for (auto &&model : remoteModels_) {
         bool installed = false;
-
         for (auto &&localModel : localModels_) {
             // TODO: matching by name might not be very robust
-            if (localModel.modelName == model.name) {
+            if (localModel.shortName == model.shortName) {
                 installed = true;
                 break;
             }
@@ -381,10 +380,9 @@ QList<RemoteModel> ModelManager::availableModels() const {
         if (!installed)
             filtered.append(model);
     }
-
     return filtered;
 }
-
+// @TODO those can be removed now, right?
 QVariant ModelManager::data(QModelIndex const &index, int role) const {
     if (index.row() <= localModels_.size()) {
         Model const &model = localModels_[index.row()];
@@ -408,7 +406,7 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
                 return QVariant();
         }
     } else if (index.row() - localModels_.size() <= remoteModels_.size()) {
-        RemoteModel const &model = remoteModels_[index.row() - localModels_.size()];
+        Model const &model = remoteModels_[index.row() - localModels_.size()];
 
         switch (role) {
             case Qt::UserRole:
@@ -416,9 +414,9 @@ QVariant ModelManager::data(QModelIndex const &index, int role) const {
             case Qt::DisplayRole:
                 switch (index.column()) {
                     case Column::ModelName:
-                        return model.name;
+                        return model.modelName;
                     case Column::ShortName:
-                        return model.code;
+                        return model.shortName;
                     case Column::PathName:
                         return model.url;
                     case Column::Type:

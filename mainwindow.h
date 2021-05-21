@@ -68,7 +68,7 @@ private:
     std::unique_ptr<MarianInterface> translator_;
     void resetTranslator();
     void showDownloadPane(bool visible);
-    void downloadModel(RemoteModel model);
+    void downloadModel(Model model);
 
     // Keep track of the models
     QStringList urls_;

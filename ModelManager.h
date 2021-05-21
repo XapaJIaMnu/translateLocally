@@ -10,13 +10,14 @@
 
 class QNetworkAccessManager;
 
-struct RemoteModel {
-    QString name;
-    QString code;
-    QString url;
-};
-
-Q_DECLARE_METATYPE(RemoteModel)
+namespace translateLocally {
+    namespace models {
+        enum Location {
+            Remote = 0,
+            Local = 1
+        };
+    }
+}
 
 struct Model {
     QString shortName; // Unique model identifier eg en-es-tiny
@@ -33,7 +34,7 @@ struct Model {
 
     inline void set(QString key, QString val) {
         if (key == "shortName") {
-            shortName = key;
+            shortName = val;
         } else if (key == "modelName") {
             modelName = val;
         } else if (key == "url") {
@@ -71,6 +72,14 @@ struct Model {
     inline bool isRemote() const {
         return !url.isEmpty();
     }
+
+    // Debug
+    inline void print() const {
+        std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
+                     " url: " << url.toStdString() << " path " << path.toStdString() << " src " << src.toStdString() << " trg " << trg.toStdString() <<
+                     " type: " << type.toStdString() << " localversion " << localversion << " localAPI " << localAPI <<
+                     " remoteversion: " << remoteversion << " remoteAPI " << remoteAPI << std::endl;
+    }
 };
 
 Q_DECLARE_METATYPE(Model)
@@ -83,8 +92,8 @@ public:
     Model writeModel(QString filename, QByteArray data);
 
     QList<Model> installedModels() const;
-    QList<RemoteModel> remoteModels() const;
-    QList<RemoteModel> availableModels() const; // remote - local
+    QList<Model> remoteModels() const;
+    QList<Model> availableModels() const; // remote - local
 
     enum Column {
         ModelName,
@@ -94,6 +103,7 @@ public:
     };
     Q_ENUM(Column);
 
+    // @TODO those can removed now that we don't have two model types
     virtual QVariant data(QModelIndex const &, int role = Qt::DisplayRole) const;
     virtual QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
     virtual int columnCount(QModelIndex const & = QModelIndex()) const;
@@ -110,7 +120,7 @@ private:
     void startupLoad();
     void scanForModels(QString path);
     void extractTarGz(QString filename);
-    Model parseModelInfo(QJsonObject& obj, bool local=true);
+    Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
 
@@ -119,7 +129,7 @@ private:
 
     QStringList archives_; // Only archive name, not full path
     QList<Model> localModels_;
-    QList<RemoteModel> remoteModels_;
+    QList<Model> remoteModels_;
     translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
     QNetworkAccessManager *nam_;

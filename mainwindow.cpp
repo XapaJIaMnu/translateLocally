@@ -174,11 +174,11 @@ void MainWindow::downloadProgress(qint64 ist, qint64 max) {
     ui_->downloadProgress->setValue(ist);
 }
 
-void MainWindow::downloadModel(RemoteModel model) {
+void MainWindow::downloadModel(Model model) {
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
     connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
     
-    ui_->downloadLabel->setText(QString("Downloading %1…").arg(model.name));
+    ui_->downloadLabel->setText(QString("Downloading %1…").arg(model.modelName));
     ui_->downloadProgress->setValue(0);
     showDownloadPane(true);
 
@@ -199,10 +199,10 @@ void MainWindow::downloadModel(RemoteModel model) {
 void MainWindow::on_localModels_activated(int index) {
     QVariant data = ui_->localModels->itemData(index);
 
-    if (data.canConvert<Model>()) {
+    if (data.canConvert<Model>() && data.value<Model>().isLocal()) {
         settings_.translationModel.setValue(data.value<Model>().path);
-    } else if (data.canConvert<RemoteModel>()) {
-        downloadModel(data.value<RemoteModel>());
+    } else if (data.canConvert<Model>()) {
+        downloadModel(data.value<Model>());
     } else if (data == Action::FetchRemoteModels) {
         models_.fetchRemoteModels();
     } else {
@@ -231,7 +231,7 @@ void MainWindow::updateLocalModels() {
         ui_->localModels->addItem("No other models available online");
     } else {
         for (auto &&model : models_.availableModels())
-            ui_->localModels->addItem(model.name, QVariant::fromValue(model));
+            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
     }
 }
 
