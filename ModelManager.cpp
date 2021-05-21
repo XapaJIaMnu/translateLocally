@@ -69,6 +69,7 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
 
     beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size());
     localModels_.append(newmodel);
+    std::sort(localModels_.begin(), localModels_.end());
     endInsertRows();
 
     return newmodel;
@@ -176,6 +177,7 @@ void ModelManager::scanForModels(QString path) {
 
     beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size() + models.size() - 1);
     localModels_ += models;
+    std::sort(localModels_.begin(), localModels_.end()); // Sort the models
     endInsertRows();
 }
 
@@ -349,10 +351,10 @@ void ModelManager::parseRemoteModels(QJsonObject obj) {
         models.append(parseModelInfo(obj, Remote));
     }
 
-
     beginInsertRows(QModelIndex(),
         localModels_.size(),
         localModels_.size() + models.size() - 1);
+    std::sort(models.begin(), models.end());
     remoteModels_ = models;
     endInsertRows();
 }

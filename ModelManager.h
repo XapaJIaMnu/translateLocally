@@ -73,6 +73,10 @@ struct Model {
         return !url.isEmpty();
     }
 
+    inline bool operator<(const Model& other) const {
+        return shortName < other.shortName;
+    }
+
     // Debug
     inline void print() const {
         std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
