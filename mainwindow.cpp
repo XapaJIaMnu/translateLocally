@@ -236,6 +236,9 @@ void MainWindow::updateLocalModels() {
             ui_->localModels->addItem(model.modelName + " updated ", QVariant::fromValue(model));
         }
     }
+
+    // Re-select the currently loaded model
+    updateSelectedModel();
 }
 
 void MainWindow::updateSelectedModel() {
