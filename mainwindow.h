@@ -70,6 +70,9 @@ private:
     void showDownloadPane(bool visible);
     void downloadModel(Model model);
 
+    void saveInputText();
+    void restoreInputText();
+
     // Keep track of the models
     QStringList urls_;
     QStringList codes_;
