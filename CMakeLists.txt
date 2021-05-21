@@ -86,32 +86,37 @@ add_subdirectory(3rd_party)
 # end of marian options
 
 #set(TS_FILES translateLocally_es_ES.ts) //Causes compilation to go on forever...
-
+# Set up source
+include_directories(src)
+include_directories(logo)
+add_subdirectory(src)
+# This doesn't quite work if places in the subdirectory's CMakeLists.txt
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
-        TranslatorSettingsDialog.ui
-        TranslatorSettingsDialog.cpp
-        TranslatorSettingsDialog.h
-        MarianInterface.cpp
-        MarianInterface.h
-        ModelListItemDelegate.cpp
-        ModelListItemDelegate.h
-        ModelListItemWidget.cpp
-        ModelListItemWidget.h
-        ModelListItemWidget.ui
-        ModelManager.cpp
-        ModelManager.h
-        Network.cpp
-        Network.h
-        Settings.cpp
-        Settings.h
-        types.h
+        src/main.cpp
+        src/mainwindow.cpp
+        src/mainwindow.h
+        src/mainwindow.ui
+        src/TranslatorSettingsDialog.ui
+        src/TranslatorSettingsDialog.cpp
+        src/TranslatorSettingsDialog.h
+        src/MarianInterface.cpp
+        src/MarianInterface.h
+        src/ModelListItemDelegate.cpp
+        src/ModelListItemDelegate.h
+        src/ModelListItemWidget.cpp
+        src/ModelListItemWidget.h
+        src/ModelListItemWidget.ui
+        src/ModelManager.cpp
+        src/ModelManager.h
+        src/Network.cpp
+        src/Network.h
+        src/Settings.cpp
+        src/Settings.h
+        src/types.h
         logo/logo_svg.h
         ${TS_FILES}
 )
+
 
 # Set icon file for windows
 if(WIN32)

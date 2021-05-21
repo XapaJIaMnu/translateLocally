@@ -4,7 +4,7 @@
 #include <QJsonArray>
 #include <QtGlobal>
 #include <iostream>
-#include <mainwindow.h>
+#include "mainwindow.h"
 
 Network::Network(QObject *parent)
     : QObject(parent)
