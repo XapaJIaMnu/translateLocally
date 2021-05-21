@@ -50,6 +50,10 @@ private slots:
 
     void on_localModels_activated(int index);
 
+    void on_actionSplit_Horizontally_triggered();
+
+    void on_actionSplit_Vertically_triggered();
+
     void popupError(QString error);
 
     void translate();

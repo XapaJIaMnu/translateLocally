@@ -91,6 +91,13 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->translateButton->setVisible(!enabled);
     });
 
+    // Connect changing split orientation
+    bind(settings_.splitOrientation, [&](Qt::Orientation orientation) {
+        ui_->splitter->setOrientation(orientation);
+        ui_->actionSplit_Horizontally->setChecked(orientation == Qt::Horizontal);
+        ui_->actionSplit_Vertically->setChecked(orientation == Qt::Vertical);
+    });
+
     // Update selected model when model changes
     bind(settings_.translationModel, [&](QString path) {
         Q_UNUSED(path);
@@ -293,11 +300,18 @@ void MainWindow::popupError(QString error) {
     msgBox.exec();
 }
 
-void MainWindow::on_fontAction_triggered()
-{
+void MainWindow::on_fontAction_triggered() {
     this->setFont(QFontDialog::getFont(0, this->font()));
 }
 
 void MainWindow::on_actionTranslator_Settings_triggered() {
     this->translatorSettingsDialog_.setVisible(true);
+}
+
+void MainWindow::on_actionSplit_Horizontally_triggered() {
+    settings_.splitOrientation.setValue(Qt::Horizontal);
+}
+
+void MainWindow::on_actionSplit_Vertically_triggered() {
+    settings_.splitOrientation.setValue(Qt::Vertical);
 }
