@@ -25,10 +25,6 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
 
     for (auto option : cores_options)
         ui_->coresBox->addItem(QString("%1").arg(option), option);
-
-    // TODO: load this every appearance
-    ui_->coresBox->setCurrentIndex(cores_options.indexOf(settings_->cores()));
-    ui_->memoryBox->setCurrentIndex(memory_options.indexOf(settings_->workspace()));
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()
@@ -36,8 +32,16 @@ TranslatorSettingsDialog::~TranslatorSettingsDialog()
     delete ui_;
 }
 
+void TranslatorSettingsDialog::showEvent(QShowEvent *ev)
+{
+    ui_->coresBox->setCurrentIndex(ui_->coresBox->findData(settings_->cores()));
+    ui_->memoryBox->setCurrentIndex(ui_->memoryBox->findData(settings_->workspace()));
+    ui_->translateImmediatelyCheckbox->setChecked(settings_->translateImmediately());
+}
+
 void TranslatorSettingsDialog::on_buttonBox_accepted()
 {
     settings_->cores.setValue(ui_->coresBox->currentData().toUInt());
     settings_->workspace.setValue(ui_->memoryBox->currentData().toUInt());
+    settings_->translateImmediately.setValue(ui_->translateImmediatelyCheckbox->isChecked());
 }

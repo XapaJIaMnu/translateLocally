@@ -6,53 +6,72 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>523</width>
-    <height>233</height>
+    <width>300</width>
+    <height>244</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Settings</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="5" column="2">
-    <widget class="QComboBox" name="coresBox"/>
-   </item>
-   <item row="4" column="1">
-    <widget class="QLabel" name="memoryLbl">
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>40</height>
-      </size>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item alignment="Qt::AlignTop">
+    <widget class="QGroupBox" name="behaviourGroup">
+     <property name="title">
+      <string>Behaviour</string>
      </property>
-     <property name="text">
-      <string>Memory per thread</string>
-     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item alignment="Qt::AlignTop">
+       <widget class="QCheckBox" name="translateImmediatelyCheckbox">
+        <property name="text">
+         <string>Translate as I type</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
-   <item row="5" column="1">
-    <widget class="QComboBox" name="memoryBox"/>
+   <item alignment="Qt::AlignTop">
+    <widget class="QGroupBox" name="resourceGroup">
+     <property name="title">
+      <string>Resource usage</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="coresLbl">
+        <property name="text">
+         <string>Threads</string>
+        </property>
+        <property name="buddy">
+         <cstring>coresBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="memoryBox"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="coresBox"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="memoryLbl">
+        <property name="text">
+         <string>Memory per thread</string>
+        </property>
+        <property name="buddy">
+         <cstring>memoryBox</cstring>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
-   <item row="6" column="1" colspan="2">
+   <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="2">
-    <widget class="QLabel" name="CoresLbl">
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>40</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Threads</string>
      </property>
     </widget>
    </item>
@@ -67,12 +86,12 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>20</x>
+     <y>20</y>
     </hint>
     <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
+     <x>20</x>
+     <y>20</y>
     </hint>
    </hints>
   </connection>
@@ -83,12 +102,12 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>20</x>
+     <y>20</y>
     </hint>
     <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
+     <x>20</x>
+     <y>20</y>
     </hint>
    </hints>
   </connection>

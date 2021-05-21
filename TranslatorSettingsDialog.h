@@ -16,6 +16,9 @@ public:
     explicit TranslatorSettingsDialog(QWidget *parent, Settings *settings);
     ~TranslatorSettingsDialog();
 
+protected:
+    void showEvent(QShowEvent *ev);
+
 private slots:
     void on_buttonBox_accepted();
 
