@@ -98,6 +98,9 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->actionSplit_Vertically->setChecked(orientation == Qt::Vertical);
     });
 
+    // Restore window size
+    restoreGeometry(settings_.windowGeometry());
+
     // Update selected model when model changes
     bind(settings_.translationModel, [&](QString path) {
         Q_UNUSED(path);
@@ -117,6 +120,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
+    settings_.windowGeometry.setValue(saveGeometry());
     delete ui_;
 }
 

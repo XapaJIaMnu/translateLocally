@@ -82,4 +82,5 @@ public:
     SettingImpl<unsigned int> cores;
     SettingImpl<unsigned int> workspace;
     SettingImpl<Qt::Orientation> splitOrientation;
+    SettingImpl<QByteArray> windowGeometry;
 };

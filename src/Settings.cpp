@@ -12,7 +12,8 @@ Settings::Settings(QObject *parent)
 , translationModel(backing_, "translation_model", "")
 , cores(backing_, "cpu_cores", std::thread::hardware_concurrency())
 , workspace(backing_, "workspace", 128)
-, splitOrientation(backing_, "split", Qt::Vertical) {
+, splitOrientation(backing_, "split", Qt::Vertical)
+, windowGeometry(backing_, "window_geometry") {
     //
 }
 
