@@ -77,6 +77,10 @@ struct Model {
         return shortName < other.shortName;
     }
 
+    inline bool outdated() const {
+        return localversion<remoteversion || localAPI < remoteAPI;
+    }
+
     // Debug
     inline void print() const {
         std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
@@ -95,9 +99,16 @@ public:
     void loadSettings();
     Model writeModel(QString filename, QByteArray data);
 
-    QList<Model> installedModels() const;
-    QList<Model> remoteModels() const;
-    QList<Model> availableModels() const; // remote - local
+    QList<Model> getInstalledModels() const;
+    QList<Model> getRemoteModels() const;
+    QList<Model> getUpdatedModels() const;
+    QList<Model> getNewModels() const;
+    /**
+     * @brief updateAvailableModels once new models are fetched from the interwebs, you update the local models with version information
+     *                        and make a list of new models as well as models that are just updates of local models, so that the
+     *                        user can download a new version.
+     */
+    void updateAvailableModels(); // remote - local
 
     enum Column {
         ModelName,
@@ -134,6 +145,8 @@ private:
     QStringList archives_; // Only archive name, not full path
     QList<Model> localModels_;
     QList<Model> remoteModels_;
+    QList<Model> newModels_;
+    QList<Model> updatedModels_;
     translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
     QNetworkAccessManager *nam_;

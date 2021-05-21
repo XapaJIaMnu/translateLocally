@@ -359,30 +359,44 @@ void ModelManager::parseRemoteModels(QJsonObject obj) {
     endInsertRows();
 }
 
-QList<Model> ModelManager::installedModels() const {
+QList<Model> ModelManager::getInstalledModels() const {
     return localModels_;
 }
 
-QList<Model> ModelManager::remoteModels() const {
+QList<Model> ModelManager::getRemoteModels() const {
     return remoteModels_;
 }
 
-QList<Model> ModelManager::availableModels() const {
-    QList<Model> filtered;
+QList<Model> ModelManager::getNewModels() const {
+    return newModels_;
+}
+
+QList<Model> ModelManager::getUpdatedModels() const {
+    return updatedModels_;
+}
+
+void ModelManager::updateAvailableModels() {
     for (auto &&model : remoteModels_) {
         bool installed = false;
+        bool outdated = false;
         for (auto &&localModel : localModels_) {
             // TODO: matching by name might not be very robust
             if (localModel.shortName == model.shortName) {
+                localModel.remoteAPI = model.remoteAPI;
+                localModel.remoteversion = model.remoteversion;
                 installed = true;
+                outdated = localModel.outdated();
                 break;
             }
         }
 
-        if (!installed)
-            filtered.append(model);
+        if (!installed) {
+            newModels_.append(model);
+        }
+        if (outdated) {
+            updatedModels_.append(model);
+        }
     }
-    return filtered;
 }
 // @TODO those can be removed now, right?
 QVariant ModelManager::data(QModelIndex const &index, int role) const {

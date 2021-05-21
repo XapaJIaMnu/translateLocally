@@ -50,8 +50,8 @@ MainWindow::MainWindow(QWidget *parent)
     updateLocalModels();
 
     // If no model is preferred, load the first available one.
-    if (settings_.translationModel().isEmpty() && !models_.installedModels().empty())
-        settings_.translationModel.setValue(models_.installedModels().first().path);
+    if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
+        settings_.translationModel.setValue(models_.getInstalledModels().first().path);
 
     inactivityTimer_.setInterval(300);
     inactivityTimer_.setSingleShot(true);
@@ -80,7 +80,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Pop open the model list again when remote model list is available
     connect(&models_, &ModelManager::fetchedRemoteModels, this, [&] {
-        if (!models_.availableModels().empty())
+        if (!models_.getNewModels().empty())
             ui_->localModels->showPopup();
     });
 
@@ -206,22 +206,35 @@ void MainWindow::updateLocalModels() {
     ui_->localModels->clear();
     ui_->localModels->setCurrentIndex(-1);
 
+    // Update the lists of available models:
+    models_.updateAvailableModels();
+
     // Add local models
-    if (!models_.installedModels().empty()) {
-        for (auto &&model : models_.installedModels())
-            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
+    if (!models_.getInstalledModels().empty()) {
+        for (auto &&model : models_.getInstalledModels()) {
+            QString updated = model.outdated() ? " oudated " : ""; // Write down that the model has been updated
+            ui_->localModels->addItem(model.modelName + updated, QVariant::fromValue(model));
+        }
 
         ui_->localModels->insertSeparator(ui_->localModels->count());
     }
 
     // Add any models available for download
-    if (models_.remoteModels().empty()) {
+    if (models_.getRemoteModels().empty()) {
         ui_->localModels->addItem("Download models…", Action::FetchRemoteModels);
-    } else if (models_.availableModels().empty()) {
+    } else if (models_.getNewModels().empty()) {
         ui_->localModels->addItem("No other models available online");
     } else {
-        for (auto &&model : models_.availableModels())
+        for (auto &&model : models_.getNewModels())
             ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
+    }
+
+    // Add models that are existing but a new version is available online
+    if (!models_.getUpdatedModels().empty()) {
+        ui_->localModels->insertSeparator(ui_->localModels->count());
+        for (auto&& model : models_.getUpdatedModels()) {
+            ui_->localModels->addItem(model.modelName + " updated ", QVariant::fromValue(model));
+        }
     }
 }
 
