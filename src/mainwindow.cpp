@@ -86,10 +86,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect translate immediately toggle in both directions
     connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_.translateImmediately, &decltype(Settings::translateImmediately)::setValue);
-    connect(&settings_.translateImmediately, &Setting::valueChanged, this, &MainWindow::updateTranslateImmediately);
+    bind(settings_.translateImmediately, [&](bool enabled) {
+        ui_->actionTranslateImmediately->setChecked(enabled);
+        ui_->translateButton->setVisible(!enabled);
+    });
 
     // Update selected model when model changes
-    connect(&settings_.translationModel, &Setting::valueChanged, this, &MainWindow::updateSelectedModel);
+    bind(settings_.translationModel, [&](QString path) {
+        Q_UNUSED(path);
+        updateSelectedModel();
+    });
 
     // Connect settings changes to reloading the model.
     connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
@@ -101,17 +107,10 @@ MainWindow::MainWindow(QWidget *parent)
     // like it's only available in QtQuick and starting Qt6 in C++.
     // Note: both are safe when no model is set.
     resetTranslator();
-    updateSelectedModel();
-    updateTranslateImmediately();
 }
 
 MainWindow::~MainWindow() {
     delete ui_;
-}
-
-void MainWindow::updateTranslateImmediately() {
-    ui_->actionTranslateImmediately->setChecked(settings_.translateImmediately());
-    ui_->translateButton->setVisible(!settings_.translateImmediately());
 }
 
 void MainWindow::on_translateAction_triggered() {

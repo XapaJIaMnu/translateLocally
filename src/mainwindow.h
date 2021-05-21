@@ -60,8 +60,6 @@ private slots:
 
     void updateSelectedModel();
 
-    void updateTranslateImmediately();
-
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
     // Translator related settings
@@ -86,5 +84,16 @@ private:
 
     QTimer inactivityTimer_;
     QString translationInput_;
+
+    template <typename T, typename Fun>
+    void bind(SettingImpl<T> &setting, Fun update) {
+        // Update initially
+        update(setting.value());
+
+        // Update every time it changes
+        connect(&setting, &Setting::valueChanged, [&, update]{
+            update(setting.value());
+        });
+    }
 };
 #endif // MAINWINDOW_H
