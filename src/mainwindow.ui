@@ -244,6 +244,9 @@
    <property name="text">
     <string>Split Horizontally</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
+   </property>
   </action>
   <action name="actionSplit_Vertically">
    <property name="checkable">
@@ -251,6 +254,9 @@
    </property>
    <property name="text">
     <string>Split Vertically</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+2</string>
    </property>
   </action>
  </widget>
