@@ -73,7 +73,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
         if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->speedDisplay->setText(QString("Translation speed: ") + QString::fromStdString(std::to_string(speed)) + QString(" words per second."));
+            ui_->speedDisplay->setText(QString("Translation speed: %1 words per second.").arg(speed));
             ui_->speedDisplay->setVisible(true);
         } else {
             ui_->speedDisplay->setVisible(false);
