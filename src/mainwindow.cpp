@@ -86,10 +86,26 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect translate immediately toggle in both directions
     connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_.translateImmediately, &decltype(Settings::translateImmediately)::setValue);
-    connect(&settings_.translateImmediately, &Setting::valueChanged, this, &MainWindow::updateTranslateImmediately);
+    bind(settings_.translateImmediately, [&](bool enabled) {
+        ui_->actionTranslateImmediately->setChecked(enabled);
+        ui_->translateButton->setVisible(!enabled);
+    });
+
+    // Connect changing split orientation
+    bind(settings_.splitOrientation, [&](Qt::Orientation orientation) {
+        ui_->splitter->setOrientation(orientation);
+        ui_->actionSplit_Horizontally->setChecked(orientation == Qt::Horizontal);
+        ui_->actionSplit_Vertically->setChecked(orientation == Qt::Vertical);
+    });
+
+    // Restore window size
+    restoreGeometry(settings_.windowGeometry());
 
     // Update selected model when model changes
-    connect(&settings_.translationModel, &Setting::valueChanged, this, &MainWindow::updateSelectedModel);
+    bind(settings_.translationModel, [&](QString path) {
+        Q_UNUSED(path);
+        updateSelectedModel();
+    });
 
     // Connect settings changes to reloading the model.
     connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
@@ -101,17 +117,11 @@ MainWindow::MainWindow(QWidget *parent)
     // like it's only available in QtQuick and starting Qt6 in C++.
     // Note: both are safe when no model is set.
     resetTranslator();
-    updateSelectedModel();
-    updateTranslateImmediately();
 }
 
 MainWindow::~MainWindow() {
+    settings_.windowGeometry.setValue(saveGeometry());
     delete ui_;
-}
-
-void MainWindow::updateTranslateImmediately() {
-    ui_->actionTranslateImmediately->setChecked(settings_.translateImmediately());
-    ui_->translateButton->setVisible(!settings_.translateImmediately());
 }
 
 void MainWindow::on_translateAction_triggered() {
@@ -294,11 +304,18 @@ void MainWindow::popupError(QString error) {
     msgBox.exec();
 }
 
-void MainWindow::on_fontAction_triggered()
-{
+void MainWindow::on_fontAction_triggered() {
     this->setFont(QFontDialog::getFont(0, this->font()));
 }
 
 void MainWindow::on_actionTranslator_Settings_triggered() {
     this->translatorSettingsDialog_.setVisible(true);
+}
+
+void MainWindow::on_actionSplit_Horizontally_triggered() {
+    settings_.splitOrientation.setValue(Qt::Horizontal);
+}
+
+void MainWindow::on_actionSplit_Vertically_triggered() {
+    settings_.splitOrientation.setValue(Qt::Vertical);
 }
