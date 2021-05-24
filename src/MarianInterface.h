@@ -35,7 +35,7 @@ public:
     void setModel(QString path_to_model_dir, const translateLocally::marianSettings& settings);
     void translate(QString in);
 signals:
-    void translationReady(QString translation);
+    void translationReady(QString translation, int);
     void pendingChanged(bool isBusy);
     void error(QString message);
 };
