@@ -201,7 +201,7 @@ if(UNIX)  # Add Linux and apple support for make install
             OUTPUT_VARIABLE OS_VERSION
             )
 
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libpcre++-dev, qttools5-dev, qtbase5-dev, libarchive-dev, qttools5-dev-tools, libprotobuf-dev")
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libpcre++-dev, qttools5-dev, qtbase5-dev, libqt5svg5-dev, libarchive-dev, qttools5-dev-tools, libprotobuf-dev")
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
         set(CPACK_PACKAGE_CONTACT "Nikolay Bogoychev <nheart@gmail.com>")
         set(CPACK_PACKAGE_DIRECTORY ${CMAKE_BINARY_DIR}/deb)
