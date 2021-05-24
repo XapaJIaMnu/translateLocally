@@ -126,7 +126,7 @@ MarianInterface::MarianInterface(QObject *parent)
                         // Calculate translation speed in terms of words per second
                         double words = num_words.get();
                         std::chrono::duration<double> elapsed_seconds = end-start;
-                        int translationSpeed = std::ceil(words/elapsed_seconds.count());
+                        int translationSpeed = std::ceil(words/elapsed_seconds.count()); // @TODO this could probably be done in the service in the future
                         emit translationReady(QString::fromStdString(response.target.text), translationSpeed);
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
