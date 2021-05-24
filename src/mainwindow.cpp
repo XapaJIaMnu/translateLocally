@@ -38,7 +38,9 @@ MainWindow::MainWindow(QWidget *parent)
     this->setWindowIcon(icon);
 
     // Create the status bar
+    ui_->statusbar->addWidget(ui_->speedDisplay);
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
+    ui_->speedDisplay->hide();
     ui_->pendingIndicator->hide();
 
     // Hide download progress bar
@@ -66,10 +68,16 @@ MainWindow::MainWindow(QWidget *parent)
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation) {
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation, int speed) {
         ui_->outputBox->setText(translation);
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
+        if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
+            ui_->speedDisplay->setText(QString("Translation speed: ") + QString::fromStdString(std::to_string(speed)) + QString(" words per second."));
+            ui_->speedDisplay->setVisible(true);
+        } else {
+            ui_->speedDisplay->setVisible(false);
+        }
     });
 
     // Queue translation when user has stopped typing for a bit
