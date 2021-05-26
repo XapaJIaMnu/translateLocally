@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.5)
 
 project(translateLocally LANGUAGES CXX)
 
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(CMakeDependentOption)
+include(GetVersionFromFile)
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOUIC ON)
@@ -31,10 +35,7 @@ if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG   "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:MSVCRTD")
   set(CMAKE_STATIC_LINKER_FLAGS      "${CMAKE_STATIC_LINKER_FLAGS} /LTCG:incremental")
 endif(MSVC)
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-include(CMakeDependentOption)
-include(GetVersionFromFile)
-message("Building ${PROJECT_NAME}-${PROJECT_VERSION_STRING}")
+message("Building ${PROJECT_NAME}-${PROJECT_VERSION_STRING_FULL}")
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
 # Check https://doc.qt.io/qt/deployment-android.html for more information.
 # They need to be set before the find_package( ...) calls below.
@@ -193,12 +194,19 @@ if(UNIX)  # Add Linux and apple support for make install
         # This won't work on apple and would need to be modified for rpm based distros
         # Find ubuntu version
         execute_process (
-            COMMAND bash -c "grep ^NAME /etc/os-release  | tr -d \"\\\"\" | tr -d \"NAME=\" | tr -d \"\\n\""
+            COMMAND bash -c "grep ^NAME /etc/os-release  | tr -d \"\\\"\" | tr -d \"NAME=\""
             OUTPUT_VARIABLE OS_NAME
+            OUTPUT_STRIP_TRAILING_WHITESPACE
             )
         execute_process (
-            COMMAND bash -c "grep VERSION_ID= /etc/os-release | tr -d \"\\\"\" | tr -d \"VERSION_ID=\" | tr -d \"\\n\""
+            COMMAND bash -c "grep VERSION_ID= /etc/os-release | tr -d \"\\\"\" | tr -d \"VERSION_ID=\""
             OUTPUT_VARIABLE OS_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+        execute_process (
+            COMMAND ${CMAKE_SOURCE_DIR}/dist/cpu_feature.sh
+            OUTPUT_VARIABLE CPU_FEATURE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
             )
 
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "libpcre++-dev, qttools5-dev, qtbase5-dev, libqt5svg5-dev, libarchive-dev, qttools5-dev-tools, libprotobuf-dev")
@@ -207,7 +215,7 @@ if(UNIX)  # Add Linux and apple support for make install
         set(CPACK_PACKAGE_DIRECTORY ${CMAKE_BINARY_DIR}/deb)
         set(CPACK_GENERATOR "DEB")
         set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
-        set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}.${PROJECT_VERSION_GIT_SHA}-${OS_NAME}-${OS_VERSION})
+        set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${PROJECT_VERSION_STRING_FULL}-${OS_NAME}-${OS_VERSION}.${CPU_FEATURE})
         set(CPACK_DEBIAN_PACKAGE_NAME ${PROJECT_NAME})
         set(CPACK_DEBIAN_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
         set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "A fast privacy focused machine translation client that translates on your own machine.")
