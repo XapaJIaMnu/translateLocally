@@ -73,5 +73,5 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
-          mv translateLocally.dmg translateLocally`../dist/cpu_feature.sh`.dmg
+          mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
           ls *.dmg
