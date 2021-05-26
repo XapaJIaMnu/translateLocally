@@ -87,7 +87,6 @@ private:
     Network network_;
 
     QTimer inactivityTimer_;
-    QString translationInput_;
 
     template <typename T, typename Fun>
     void bind(SettingImpl<T> &setting, Fun update) {

@@ -144,24 +144,6 @@ void MainWindow::on_inputBox_textChanged() {
     if (!settings_.translateImmediately())
         return;
     
-    QString inputText = ui_->inputBox->toPlainText();
-    inactivityTimer_.stop();
-
-    // Remove the last word, because it is likely incomplete
-    auto lastSpace = inputText.lastIndexOf(" ");
-    
-    while (lastSpace > 0 && inputText[lastSpace-1].isSpace())
-        --lastSpace;
-
-    if (lastSpace > 0)
-        inputText.truncate(lastSpace);
-
-    if (inputText != translationInput_) {
-        translationInput_ = inputText;
-        translate(inputText);
-    }
-
-    // Reset our "person stopped typing" timer
     inactivityTimer_.start();
 }
 
