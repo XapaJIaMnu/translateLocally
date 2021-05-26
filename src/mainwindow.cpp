@@ -38,9 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     this->setWindowIcon(icon);
 
     // Create the status bar
-    ui_->statusbar->addWidget(ui_->speedDisplay);
     ui_->statusbar->addPermanentWidget(ui_->pendingIndicator);
-    ui_->speedDisplay->hide();
     ui_->pendingIndicator->hide();
 
     // Hide download progress bar
@@ -73,10 +71,9 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
         if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->speedDisplay->setText(QString("Translation speed: %1 words per second.").arg(speed));
-            ui_->speedDisplay->setVisible(true);
+            ui_->statusbar->showMessage(QString("Translation speed: %1 words per second.").arg(speed));
         } else {
-            ui_->speedDisplay->setVisible(false);
+            ui_->statusbar->clearMessage();
         }
     });
 
