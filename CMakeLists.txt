@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 
+if(APPLE) # This needs to happen before the project definition due to a cmake bug
+  # https://gitlab.kitware.com/cmake/cmake/-/issues/21608
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+endif(APPLE)
+
 project(translateLocally LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -15,11 +20,11 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(APPLE) # When on MacOS, we have a non-standard libarchive location because we get it via brew
-#  This attempts to fix a bug, but in fact doesn't do anything.
-#  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
-  set(LibArchive_INCLUDE_DIR "/usr/local/opt/libarchive/include")
-endif(APPLE)
+##### translateLocally options begin #####
+set(BUILD_EXTERNAL_LIBARCHIVE OFF CACHE BOOL "Build libarchive as external project.")
+set(APPLE_FORCE_STATIC_LIBARCHIVE ON CACHE BOOL "Link to static libarchive on Mac.")
+##### translateLocally options end   #####
+
 #MSVC can't seem to pick up correct flags otherwise:
 if(MSVC)
   add_definitions(-DUSE_SSE2=1) # Supposed to fix something in the sse_mathfun.h but not sure it does
@@ -48,14 +53,8 @@ message("Building ${PROJECT_NAME}-${PROJECT_VERSION_STRING_FULL}")
 #            ${CMAKE_CURRENT_SOURCE_DIR}/path/to/libssl.so)
 #    endif()
 #endif()
-
-find_package(LibArchive REQUIRED)
+include(findLibarchiveCustom)
 find_package(Threads REQUIRED) # Cross-platform compatible way to get threads?
-if(LibArchive_FOUND)
-    list (APPEND ${INCLUDE_DIRECTORIES} ${LibArchive_INCLUDE_DIRS})
-else(LibArchive_FOUND)
-  MESSAGE(FATAL_ERROR "Could not find the libarchive library and development files.")
-endif( LibArchive_FOUND )
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus Svg REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui PrintSupport Widgets LinguistTools Network DBus Svg REQUIRED)
