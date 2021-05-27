@@ -69,9 +69,17 @@ jobs:
       shell: bash
       run: ./translateLocally --version
 
-    - name: Get Arch # as we build with march=native now, record our MARCH
+    - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
           mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
           ls *.dmg
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build"
+          files: ${{github.workspace}}/build/*.dmg
