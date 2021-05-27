@@ -23,13 +23,13 @@ if [ "$machine" = "Linux" ]; then
 		echo "Really really old system"
 	fi
 elif [ "$machine" = "Mac" ]; then
-	if sysctl -a | grep cpu.features | grep -q AVX512; then
+	if /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q AVX512; then
 		echo "avx512"
-	elif sysctl -a | grep cpu.features | grep -q AVX2; then
+	elif /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q AVX2; then
 		echo "avx2"
-	elif sysctl -a | grep cpu.features | grep -q AVX; then
+	elif /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q AVX; then
 		echo "avx"
-	elif sysctl -a | grep cpu.features | grep -q SSSE3; then
+	elif /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q SSSE3; then
 		echo "ssse3"
 	else
 		echo "Really really old machine."
