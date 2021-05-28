@@ -122,6 +122,13 @@ MainWindow::MainWindow(QWidget *parent)
     // like it's only available in QtQuick and starting Qt6 in C++.
     // Note: both are safe when no model is set.
     resetTranslator();
+
+    // If there is no local model set a hint to show that downloading models happens from here
+    if (models_.getInstalledModels().empty()) {
+        ui_->localModels->addItem("Press here to get started.");
+        ui_->localModels->setCurrentText("Press here to get started.");
+        // This is conveniently removed once we download models.
+    }
 }
 
 MainWindow::~MainWindow() {
