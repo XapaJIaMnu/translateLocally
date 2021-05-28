@@ -9,6 +9,8 @@ project(translateLocally LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(CMakeDependentOption)
+
+find_package(Git QUIET)
 include(GetVersionFromFile)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -62,7 +64,6 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui PrintSupport Widgets Ling
 # Marian submodule things
 # Documentation: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
 # Ensures the submodules are set correctly during a build.
-find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 # Update submodules as needed
     option(GIT_SUBMODULE "Check submodules during build" ON)
