@@ -6,7 +6,6 @@
 #include <memory>
 #include "Network.h"
 #include "ModelManager.h"
-#include "ModelListItemDelegate.h"
 #include "TranslatorSettingsDialog.h"
 #include "Settings.h"
 
@@ -80,7 +79,6 @@ private:
     // Model and config manager
     Settings settings_;
     ModelManager models_;
-    ModelListItemDelegate localModelDelegate_;
     TranslatorSettingsDialog translatorSettingsDialog_;
 
     // Network code:

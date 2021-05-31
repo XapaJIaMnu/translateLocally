@@ -20,13 +20,11 @@
 #include "logo/logo_svg.h"
 #include <iostream>
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
     , settings_(this)
     , models_(this)
-    , localModelDelegate_(this)
     , translatorSettingsDialog_(this, &settings_)
     , network_(this)
     , translator_(new MarianInterface(this))

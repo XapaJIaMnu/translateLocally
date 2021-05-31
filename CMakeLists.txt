@@ -102,11 +102,6 @@ set(PROJECT_SOURCES
         src/TranslatorSettingsDialog.h
         src/MarianInterface.cpp
         src/MarianInterface.h
-        src/ModelListItemDelegate.cpp
-        src/ModelListItemDelegate.h
-        src/ModelListItemWidget.cpp
-        src/ModelListItemWidget.h
-        src/ModelListItemWidget.ui
         src/ModelManager.cpp
         src/ModelManager.h
         src/Network.cpp
