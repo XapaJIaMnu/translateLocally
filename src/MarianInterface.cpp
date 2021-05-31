@@ -16,7 +16,8 @@ marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, t
     std::vector<std::string> args = {"marian-decoder", "-c", model_path,
                                      "--cpu-threads", std::to_string(settings.cpu_threads),
                                      "--workspace", std::to_string(settings.workspace),
-                                     "--mini-batch-words", "1000"};
+                                     "--mini-batch-words", "1000",
+                                     "--quiet"};
 
     std::vector<char *> argv;
     argv.reserve(args.size());
