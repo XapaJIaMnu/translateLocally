@@ -41,13 +41,13 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
     
     bool openReady = file.open(QIODevice::WriteOnly);
     if (!openReady) {
-        emit error(QString("Failed to open file: " + fullpath));
+        emit error(tr("Failed to open file: %1").arg(fullpath));
         return newmodel;
     }
     file.write(data);
     bool commitReady = file.commit();
     if (!commitReady) {
-        emit error(QString("Failed to write to file: " + fullpath + " . Did you run out of disk space?"));
+        emit error(tr("Failed to write to file: %1 . Did you run out of disk space?").arg(fullpath));
         return newmodel;
     }
     extractTarGz(filename);
@@ -60,7 +60,7 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
 
     // The function above should have added the path variable. it will error message if it fails.
     if (obj.find("path") == obj.end()) {
-        emit error(QString("Failed to find, open or parse the model_info.json for the newly dowloaded " + filename));
+        emit error(tr("Failed to find, open or parse the model_info.json for the newly dowloaded %1").arg(filename));
         return newmodel;
     }
 
@@ -100,7 +100,7 @@ QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
             obj.insert(QString("path"), QJsonValue(dir));
             return obj;
         } else {
-            emit error("Failed to open json config file: " + modelInfo.absoluteFilePath());
+            emit error(tr("Failed to open json config file: %1").arg(modelInfo.absoluteFilePath()));
             return QJsonObject();
         }
     } else {
@@ -148,8 +148,8 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
     if (iter != obj.end()) {
         model.set(criticalKey, iter.value().toString());
     } else {
-        emit error ("The json file provided is missing " + criticalKey + " or is corrupted. Please redownload the model.\
-                     If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues");
+        emit error(tr("The json file provided is missing '%1' or is corrupted. Please redownload the model. "
+                      "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
     }
 
     return model;
@@ -170,7 +170,7 @@ void ModelManager::scanForModels(QString path) {
                 if (model.path != "") {
                     models.append(model);
                 } else {
-                    emit error("Corrupted json file: " + current + "/model_info.json" + " . Delete or redownload.");
+                    emit error(tr("Corrupted json file: %1/model_info.json. Delete or redownload.").arg(current));
                 }
             } else {
                 // We have a folder in our models directory that doesn't contain a model. This is ok.
@@ -206,7 +206,7 @@ void ModelManager::extractTarGz(QString filein) {
     if (currentpath != configDir_.absolutePath()) {
         bool pathChanged = QDir::setCurrent(configDir_.absolutePath());
         if (!pathChanged) {
-            emit error(QString("Failed to change path to the configuration directory ") + configDir_.absolutePath() + " " + filein + " won't be extracted.");
+            emit error(tr("Failed to change path to the configuration directory %1 %2 won't be extracted.").arg(configDir_.absolutePath()).arg(filein));
             return;
         }
     }
@@ -223,11 +223,11 @@ void ModelManager::extractTarGz(QString filein) {
     };
 
     auto warn = [&](const char *f, const char *m) {
-        emit error("Warning: " + QString(f) + " " + QString(m));
+        emit error(tr("Warning: %1 %2").arg(f).arg(m));
     };
 
     auto fail = [&](const char *f, const char *m, int r) {
-        emit error("Critical: " + QString(f) + " " + QString(m) + " libarchive wanted to exit with exit code: " + QString::fromStdString(std::to_string(r)) + ". Archive extraction has most likely failed.");
+        emit error(tr("Critical: %1 %2 libarchive wanted to exit with exit code: %3. Archive extraction has most likely failed.").arg(f).arg(m).arg(r));
     };
 
     auto copy_data = [=](struct archive *ar, struct archive *aw) {
@@ -321,7 +321,7 @@ void ModelManager::extractTarGz(QString filein) {
     if (currentpath != configDir_.absolutePath()) {
         bool pathChanged = QDir::setCurrent(currentpath);
         if (!pathChanged) {
-            emit error(QString("Failed to change path to the current directory ") + currentpath );
+            emit error(tr("Failed to change path to the current directory %1").arg(currentpath));
             return;
         }
     }

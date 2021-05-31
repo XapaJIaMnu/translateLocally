@@ -67,7 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
         if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->statusbar->showMessage(QString("Translation speed: %1 words per second.").arg(speed));
+            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(speed));
         } else {
             ui_->statusbar->clearMessage();
         }
@@ -121,8 +121,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // If there is no local model set a hint to show that downloading models happens from here
     if (models_.getInstalledModels().empty()) {
-        ui_->localModels->addItem("Press here to get started.");
-        ui_->localModels->setCurrentText("Press here to get started.");
+        ui_->localModels->addItem(tr("Press here to get started."));
+        ui_->localModels->setCurrentText(tr("Press here to get started."));
         // This is conveniently removed once we download models.
     }
 }
@@ -168,7 +168,7 @@ void MainWindow::downloadModel(Model model) {
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
     connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
     
-    ui_->downloadLabel->setText(QString("Downloading %1…").arg(model.modelName));
+    ui_->downloadLabel->setText(tr("Downloading %1…").arg(model.modelName));
     ui_->downloadProgress->setValue(0);
     showDownloadPane(true);
 
@@ -209,8 +209,9 @@ void MainWindow::updateLocalModels() {
     // Add local models
     if (!models_.getInstalledModels().empty()) {
         for (auto &&model : models_.getInstalledModels()) {
-            QString updated = model.outdated() ? " outdated " : ""; // Write down that the model has been updated
-            ui_->localModels->addItem(model.modelName + updated, QVariant::fromValue(model));
+            // Write down that the model has been updated
+            QString format = model.outdated() ? tr("%1 (outdated)") : QString("%1");
+            ui_->localModels->addItem(format.arg(model.modelName), QVariant::fromValue(model));
         }
 
         ui_->localModels->insertSeparator(ui_->localModels->count());
@@ -218,9 +219,9 @@ void MainWindow::updateLocalModels() {
 
     // Add any models available for download
     if (models_.getRemoteModels().empty()) {
-        ui_->localModels->addItem("Download models…", Action::FetchRemoteModels);
+        ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     } else if (models_.getNewModels().empty()) {
-        ui_->localModels->addItem("No other models available online");
+        ui_->localModels->addItem(tr("No other models available online"));
     } else {
         for (auto &&model : models_.getNewModels())
             ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
@@ -229,9 +230,8 @@ void MainWindow::updateLocalModels() {
     // Add models that are existing but a new version is available online
     if (!models_.getUpdatedModels().empty()) {
         ui_->localModels->insertSeparator(ui_->localModels->count());
-        for (auto&& model : models_.getUpdatedModels()) {
-            ui_->localModels->addItem(model.modelName + " updated ", QVariant::fromValue(model));
-        }
+        for (auto&& model : models_.getUpdatedModels())
+            ui_->localModels->addItem(tr("%1 (update available)").arg(model.modelName), QVariant::fromValue(model));
     }
 
     // Re-select the currently loaded model
@@ -260,7 +260,7 @@ void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
     ui_->translateButton->setEnabled(false);
     if (translator_->model().isEmpty()) {
-        popupError("You need to download a translation model first. Do that through the drop down menu on top.");
+        popupError(tr("You need to download a translation model first. Do that through the drop down menu on top."));
     } else {
         translator_->translate(text);
     }    
