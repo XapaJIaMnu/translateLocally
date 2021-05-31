@@ -15,11 +15,9 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-
 ModelManager::ModelManager(QObject *parent)
-    : QAbstractTableModel(parent)
+    : QObject(parent)
     , nam_(new QNetworkAccessManager(this))
-    , qset_(QSettings::NativeFormat, QSettings::UserScope, "translateLocally", "translateLocally")
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -65,14 +63,25 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
         emit error(QString("Failed to find, open or parse the model_info.json for the newly dowloaded " + filename));
         return newmodel;
     }
+
     newmodel = parseModelInfo(obj);
-
-    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size());
-    localModels_.append(newmodel);
-    std::sort(localModels_.begin(), localModels_.end());
-    endInsertRows();
-
+    if (insertLocalModel(newmodel))
+        std::sort(localModels_.begin(), localModels_.end());
+    updateAvailableModels();
+    
     return newmodel;
+}
+
+bool ModelManager::insertLocalModel(Model model) {
+    for (int i = 0; i < localModels_.size(); ++i) {
+        if (localModels_[i].isSameModel(model)) {
+            localModels_[i] = model;
+            return false;
+        }
+    }
+
+    localModels_.append(model);
+    return true;
 }
 
 QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
@@ -175,10 +184,13 @@ void ModelManager::scanForModels(QString path) {
         }
     }
 
-    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size() + models.size() - 1);
+    // Saves us a sort + emit if no models were found/added
+    if (models.isEmpty())
+        return;
+
     localModels_ += models;
-    std::sort(localModels_.begin(), localModels_.end()); // Sort the models
-    endInsertRows();
+    std::sort(localModels_.begin(), localModels_.end());
+    updateAvailableModels();
 }
 
 void ModelManager::startupLoad() {
@@ -339,24 +351,15 @@ void ModelManager::fetchRemoteModels() {
 
 void ModelManager::parseRemoteModels(QJsonObject obj) {
     using namespace translateLocally::models;
-    beginRemoveRows(QModelIndex(),
-        localModels_.size(),
-        localModels_.size() + remoteModels_.size() - 1);
     remoteModels_.clear();
-    endRemoveRows();
-
-    QList<Model> models;
+    
     for (auto&& arrobj : obj["models"].toArray()) {
         QJsonObject obj = arrobj.toObject();
-        models.append(parseModelInfo(obj, Remote));
+        remoteModels_.append(parseModelInfo(obj, Remote));
     }
 
-    beginInsertRows(QModelIndex(),
-        localModels_.size(),
-        localModels_.size() + models.size() - 1);
-    std::sort(models.begin(), models.end());
-    remoteModels_ = models;
-    endInsertRows();
+    std::sort(remoteModels_.begin(), remoteModels_.end());
+    updateAvailableModels();
 }
 
 QList<Model> ModelManager::getInstalledModels() const {
@@ -376,12 +379,14 @@ QList<Model> ModelManager::getUpdatedModels() const {
 }
 
 void ModelManager::updateAvailableModels() {
+    newModels_.clear();
+    updatedModels_.clear();
+
     for (auto &&model : remoteModels_) {
         bool installed = false;
         bool outdated = false;
         for (auto &&localModel : localModels_) {
-            // TODO: matching by name might not be very robust
-            if (localModel.shortName == model.shortName) {
+            if (localModel.isSameModel(model)) {
                 localModel.remoteAPI = model.remoteAPI;
                 localModel.remoteversion = model.remoteversion;
                 installed = true;
@@ -397,85 +402,6 @@ void ModelManager::updateAvailableModels() {
             updatedModels_.append(model);
         }
     }
+
+    emit localModelsChanged();
 }
-// @TODO those can be removed now, right?
-QVariant ModelManager::data(QModelIndex const &index, int role) const {
-    if (index.row() <= localModels_.size()) {
-        Model const &model = localModels_[index.row()];
-
-        switch (role) {
-            case Qt::UserRole:
-                return QVariant::fromValue(model);
-            case Qt::DisplayRole:
-                switch (index.column()) {
-                    case ModelManager::Column::ModelName:
-                        return model.modelName;
-                    case Column::ShortName:
-                        return model.shortName;
-                    case Column::PathName:
-                        return model.path;
-                    case Column::Type:
-                        return model.type;
-                    // Intentional fall-through for default
-                }
-            default:
-                return QVariant();
-        }
-    } else if (index.row() - localModels_.size() <= remoteModels_.size()) {
-        Model const &model = remoteModels_[index.row() - localModels_.size()];
-
-        switch (role) {
-            case Qt::UserRole:
-                return QVariant::fromValue(model);
-            case Qt::DisplayRole:
-                switch (index.column()) {
-                    case Column::ModelName:
-                        return model.modelName;
-                    case Column::ShortName:
-                        return model.shortName;
-                    case Column::PathName:
-                        return model.url;
-                    case Column::Type:
-                        return QString();
-                    // Intentional fall-through for default
-                }
-            default:
-                return QVariant();
-        }
-    } else {
-        return QVariant();
-    }
-}
-
-QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
-    Q_UNUSED(orientation);
-
-    if (role != Qt::DisplayRole)
-        return QVariant();
-
-    switch (section) {
-        case Column::ModelName:
-            return "Name";
-        case Column::ShortName:
-            return "Short name";
-        case Column::PathName:
-            return "Path";
-        case Column::Type:
-            return "Type";
-        default:
-            return QVariant();
-    }
-}
-
-int ModelManager::columnCount(QModelIndex const &index) const {
-    Q_UNUSED(index);
-
-    return kColumnCount;
-}
-
-int ModelManager::rowCount(QModelIndex const &index) const {
-    Q_UNUSED(index);
-
-    return localModels_.size() + remoteModels_.size();
-}
-

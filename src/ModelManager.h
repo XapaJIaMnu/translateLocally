@@ -1,7 +1,5 @@
 #ifndef MODELMANAGER_H
 #define MODELMANAGER_H
-#include <QSettings>
-#include <QAbstractTableModel>
 #include <QDir>
 #include <QList>
 #include <QFuture>
@@ -73,6 +71,11 @@ struct Model {
         return !url.isEmpty();
     }
 
+    inline bool isSameModel(Model const &model) const {
+        // TODO: matching by name might not be very robust
+        return shortName == model.shortName;
+    }
+
     inline bool operator<(const Model& other) const {
         return shortName < other.shortName;
     }
@@ -92,7 +95,7 @@ struct Model {
 
 Q_DECLARE_METATYPE(Model)
 
-class ModelManager : public QAbstractTableModel {
+class ModelManager : public QObject {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
@@ -110,20 +113,6 @@ public:
      */
     void updateAvailableModels(); // remote - local
 
-    enum Column {
-        ModelName,
-        ShortName,
-        PathName,
-        Type
-    };
-    Q_ENUM(Column);
-
-    // @TODO those can removed now that we don't have two model types
-    virtual QVariant data(QModelIndex const &, int role = Qt::DisplayRole) const;
-    virtual QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
-    virtual int columnCount(QModelIndex const & = QModelIndex()) const;
-    virtual int rowCount(QModelIndex const & = QModelIndex()) const;
-
     translateLocally::marianSettings& getSettings() {
         return settings_;
     }
@@ -138,8 +127,8 @@ private:
     Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
+    bool insertLocalModel(Model model);
 
-    QSettings qset_;
     QDir configDir_;
 
     QStringList archives_; // Only archive name, not full path
@@ -156,6 +145,7 @@ private:
 signals:
     void newModelAdded(int index);
     void fetchedRemoteModels();
+    void localModelsChanged();
     void error(QString);
 };
 

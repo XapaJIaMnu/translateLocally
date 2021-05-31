@@ -58,9 +58,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Attach slots
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
-    connect(&models_, &QAbstractTableModel::dataChanged, this, &MainWindow::updateLocalModels);
-    connect(&models_, &QAbstractTableModel::rowsInserted, this, &MainWindow::updateLocalModels);
-    connect(&models_, &QAbstractTableModel::rowsRemoved, this, &MainWindow::updateLocalModels);
+    connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     
     // Set up the connection to the translator
@@ -209,9 +207,6 @@ void MainWindow::updateLocalModels() {
     // Clear out current items
     ui_->localModels->clear();
     ui_->localModels->setCurrentIndex(-1);
-
-    // Update the lists of available models:
-    models_.updateAvailableModels();
 
     // Add local models
     if (!models_.getInstalledModels().empty()) {
