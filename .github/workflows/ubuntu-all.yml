@@ -81,10 +81,10 @@ jobs:
         ls deb/*.deb
         dpkg -I deb/*.deb
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: true
-          title: "Development Build"
-          files: ${{github.workspace}}/build/deb/*.deb
+    #- uses: "marvinpinto/action-automatic-releases@latest"
+    #  with:
+    #      repo_token: "${{ secrets.GITHUB_TOKEN }}"
+    #      automatic_release_tag: "latest"
+    #      prerelease: true
+    #      title: "Development Build"
+    #      files: ${{github.workspace}}/build/deb/*.deb
