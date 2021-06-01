@@ -86,7 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Connect translate immediately toggle in both directions
-    connect(ui_->actionTranslateImmediately, &QAction::toggled, &settings_.translateImmediately, &decltype(Settings::translateImmediately)::setValue);
+    connect(ui_->actionTranslateImmediately, &QAction::toggled, std::bind(&decltype(Settings::translateImmediately)::setValue, &settings_.translateImmediately, std::placeholders::_1, Setting::EmitWhenChanged));
     bind(settings_.translateImmediately, [&](bool enabled) {
         ui_->actionTranslateImmediately->setChecked(enabled);
         ui_->translateButton->setVisible(!enabled);
@@ -156,7 +156,7 @@ void MainWindow::showDownloadPane(bool visible)
 void MainWindow::handleDownload(QString filename, QByteArray data) {
     Model model = models_.writeModel(filename, data);
     if (model.isLocal())
-        settings_.translationModel.setValue(model.path);
+        settings_.translationModel.setValue(model.path, Setting::AlwaysEmit);
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {

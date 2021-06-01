@@ -21,6 +21,12 @@ class Settings;
 class Setting : public QObject {
     Q_OBJECT
 
+public:
+    enum Behavior {
+        AlwaysEmit,
+        EmitWhenChanged
+    };
+
 protected:
     void emitValueChanged(QString name, QVariant value);
 
@@ -51,9 +57,9 @@ public:
         return value_;
     }
 
-    void setValue(T value) {
+    void setValue(T value, Behavior behavior = EmitWhenChanged) {
         // Don't emit when the value doesn't change
-        if (value == value_)
+        if (behavior == EmitWhenChanged && value == value_)
             return;
 
         value_ = value;
