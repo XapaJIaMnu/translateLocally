@@ -31,8 +31,6 @@ ModelManager::ModelManager(QObject *parent)
         }
     }
     startupLoad();
-    // @TODO read settings:
-    settings_ = translateLocally::marianSettings();
 }
 
 Model ModelManager::writeModel(QFile *file, QString filename) {
@@ -289,10 +287,6 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
     archive_write_free(a_out);
 
     return true;
-}
-
-void ModelManager::loadSettings() {
-
 }
 
 void ModelManager::fetchRemoteModels() {

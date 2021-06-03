@@ -99,7 +99,6 @@ class ModelManager : public QObject {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
-    void loadSettings();
     Model writeModel(QFile *file, QString filename);
 
     QList<Model> getInstalledModels() const;
@@ -112,10 +111,6 @@ public:
      *                        user can download a new version.
      */
     void updateAvailableModels(); // remote - local
-
-    translateLocally::marianSettings& getSettings() {
-        return settings_;
-    }
 
 public slots:
     void fetchRemoteModels();
@@ -137,14 +132,10 @@ private:
     QList<Model> remoteModels_;
     QList<Model> newModels_;
     QList<Model> updatedModels_;
-    translateLocally::marianSettings settings_; // @TODO to be initialised by reading saved settings from disk
 
     QNetworkAccessManager *nam_;
 
-    constexpr static int kColumnCount = 4;
-
 signals:
-    void newModelAdded(int index);
     void fetchedRemoteModels();
     void localModelsChanged();
     void error(QString);
