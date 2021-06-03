@@ -15,7 +15,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QFontDialog>
-#include <QListView>
+#include <QStandardItem>
 #include <QWindow>
 #include "logo/logo_svg.h"
 #include <iostream>
@@ -108,13 +108,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect model changes to reloading model and trigger initial loading of model
     bind(settings_.translationModel, std::bind(&MainWindow::resetTranslator, this));
-
-    // If there is no local model set a hint to show that downloading models happens from here
-    if (models_.getInstalledModels().empty()) {
-        ui_->localModels->addItem(tr("Press here to get started."));
-        ui_->localModels->setCurrentText(tr("Press here to get started."));
-        // This is conveniently removed once we download models.
-    }
 }
 
 MainWindow::~MainWindow() {
@@ -204,11 +197,15 @@ void MainWindow::updateLocalModels() {
             QString format = model.outdated() ? tr("%1 (outdated)") : QString("%1");
             ui_->localModels->addItem(format.arg(model.modelName), QVariant::fromValue(model));
         }
-
-        ui_->localModels->insertSeparator(ui_->localModels->count());
+    } else {
+        // Add a placeholder item
+        ui_->localModels->addItem(tr("Press here to get started."));
+        // ... but disable it for good measure
+        dynamic_cast<QStandardItemModel*>(ui_->localModels->model())->item(0, 0)->setEnabled(false);
     }
 
     // Add any models available for download
+    ui_->localModels->insertSeparator(ui_->localModels->count());
     if (models_.getRemoteModels().empty()) {
         ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     } else if (models_.getNewModels().empty()) {
@@ -230,6 +227,13 @@ void MainWindow::updateLocalModels() {
 }
 
 void MainWindow::updateSelectedModel() {
+    // Local models empty? Select the "hint" option that's always the first
+    if (models_.getInstalledModels().isEmpty()) {
+        ui_->localModels->setCurrentIndex(0);
+        return;
+    }
+
+    // Normal behaviour: find the item that matches the local model
     for (int i = 0; i < ui_->localModels->count(); ++i) {
         QVariant item = ui_->localModels->itemData(i);
         if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
