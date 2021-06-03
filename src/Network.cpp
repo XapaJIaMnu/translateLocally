@@ -1,10 +1,6 @@
 #include "Network.h"
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QtGlobal>
-#include <iostream>
-#include "mainwindow.h"
+#include <QNetworkReply>
+#include <QTemporaryFile>
 
 Network::Network(QObject *parent)
     : QObject(parent)
@@ -14,38 +10,50 @@ Network::Network(QObject *parent)
 #endif
 }
 
-QNetworkReply* Network::downloadFile(const QString& urlstr) {
-    auto processDownload = [&]() {
-        QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
-        QString filename = reply->url().fileName();
-        if (reply->error() == QNetworkReply::NoError) { // Success
-            emit downloadComplete(filename, reply->readAll());
-         } else {
-            emit error(reply->errorString());
-        } 
-        reply->deleteLater();
-    };
+QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
+    QNetworkReply *reply = nam_->get(QNetworkRequest(url));
+    
+    // Open in read/write so we can easily read the data when handling the
+    // downloadComplete signal.
+    if (!dest->open(QIODevice::ReadWrite)) {
+        emit error(tr("Cannot open file for downloading."));
+        return nullptr;
+    }
+    
+    // While chunks come in, write them to the temp file
+    connect(reply, &QIODevice::readyRead, [=] {
+        if (dest->write(reply->readAll()) == -1)
+            emit error(tr("An error occurred while writing the downloaded data to disk: %1").arg(dest->errorString()));
+    });
 
-    QNetworkReply *reply = nam_->get(QNetworkRequest(QUrl(urlstr)));
-    connect(reply, &QNetworkReply::downloadProgress, this, &Network::progressBar);
-    connect(reply, &QNetworkReply::finished, this, processDownload);
-    return reply;
-}
-
-void  Network::downloadJson(const QString& urlstr) {
-    auto processJson = [&]() {
-        QNetworkReply * reply = qobject_cast<QNetworkReply *>(sender());
+    // When finished, emit downloadComplete(QFile*,QString)
+    connect(reply, &QNetworkReply::finished, [=] {
         if (reply->error() == QNetworkReply::NoError) { // Success
-            QByteArray result = reply->readAll();
-            QJsonDocument jsonResponse = QJsonDocument::fromJson(result);
-            emit getJson(jsonResponse.object());
+            dest->flush(); // Flush the last downloaded data
+            dest->seek(0); // Rewind the file
+            QString filename = reply->url().fileName();
+            emit downloadComplete(dest, filename);
         } else {
             emit error(reply->errorString());
         }
         reply->deleteLater();
-    };
-    QUrl url(urlstr);
-    QNetworkRequest req = QNetworkRequest(url);
-    QNetworkReply * reply = nam_->get(req);
-    connect(reply, &QNetworkReply::finished, this, processJson);
+    });
+    
+    connect(reply, &QNetworkReply::downloadProgress, this, &Network::progressBar);
+
+    return reply;
+}
+
+/**
+ * Overloaded version of downloadFile that downloads to temporary file. If you
+ * do not change the parent of the QTemporaryFile, it will be deleted
+ * automatically after the downloadComplete(QFile*,QString) signal is handled.
+ */
+QNetworkReply* Network::downloadFile(QUrl url) {
+    QTemporaryFile *dest = new QTemporaryFile();
+    QNetworkReply *reply = downloadFile(url, dest);
+    // Make the lifetime of the temporary as long as the reply object itself
+    if (reply != nullptr)
+        dest->setParent(reply);
+    return reply;
 }

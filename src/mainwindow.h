@@ -23,7 +23,7 @@ public:
     ~MainWindow();
     // Network temporaries until I figure out a better way
     void onResult(QJsonObject obj);
-    void handleDownload(QString filename, QByteArray data);
+    void handleDownload(QFile *file, QString filename);
     void downloadProgress(qint64 ist, qint64 max);
     void updateModelSettings(size_t memory, size_t cores);
 

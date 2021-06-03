@@ -138,8 +138,8 @@ void MainWindow::showDownloadPane(bool visible)
     ui_->modelPane->setVisible(!visible);
 }
 
-void MainWindow::handleDownload(QString filename, QByteArray data) {
-    Model model = models_.writeModel(filename, data);
+void MainWindow::handleDownload(QFile *file, QString filename) {
+    Model model = models_.writeModel(file, filename);
     if (model.isLocal())
         settings_.translationModel.setValue(model.path, Setting::AlwaysEmit);
 }

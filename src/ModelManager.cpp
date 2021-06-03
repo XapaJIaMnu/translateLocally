@@ -35,11 +35,11 @@ ModelManager::ModelManager(QObject *parent)
     settings_ = translateLocally::marianSettings();
 }
 
-Model ModelManager::writeModel(QString filename, QByteArray data) {
-    Model model;
+Model ModelManager::writeModel(QFile *file, QString filename) {
+    Model newmodel;
 
-    if (!extractTarGz(data))
-        return model;
+    if (!extractTarGz(file))
+        return newmodel;
     
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
@@ -48,15 +48,15 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
     // The function above should have added the path variable. it will error message if it fails.
     if (obj.find("path") == obj.end()) {
         emit error(tr("Failed to find, open or parse the model_info.json for the newly dowloaded %1").arg(filename));
-        return model;
+        return newmodel;
     }
 
-    model = parseModelInfo(obj);
-    if (insertLocalModel(model))
+    newmodel = parseModelInfo(obj);
+    if (insertLocalModel(newmodel))
         std::sort(localModels_.begin(), localModels_.end());
     updateAvailableModels();
     
-    return model;
+    return newmodel;
 }
 
 bool ModelManager::insertLocalModel(Model model) {
@@ -187,23 +187,23 @@ void ModelManager::startupLoad() {
 }
 
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
-bool ModelManager::extractTarGz(QByteArray buffer) {
+bool ModelManager::extractTarGz(QFile *file) {
     // Change current working directory while extracting
     QString currentPath = QDir::currentPath();
 
     if (!QDir::setCurrent(configDir_.absolutePath())) {
-        emit error(tr("Failed to change path to the configuration directory %1").arg(configDir_.absolutePath()));
+        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(configDir_.absolutePath()).arg(file->fileName()));
         return false;
     }
 
-    bool success = extractTarGzInCurrentPath(buffer);
+    bool success = extractTarGzInCurrentPath(file);
     QDir::setCurrent(currentPath);
     return success;
 }
 
-bool ModelManager::extractTarGzInCurrentPath(QByteArray data) {
+bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
     auto warn = [&](const char *f, const char *m) {
-        emit error(tr("Warning caused by %1: %2").arg(f).arg(m));
+        emit error(tr("Trouble while extracting language model after call to %1: %2").arg(f).arg(m));
     };
 
     auto copy_data = [=](struct archive *a_in, struct archive *a_out) {
@@ -242,7 +242,12 @@ bool ModelManager::extractTarGzInCurrentPath(QByteArray data) {
     archive_read_support_format_tar(a_in);
     archive_read_support_filter_gzip(a_in);
     
-    if (archive_read_open_memory(a_in, data.constData(), data.size())) {
+    if (!file->open(QIODevice::ReadOnly)) {
+        emit error(tr("Trouble while extracting language model after call to %1: %2").arg("QIODevice::open()").arg(file->errorString()));
+        return false;
+    }
+    
+    if (archive_read_open_fd(a_in, file->handle(), 10240)) {
         warn("archive_read_open_filename()", archive_error_string(a_in));
         return false;
     }
