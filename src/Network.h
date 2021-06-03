@@ -2,6 +2,7 @@
 #define NETWORK_H
 #include <QObject>
 #include <QNetworkAccessManager>
+#include <memory>
 
 class QFile;
 
