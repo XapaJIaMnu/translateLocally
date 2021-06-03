@@ -7,6 +7,7 @@
 #include "types.h"
 
 class QNetworkAccessManager;
+class QByteArray;
 
 namespace translateLocally {
     namespace models {
@@ -123,8 +124,8 @@ public slots:
 private:
     void startupLoad();
     void scanForModels(QString path);
-    bool extractTarGz(QString filename);
-    bool extractTarGzInCurrentPath(QString filename);
+    bool extractTarGz(QByteArray data);
+    bool extractTarGzInCurrentPath(QByteArray data);
     Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);

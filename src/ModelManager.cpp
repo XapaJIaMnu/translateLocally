@@ -36,25 +36,11 @@ ModelManager::ModelManager(QObject *parent)
 }
 
 Model ModelManager::writeModel(QString filename, QByteArray data) {
-    QString fullpath(configDir_.absolutePath() + QString("/") + filename);
-    QSaveFile file(fullpath);
-    Model newmodel;
-    
-    bool openReady = file.open(QIODevice::WriteOnly);
-    if (!openReady) {
-        emit error(tr("Failed to open file: %1").arg(fullpath));
-        return newmodel;
-    }
-    file.write(data);
-    bool commitReady = file.commit();
-    if (!commitReady) {
-        emit error(tr("Failed to write to file: %1 . Did you run out of disk space?").arg(fullpath));
-        return newmodel;
-    }
-    extractTarGz(filename);
-    // Add the new tar to the archives list
-    archives_.push_back(filename);
+    Model model;
 
+    if (!extractTarGz(data))
+        return model;
+    
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
     QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
@@ -62,15 +48,15 @@ Model ModelManager::writeModel(QString filename, QByteArray data) {
     // The function above should have added the path variable. it will error message if it fails.
     if (obj.find("path") == obj.end()) {
         emit error(tr("Failed to find, open or parse the model_info.json for the newly dowloaded %1").arg(filename));
-        return newmodel;
+        return model;
     }
 
-    newmodel = parseModelInfo(obj);
-    if (insertLocalModel(newmodel))
+    model = parseModelInfo(obj);
+    if (insertLocalModel(model))
         std::sort(localModels_.begin(), localModels_.end());
     updateAvailableModels();
     
-    return newmodel;
+    return model;
 }
 
 bool ModelManager::insertLocalModel(Model model) {
@@ -201,21 +187,21 @@ void ModelManager::startupLoad() {
 }
 
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
-bool ModelManager::extractTarGz(QString archivePath) {
+bool ModelManager::extractTarGz(QByteArray buffer) {
     // Change current working directory while extracting
     QString currentPath = QDir::currentPath();
 
     if (!QDir::setCurrent(configDir_.absolutePath())) {
-        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(configDir_.absolutePath()).arg(archivePath));
+        emit error(tr("Failed to change path to the configuration directory %1").arg(configDir_.absolutePath()));
         return false;
     }
 
-    bool success = extractTarGzInCurrentPath(archivePath);
+    bool success = extractTarGzInCurrentPath(buffer);
     QDir::setCurrent(currentPath);
     return success;
 }
 
-bool ModelManager::extractTarGzInCurrentPath(QString archivePath) {
+bool ModelManager::extractTarGzInCurrentPath(QByteArray data) {
     auto warn = [&](const char *f, const char *m) {
         emit error(tr("Warning caused by %1: %2").arg(f).arg(m));
     };
@@ -256,8 +242,7 @@ bool ModelManager::extractTarGzInCurrentPath(QString archivePath) {
     archive_read_support_format_tar(a_in);
     archive_read_support_filter_gzip(a_in);
     
-    QByteArray archivePathChars = archivePath.toUtf8();
-    if (archive_read_open_filename(a_in, archivePathChars.constData(), 10240)) {
+    if (archive_read_open_memory(a_in, data.constData(), data.size())) {
         warn("archive_read_open_filename()", archive_error_string(a_in));
         return false;
     }
