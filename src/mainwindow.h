@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 #include <QMainWindow>
 #include <QJsonObject>
-#include <QTimer>
 #include <memory>
 #include "Network.h"
 #include "ModelManager.h"
@@ -83,8 +82,6 @@ private:
 
     // Network code:
     Network network_;
-
-    QTimer inactivityTimer_;
 
     template <typename T, typename Fun>
     void bind(SettingImpl<T> &setting, Fun update) {

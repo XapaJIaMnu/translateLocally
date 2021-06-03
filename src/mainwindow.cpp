@@ -51,9 +51,6 @@ MainWindow::MainWindow(QWidget *parent)
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
         settings_.translationModel.setValue(models_.getInstalledModels().first().path);
 
-    inactivityTimer_.setInterval(300);
-    inactivityTimer_.setSingleShot(true);
-    
     // Attach slots
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
@@ -71,12 +68,6 @@ MainWindow::MainWindow(QWidget *parent)
         } else {
             ui_->statusbar->clearMessage();
         }
-    });
-
-    // Queue translation when user has stopped typing for a bit
-    connect(&inactivityTimer_, &QTimer::timeout, this, [&] {
-        if (settings_.translateImmediately())
-            translate();
     });
 
     // Pop open the model list again when remote model list is available
@@ -141,10 +132,8 @@ void MainWindow::on_translateButton_clicked() {
 }
 
 void MainWindow::on_inputBox_textChanged() {
-    if (!settings_.translateImmediately())
-        return;
-    
-    inactivityTimer_.start();
+    if (settings_.translateImmediately())
+        translate();
 }
 
 void MainWindow::showDownloadPane(bool visible)
