@@ -102,13 +102,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Connect settings changes to reloading the model.
     connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
     connect(&settings_.workspace, &Setting::valueChanged, this, &MainWindow::resetTranslator);
-    connect(&settings_.translationModel, &Setting::valueChanged, this, &MainWindow::resetTranslator);
 
-    // Initial state sync between settings & UI
-    // TODO: Does Qt5 not have some form of bi-directional data binding? Looks
-    // like it's only available in QtQuick and starting Qt6 in C++.
-    // Note: both are safe when no model is set.
-    resetTranslator();
+    // Connect model changes to reloading model and trigger initial loading of model
+    bind(settings_.translationModel, std::bind(&MainWindow::resetTranslator, this));
 
     // If there is no local model set a hint to show that downloading models happens from here
     if (models_.getInstalledModels().empty()) {
