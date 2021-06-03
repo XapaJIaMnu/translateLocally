@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 if(APPLE) # This needs to happen before the project definition due to a cmake bug
   # https://gitlab.kitware.com/cmake/cmake/-/issues/21608
-  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version")
 endif(APPLE)
 
 project(translateLocally LANGUAGES CXX)
