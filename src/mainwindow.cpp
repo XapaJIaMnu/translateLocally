@@ -55,6 +55,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
+    connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
+    connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
+    
     
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
@@ -140,7 +143,7 @@ void MainWindow::showDownloadPane(bool visible)
 
 void MainWindow::handleDownload(QFile *file, QString filename) {
     Model model = models_.writeModel(file, filename);
-    if (model.isLocal())
+    if (model.isLocal()) // if writeModel fails, model will be empty (and not local)
         settings_.translationModel.setValue(model.path, Setting::AlwaysEmit);
 }
 
@@ -150,18 +153,21 @@ void MainWindow::downloadProgress(qint64 ist, qint64 max) {
 }
 
 void MainWindow::downloadModel(Model model) {
-    connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress, Qt::UniqueConnection);
-    connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload, Qt::UniqueConnection);
-    
     ui_->downloadLabel->setText(tr("Downloading %1…").arg(model.modelName));
     ui_->downloadProgress->setValue(0);
+    ui_->cancelDownloadButton->setEnabled(true);
     showDownloadPane(true);
 
     QNetworkReply *reply = network_.downloadFile(model.url);
-    connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort, Qt::UniqueConnection);
+    connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort);
+
     connect(reply, &QNetworkReply::finished, this, [&]() {
-        // Hide it here instead of in handleDownload() because finished() also
-        // triggers on abort.
+        // When aborting, the downloading model is still selected. Reset it to
+        // the currently loaded model.
+        // TODO: This might show the wrong model briefly during extraction
+        updateSelectedModel();
+
+        // Switch back to the input model pane
         showDownloadPane(false);
     });
 }

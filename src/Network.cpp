@@ -28,14 +28,23 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
 
     // When finished, emit downloadComplete(QFile*,QString)
     connect(reply, &QNetworkReply::finished, [=] {
-        if (reply->error() == QNetworkReply::NoError) { // Success
-            dest->flush(); // Flush the last downloaded data
-            dest->seek(0); // Rewind the file
-            QString filename = reply->url().fileName();
-            emit downloadComplete(dest, filename);
-        } else {
-            emit error(reply->errorString());
+        switch (reply->error()) {
+            case QNetworkReply::NoError: // Success
+                dest->flush(); // Flush the last downloaded data
+                dest->seek(0); // Rewind the file
+                emit downloadComplete(dest, reply->url().fileName());
+                break;
+
+            case QNetworkReply::OperationCanceledError:
+                // ignore, it was intentional.
+                break;
+            
+            default:
+                emit error(reply->errorString());
+                break;
         }
+
+        // In all cases, delete the reply next event loop.
         reply->deleteLater();
     });
     
