@@ -262,6 +262,11 @@ void MainWindow::resetTranslator() {
     if (settings_.translationModel().isEmpty())
         return;
 
+    // Don't do anything if the path given isn't valid (e.g. user deleted
+    // model from disk but it is still mentioned in Settings)
+    if (!QDir(settings_.translationModel()).exists())
+        return;
+
     translator_->setModel(settings_.translationModel(), settings_.marianSettings());
     
     // Schedule re-translation immediately if we're in automatic mode.
