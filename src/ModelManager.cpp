@@ -15,6 +15,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+
 ModelManager::ModelManager(QObject *parent)
     : QObject(parent)
     , nam_(new QNetworkAccessManager(this))
@@ -198,40 +199,28 @@ void ModelManager::startupLoad() {
     scanForModels(configDir_.absolutePath());
     scanForModels(QDir::current().path()); // Scan the current directory for models. @TODO archives found in this folder would not be used
 }
+
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
-void ModelManager::extractTarGz(QString filein) {
-    // Since I can't figure out (or can be bothered to) how libarchive extracts files in a different directory, I'll just temporary change
-    // the working directory and then change it back. Sue me.
-    QString currentpath = QDir::current().path();
-    if (currentpath != configDir_.absolutePath()) {
-        bool pathChanged = QDir::setCurrent(configDir_.absolutePath());
-        if (!pathChanged) {
-            emit error(tr("Failed to change path to the configuration directory %1 %2 won't be extracted.").arg(configDir_.absolutePath()).arg(filein));
-            return;
-        }
+bool ModelManager::extractTarGz(QString archivePath) {
+    // Change current working directory while extracting
+    QString currentPath = QDir::currentPath();
+
+    if (!QDir::setCurrent(configDir_.absolutePath())) {
+        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(configDir_.absolutePath()).arg(archivePath));
+        return false;
     }
-    // Extraction code begins. Some minor functions to tie in what's missing from untar.c
-    int flags = ARCHIVE_EXTRACT_TIME;
-    std::string fileinStr = filein.toStdString();
-    const char * filename = fileinStr.c_str();
-    int do_extract = 1;
-    int verbose = 0;
 
-    // Lambdas
-    auto msg = [&](const char *m) {
-        emit error (QString(m));
-    };
+    bool success = extractTarGzInCurrentPath(archivePath);
+    QDir::setCurrent(currentPath);
+    return success;
+}
 
+bool ModelManager::extractTarGzInCurrentPath(QString archivePath) {
     auto warn = [&](const char *f, const char *m) {
-        emit error(tr("Warning: %1 %2").arg(f).arg(m));
+        emit error(tr("Warning caused by %1: %2").arg(f).arg(m));
     };
 
-    auto fail = [&](const char *f, const char *m, int r) {
-        emit error(tr("Critical: %1 %2 libarchive wanted to exit with exit code: %3. Archive extraction has most likely failed.").arg(f).arg(m).arg(r));
-    };
-
-    auto copy_data = [=](struct archive *ar, struct archive *aw) {
-        int r;
+    auto copy_data = [=](struct archive *a_in, struct archive *a_out) {
         const void *buff;
         size_t size;
 #if ARCHIVE_VERSION_NUMBER >= 3000000
@@ -241,90 +230,75 @@ void ModelManager::extractTarGz(QString filein) {
 #endif
 
         for (;;) {
-            r = archive_read_data_block(ar, &buff, &size, &offset);
-            if (r == ARCHIVE_EOF)
-                return (ARCHIVE_OK);
-            if (r != ARCHIVE_OK)
-                return (r);
-            r = archive_write_data_block(aw, buff, size, offset);
-            if (r != ARCHIVE_OK) {
-                warn("archive_write_data_block()",
-                     archive_error_string(aw));
-                return (r);
+            int retval = archive_read_data_block(a_in, &buff, &size, &offset);
+            // End of archive: good!
+            if (retval == ARCHIVE_EOF)
+                return ARCHIVE_OK;
+            
+            // Not end of archive: bad.
+            if (retval != ARCHIVE_OK) {
+                warn("archive_read_data_block()", archive_error_string(a_in));
+                return retval;
+            }
+            
+            retval = archive_write_data_block(a_out, buff, size, offset);
+            if (retval != ARCHIVE_OK) {
+                warn("archive_write_data_block()", archive_error_string(a_out));
+                return retval;
             }
         }
     };
 
-    //Actual code
+    archive *a_in = archive_read_new();
+    archive *a_out = archive_write_disk_new();
+    archive_write_disk_set_options(a_out, ARCHIVE_EXTRACT_TIME);
+    
+    archive_read_support_format_tar(a_in);
+    archive_read_support_filter_gzip(a_in);
+    
+    QByteArray archivePathChars = archivePath.toUtf8();
+    if (archive_read_open_filename(a_in, archivePathChars.constData(), 10240)) {
+        warn("archive_read_open_filename()", archive_error_string(a_in));
+        return false;
+    }
 
-    struct archive *a;
-    struct archive *ext;
-    struct archive_entry *entry;
-    int r;
-
-    a = archive_read_new();
-    ext = archive_write_disk_new();
-    archive_write_disk_set_options(ext, flags);
-    /*
-         * Note: archive_write_disk_set_standard_lookup() is useful
-         * here, but it requires library routines that can add 500k or
-         * more to a static executable.
-         */
-    archive_read_support_format_tar(a);
-    archive_read_support_filter_gzip(a);
-    /*
-         * On my system, enabling other archive formats adds 20k-30k
-         * each.  Enabling gzip decompression adds about 20k.
-         * Enabling bzip2 is more expensive because the libbz2 library
-         * isn't very well factored.
-         */
-    if (filename != NULL && strcmp(filename, "-") == 0)
-        filename = NULL;
-    if ((r = archive_read_open_filename(a, filename, 10240)))
-        fail("archive_read_open_filename()",
-             archive_error_string(a), r);
+    // Read (and extract) all archive entries
     for (;;) {
-        r = archive_read_next_header(a, &entry);
-        if (r == ARCHIVE_EOF)
+        archive_entry *entry;
+        
+        int retval = archive_read_next_header(a_in, &entry);
+
+        // Stop when we read past the last entry
+        if (retval == ARCHIVE_EOF)
             break;
-        if (r != ARCHIVE_OK)
-            fail("archive_read_next_header()",
-                 archive_error_string(a), 1);
-        if (verbose && do_extract)
-            msg("x ");
-        if (verbose || !do_extract)
-            msg(archive_entry_pathname(entry));
-        if (do_extract) {
-            r = archive_write_header(ext, entry);
-            if (r != ARCHIVE_OK)
-                warn("archive_write_header()",
-                     archive_error_string(ext));
-            else {
-                copy_data(a, ext);
-                r = archive_write_finish_entry(ext);
-                if (r != ARCHIVE_OK)
-                    fail("archive_write_finish_entry()",
-                         archive_error_string(ext), 1);
-            }
 
+        if (retval < ARCHIVE_OK)
+            warn("archive_read_next_header()", archive_error_string(a_in));
+        if (retval < ARCHIVE_WARN)
+            return false;
+
+        retval = archive_write_header(a_out, entry);
+        if (retval < ARCHIVE_OK)
+            warn("archive_write_header()", archive_error_string(a_out));
+        else if(archive_entry_size(entry) > 0) {
+            if (copy_data(a_in, a_out) < ARCHIVE_WARN)
+                return false;
         }
-        if (verbose || !do_extract)
-            msg("\n");
-    }
-    archive_read_close(a);
-    archive_read_free(a);
 
-    archive_write_close(ext);
-    archive_write_free(ext);
-
-    // Extraction code ends, change path back
-    if (currentpath != configDir_.absolutePath()) {
-        bool pathChanged = QDir::setCurrent(currentpath);
-        if (!pathChanged) {
-            emit error(tr("Failed to change path to the current directory %1").arg(currentpath));
-            return;
-        }
+        retval = archive_write_finish_entry(a_out);
+        if (retval < ARCHIVE_OK)
+            warn("archive_write_finish_entry()", archive_error_string(a_out));
+        if (retval < ARCHIVE_WARN)
+            return false;
     }
+
+    archive_read_close(a_in);
+    archive_read_free(a_in);
+
+    archive_write_close(a_out);
+    archive_write_free(a_out);
+
+    return true;
 }
 
 void ModelManager::loadSettings() {

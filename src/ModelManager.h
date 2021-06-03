@@ -123,7 +123,8 @@ public slots:
 private:
     void startupLoad();
     void scanForModels(QString path);
-    void extractTarGz(QString filename);
+    bool extractTarGz(QString filename);
+    bool extractTarGzInCurrentPath(QString filename);
     Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
