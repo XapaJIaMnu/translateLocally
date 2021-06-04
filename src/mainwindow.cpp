@@ -217,7 +217,7 @@ void MainWindow::updateLocalModels() {
     ui_->localModels->insertSeparator(ui_->localModels->count());
     if (models_.getRemoteModels().empty()) {
         if (models_.isFetchingRemoteModels()) {
-            addDisabledItem(ui_->localModels, tr("Downloading remote model list…"));
+            addDisabledItem(ui_->localModels, tr("Downloading model list…"));
         } else {
             ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
         }
