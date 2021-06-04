@@ -61,8 +61,12 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
 QNetworkReply* Network::downloadFile(QUrl url) {
     QTemporaryFile *dest = new QTemporaryFile();
     QNetworkReply *reply = downloadFile(url, dest);
+    
     // Make the lifetime of the temporary as long as the reply object itself
     if (reply != nullptr)
         dest->setParent(reply);
+    else
+        delete dest;
+
     return reply;
 }
