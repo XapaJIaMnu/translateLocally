@@ -20,6 +20,13 @@
 #include "logo/logo_svg.h"
 #include <iostream>
 
+namespace {
+    void addDisabledItem(QComboBox *combobox, QString label) {
+        combobox->addItem(label);
+        dynamic_cast<QStandardItemModel*>(combobox->model())->item(combobox->count() - 1, 0)->setEnabled(false);
+    }
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
@@ -53,7 +60,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Attach slots
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
+    // Update when new models are discovered
     connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
+    // Update when the fetching remote model status changes
+    connect(&models_, &ModelManager::fetchingRemoteModels, this, &MainWindow::updateLocalModels);
+    connect(&models_, &ModelManager::fetchedRemoteModels, this, &MainWindow::updateLocalModels);
+    // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
     connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
@@ -188,9 +200,8 @@ void MainWindow::on_localModels_activated(int index) {
 void MainWindow::updateLocalModels() {
     // Clear out current items
     ui_->localModels->clear();
-    ui_->localModels->setCurrentIndex(-1);
 
-    // Add local models
+    // Add local models at the top.
     if (!models_.getInstalledModels().empty()) {
         for (auto &&model : models_.getInstalledModels()) {
             // Write down that the model has been updated
@@ -198,16 +209,18 @@ void MainWindow::updateLocalModels() {
             ui_->localModels->addItem(format.arg(model.modelName), QVariant::fromValue(model));
         }
     } else {
-        // Add a placeholder item
-        ui_->localModels->addItem(tr("Press here to get started."));
-        // ... but disable it for good measure
-        dynamic_cast<QStandardItemModel*>(ui_->localModels->model())->item(0, 0)->setEnabled(false);
+        // Add a placeholder item to instruct users what to do next.
+        addDisabledItem(ui_->localModels, tr("Press here to get started."));
     }
 
-    // Add any models available for download
+    // Next, add any models available for download that we don't already have locally
     ui_->localModels->insertSeparator(ui_->localModels->count());
     if (models_.getRemoteModels().empty()) {
-        ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
+        if (models_.isFetchingRemoteModels()) {
+            addDisabledItem(ui_->localModels, tr("Downloading remote model list…"));
+        } else {
+            ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
+        }
     } else if (models_.getNewModels().empty()) {
         ui_->localModels->addItem(tr("No other models available online"));
     } else {
@@ -215,7 +228,9 @@ void MainWindow::updateLocalModels() {
             ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
     }
 
-    // Add models that are existing but a new version is available online
+    // Finally, add models that are existing but a new version is available online.
+    // Note that you can still select the (outdated) model at the top.
+    // @TODO should these be at the bottom, or between the local and remote-only models?
     if (!models_.getUpdatedModels().empty()) {
         ui_->localModels->insertSeparator(ui_->localModels->count());
         for (auto&& model : models_.getUpdatedModels())
