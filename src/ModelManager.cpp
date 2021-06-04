@@ -19,6 +19,7 @@
 ModelManager::ModelManager(QObject *parent)
     : QObject(parent)
     , nam_(new QNetworkAccessManager(this))
+    , isFetchingRemoteModels_(false)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -290,19 +291,28 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
 }
 
 void ModelManager::fetchRemoteModels() {
+    if (isFetchingRemoteModels())
+        return;
+
+    isFetchingRemoteModels_ = true;
+    emit fetchingRemoteModels();
+
     QUrl url("http://data.statmt.org/bergamot/models/models.json");
     QNetworkRequest request(url);
     QNetworkReply *reply = nam_->get(request);
-    connect(reply, &QNetworkReply::finished, this, [&, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [=] {
         switch (reply->error()) {
             case QNetworkReply::NoError:
                 parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
-                emit fetchedRemoteModels();
                 break;
             default:
                 emit error(reply->errorString());
                 break;
         }
+
+        isFetchingRemoteModels_ = false;
+        emit fetchedRemoteModels();
+
         reply->deleteLater();
     });
 }

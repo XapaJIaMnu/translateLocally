@@ -112,7 +112,21 @@ public:
      */
     void updateAvailableModels(); // remote - local
 
+    /**
+     * @brief whether or not fetchRemoteModels is in progress
+     */
+    inline bool isFetchingRemoteModels() const {
+        return isFetchingRemoteModels_;
+    }
+
 public slots:
+    /**
+     * @Brief downloads list of available remote models. On start, fetchingRemoteModels is emitted
+     * (unless a fetch request is already in progress). When the request is
+     * finished (either successfully or not) fetchedRemoteModels is emitted.
+     * On success localModelsChanged() will also be emitted as fetching remote
+     * models causes updates on the outdated() status of local models.
+     */
     void fetchRemoteModels();
     
 private:
@@ -134,9 +148,11 @@ private:
     QList<Model> updatedModels_;
 
     QNetworkAccessManager *nam_;
+    bool isFetchingRemoteModels_;
 
 signals:
-    void fetchedRemoteModels();
+    void fetchingRemoteModels();
+    void fetchedRemoteModels(); // when finished fetching (might be error)
     void localModelsChanged();
     void error(QString);
 };
