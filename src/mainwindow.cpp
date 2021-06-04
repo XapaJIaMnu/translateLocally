@@ -130,6 +130,10 @@ void MainWindow::on_inputBox_textChanged() {
 
 void MainWindow::showDownloadPane(bool visible)
 {
+    // If the localModels QComboBox will be visible, make sure it's accurate.
+    if (!visible)
+        updateSelectedModel();
+
     ui_->downloadPane->setVisible(visible);
     ui_->modelPane->setVisible(!visible);
 }
@@ -152,15 +156,15 @@ void MainWindow::downloadModel(Model model) {
     showDownloadPane(true);
 
     QNetworkReply *reply = network_.downloadFile(model.url);
+    // If downloadFile could not create a temporary file, abort. network_ will
+    // have emitted an error(QString) already so no need to notify.
+    if (reply == nullptr) {
+        showDownloadPane(false);
+        return;
+    }
+    
     connect(ui_->cancelDownloadButton, &QPushButton::clicked, reply, &QNetworkReply::abort);
-
     connect(reply, &QNetworkReply::finished, this, [&]() {
-        // When aborting, the downloading model is still selected. Reset it to
-        // the currently loaded model.
-        // TODO: This might show the wrong model briefly during extraction
-        updateSelectedModel();
-
-        // Switch back to the input model pane
         showDownloadPane(false);
     });
 }
