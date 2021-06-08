@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui_(new Ui::MainWindow)
     , settings_(this)
     , models_(this)
-    , translatorSettingsDialog_(this, &settings_)
+    , translatorSettingsDialog_(this, &settings_, &models_)
     , network_(this)
     , translator_(new MarianInterface(this))
 {

@@ -17,7 +17,7 @@
 
 
 ModelManager::ModelManager(QObject *parent)
-    : QObject(parent)
+    : QAbstractTableModel(parent)
     , network_(new Network(this))
     , isFetchingRemoteModels_(false)
 {
@@ -372,4 +372,52 @@ void ModelManager::updateAvailableModels() {
     }
 
     emit localModelsChanged();
+}
+
+int ModelManager::rowCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+
+    return localModels_.size();
+} 
+
+int ModelManager::columnCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+
+    return 2;
+}
+
+QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (role != Qt::DisplayRole)
+        return QVariant();
+
+    if (orientation != Qt::Horizontal)
+        return QVariant();
+
+    switch (section) {
+        case Column::Name:
+            return tr("Name", "translation model name");
+        case Column::Version:
+            return tr("Version", "translation model version");
+        default:
+            return QVariant();
+    }
+}
+
+QVariant ModelManager::data(const QModelIndex &index, int role) const {
+    if (index.row() >= localModels_.size())
+        return QVariant();
+
+    if (role != Qt::DisplayRole)
+        return QVariant();
+
+    Model model = localModels_[index.row()];
+
+    switch (index.column()) {
+        case Column::Name:
+            return model.modelName;
+        case Column::Version:
+            return model.localversion;
+    }
+
+    return QVariant();
 }

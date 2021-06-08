@@ -2,10 +2,11 @@
 #include "ui_TranslatorSettingsDialog.h"
 #include <thread>
 
-TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings)
+TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
 : QDialog(parent)
 , ui_(new Ui::TranslatorSettingsDialog())
 , settings_(settings)
+, modelManager_(modelManager)
 {
     ui_->setupUi(this);
     
@@ -25,6 +26,8 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
 
     for (auto option : cores_options)
         ui_->coresBox->addItem(QString("%1").arg(option), option);
+
+    ui_->localModelTable->setModel(modelManager_);
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()

@@ -6,63 +6,155 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>300</width>
-    <height>244</height>
+    <width>362</width>
+    <height>370</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Settings</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <item alignment="Qt::AlignTop">
-    <widget class="QGroupBox" name="behaviourGroup">
-     <property name="title">
-      <string>Behaviour</string>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <item alignment="Qt::AlignTop">
-       <widget class="QCheckBox" name="translateImmediatelyCheckbox">
-        <property name="text">
-         <string>Translate as I type</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item alignment="Qt::AlignTop">
-    <widget class="QGroupBox" name="resourceGroup">
-     <property name="title">
-      <string>Resource usage</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <item row="0" column="0">
-       <widget class="QLabel" name="coresLbl">
-        <property name="text">
-         <string>Threads</string>
-        </property>
-        <property name="buddy">
-         <cstring>coresBox</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="memoryBox"/>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="coresBox"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="memoryLbl">
-        <property name="text">
-         <string>Memory per thread</string>
-        </property>
-        <property name="buddy">
-         <cstring>memoryBox</cstring>
-        </property>
-       </widget>
-      </item>
-     </layout>
+     <widget class="QWidget" name="behaviorTab">
+      <attribute name="title">
+       <string>Behaviour</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>8</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>8</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="behaviourGroup">
+         <property name="title">
+          <string>Behaviour</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item alignment="Qt::AlignTop">
+           <widget class="QCheckBox" name="translateImmediatelyCheckbox">
+            <property name="text">
+             <string>Translate as I type</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="resourceGroup">
+         <property name="title">
+          <string>Resource usage</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_2">
+          <item row="0" column="0">
+           <widget class="QLabel" name="coresLbl">
+            <property name="text">
+             <string>Threads</string>
+            </property>
+            <property name="buddy">
+             <cstring>coresBox</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="memoryBox"/>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="coresBox"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="memoryLbl">
+            <property name="text">
+             <string>Memory per thread</string>
+            </property>
+            <property name="buddy">
+             <cstring>memoryBox</cstring>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="modelsTab">
+      <attribute name="title">
+       <string>Languages</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>8</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>8</number>
+       </property>
+       <item>
+        <widget class="QTableView" name="localModelTable">
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <property name="showGrid">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QPushButton" name="pushButton">
+           <property name="text">
+            <string>Import model…</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>

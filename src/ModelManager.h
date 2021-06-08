@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QList>
 #include <QFuture>
+#include <QAbstractTableModel>
 #include <iostream>
 #include "Network.h"
 #include "types.h"
@@ -95,7 +96,7 @@ struct Model {
 
 Q_DECLARE_METATYPE(Model)
 
-class ModelManager : public QObject {
+class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
@@ -118,6 +119,18 @@ public:
     inline bool isFetchingRemoteModels() const {
         return isFetchingRemoteModels_;
     }
+
+    enum Column {
+        Name,
+        Version
+    };
+
+    Q_ENUM(Column);
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
 
 public slots:
     /**
