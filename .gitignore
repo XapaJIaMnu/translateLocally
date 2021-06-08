@@ -75,4 +75,3 @@ build*/
 
 # Qt creator:
 CMakeLists.txt.user
-/src/version.h

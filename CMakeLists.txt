@@ -115,7 +115,10 @@ set(PROJECT_SOURCES
 
 # Make PROJECT_VERSION_* available to our code as TRANSLATELOCALLY_VERSION_*
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h @ONLY)
+               ${CMAKE_CURRENT_BINARY_DIR}/version.h @ONLY)
+
+# Add CURRENT_BINARY_DIR as include path to find the version.h file
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Set icon file for windows
 if(WIN32)
