@@ -1,4 +1,5 @@
 #include "ModelManager.h"
+#include "Network.h"
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -8,7 +9,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <iostream>
 // libarchive
@@ -18,7 +18,7 @@
 
 ModelManager::ModelManager(QObject *parent)
     : QObject(parent)
-    , nam_(new QNetworkAccessManager(this))
+    , network_(new Network(this))
     , isFetchingRemoteModels_(false)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
@@ -299,7 +299,7 @@ void ModelManager::fetchRemoteModels() {
 
     QUrl url("http://data.statmt.org/bergamot/models/models.json");
     QNetworkRequest request(url);
-    QNetworkReply *reply = nam_->get(request);
+    QNetworkReply *reply = network_->get(request);
     connect(reply, &QNetworkReply::finished, this, [=] {
         switch (reply->error()) {
             case QNetworkReply::NoError:

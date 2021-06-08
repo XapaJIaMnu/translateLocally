@@ -4,9 +4,9 @@
 #include <QList>
 #include <QFuture>
 #include <iostream>
+#include "Network.h"
 #include "types.h"
 
-class QNetworkAccessManager;
 
 namespace translateLocally {
     namespace models {
@@ -147,7 +147,7 @@ private:
     QList<Model> newModels_;
     QList<Model> updatedModels_;
 
-    QNetworkAccessManager *nam_;
+    Network *network_;
     bool isFetchingRemoteModels_;
 
 signals:

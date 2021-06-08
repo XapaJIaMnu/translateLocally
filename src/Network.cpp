@@ -1,6 +1,7 @@
 #include "Network.h"
 #include <QNetworkReply>
 #include <QTemporaryFile>
+#include <QCoreApplication>
 
 Network::Network(QObject *parent)
     : QObject(parent)
@@ -10,8 +11,16 @@ Network::Network(QObject *parent)
 #endif
 }
 
+QNetworkReply* Network::get(QNetworkRequest request) {
+    request.setRawHeader("User-Agent", QString("%1/%2")
+        .arg(QCoreApplication::applicationName())
+        .arg(QCoreApplication::applicationVersion())
+        .toUtf8());
+    return nam_->get(request);
+}
+
 QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
-    QNetworkReply *reply = nam_->get(QNetworkRequest(url));
+    QNetworkReply *reply = get(QNetworkRequest(url));
     
     // Open in read/write so we can easily read the data when handling the
     // downloadComplete signal.
