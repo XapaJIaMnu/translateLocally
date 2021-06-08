@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "version.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/marian.h"
 
 #include <QApplication>
@@ -11,7 +12,7 @@ int main(int argc, char *argv[])
 
     QApplication translateLocally(argc, argv);
     QCoreApplication::setApplicationName("translateLocally");
-    QCoreApplication::setApplicationVersion("0.02");
+    QCoreApplication::setApplicationVersion(TRANSLATELOCALLY_VERSION_FULL);
 
     // Command line parsing
     QCommandLineParser parser;
