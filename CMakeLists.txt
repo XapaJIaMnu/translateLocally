@@ -113,6 +113,9 @@ set(PROJECT_SOURCES
         ${TS_FILES}
 )
 
+# Make PROJECT_VERSION_* available to our code as TRANSLATELOCALLY_VERSION_*
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h @ONLY)
 
 # Set icon file for windows
 if(WIN32)
@@ -225,6 +228,11 @@ endif(UNIX)
 if(APPLE) # Apple specific installation of the app
   # Add the .app Target
   target_link_libraries(translateLocally PRIVATE ${LINK_LIBRARIES})
+  set_target_properties(translateLocally PROPERTIES
+    BUNDLE True
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION_STRING_FULL}
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
+    )
   # When on MacOS, we have a non-standard libarchive location because we get it via brew
   target_include_directories(translateLocally-bin PRIVATE ${LibArchive_INCLUDE_DIR})
   target_include_directories(translateLocally PRIVATE ${LibArchive_INCLUDE_DIR})
