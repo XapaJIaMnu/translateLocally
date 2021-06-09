@@ -28,6 +28,8 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
         ui_->coresBox->addItem(QString("%1").arg(option), option);
 
     ui_->localModelTable->setModel(modelManager_);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()

@@ -407,16 +407,29 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
     if (index.row() >= localModels_.size())
         return QVariant();
 
-    if (role != Qt::DisplayRole)
-        return QVariant();
-
     Model model = localModels_[index.row()];
 
     switch (index.column()) {
         case Column::Name:
-            return model.modelName;
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.modelName;
+                default:
+                    return QVariant();
+            }
+
         case Column::Version:
-            return model.localversion;
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.localversion;
+                case Qt::TextAlignmentRole:
+                    // @TODO figure out how to compile combined flag as below. 
+                    // Error is "can't convert the result to QVariant."
+                    // return Qt::AlignRight | Qt::AlignBaseline;
+                    return Qt::AlignRight;
+                default:
+                    return QVariant();
+            }
     }
 
     return QVariant();
