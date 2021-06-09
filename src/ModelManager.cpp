@@ -409,6 +409,9 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
 
     Model model = localModels_[index.row()];
 
+    if (role == Qt::UserRole)
+        return QVariant::fromValue(model);
+
     switch (index.column()) {
         case Column::Name:
             switch (role) {

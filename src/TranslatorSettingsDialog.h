@@ -22,6 +22,8 @@ protected:
 
 private slots:
     void on_buttonBox_accepted();
+    void on_actionRevealModel_triggered();
+    void on_actionDeleteModel_triggered();
 
 private:
     Ui::TranslatorSettingsDialog *ui_;

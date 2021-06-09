@@ -121,12 +121,20 @@
        </property>
        <item>
         <widget class="QTableView" name="localModelTable">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
+         </property>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>
          </property>
          <property name="showGrid">
           <bool>false</bool>
          </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <addaction name="actionRevealModel"/>
+         <addaction name="actionDeleteModel"/>
         </widget>
        </item>
        <item>
@@ -168,6 +176,22 @@
     </widget>
    </item>
   </layout>
+  <action name="actionRevealModel">
+   <property name="text">
+    <string>Reveal folder</string>
+   </property>
+  </action>
+  <action name="actionDeleteModel">
+   <property name="text">
+    <string>Delete</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections>
@@ -178,8 +202,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
+     <x>32</x>
+     <y>354</y>
     </hint>
     <hint type="destinationlabel">
      <x>20</x>
@@ -194,8 +218,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
+     <x>32</x>
+     <y>354</y>
     </hint>
     <hint type="destinationlabel">
      <x>20</x>

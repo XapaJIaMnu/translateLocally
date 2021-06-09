@@ -1,6 +1,7 @@
 #include "TranslatorSettingsDialog.h"
 #include "ui_TranslatorSettingsDialog.h"
 #include <thread>
+#include <QDesktopServices>
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
 : QDialog(parent)
@@ -49,4 +50,18 @@ void TranslatorSettingsDialog::on_buttonBox_accepted()
     settings_->cores.setValue(ui_->coresBox->currentData().toUInt());
     settings_->workspace.setValue(ui_->memoryBox->currentData().toUInt());
     settings_->translateImmediately.setValue(ui_->translateImmediatelyCheckbox->isChecked());
+}
+
+
+void TranslatorSettingsDialog::on_actionRevealModel_triggered()
+{
+    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+        Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
+        QDesktopServices::openUrl(QUrl(QString("file://%1").arg(model.path), QUrl::TolerantMode));
+    }
+}
+
+void TranslatorSettingsDialog::on_actionDeleteModel_triggered()
+{
+
 }
