@@ -257,11 +257,13 @@ void MainWindow::updateSelectedModel() {
     }
 
     // Normal behaviour: find the item that matches the local model
-    for (int i = 0; i < ui_->localModels->count(); ++i) {
-        QVariant item = ui_->localModels->itemData(i);
-        if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
-            ui_->localModels->setCurrentIndex(i);
-            return;
+    if (settings_.translationModel() != "") {
+        for (int i = 0; i < ui_->localModels->count(); ++i) {
+            QVariant item = ui_->localModels->itemData(i);
+            if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
+                ui_->localModels->setCurrentIndex(i);
+                return;
+            }
         }
     }
 
