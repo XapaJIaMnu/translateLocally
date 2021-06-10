@@ -110,6 +110,12 @@ public:
     Model writeModel(QFile *file, QString filename = QString());
     bool removeModel(Model const &model);
 
+    /**
+     * @Brief is this model managed by ModelManager (i.e. created with 
+     * writeModel()).
+     */
+    bool isManagedModel(Model const &model) const;
+
     QList<Model> getInstalledModels() const;
     QList<Model> getRemoteModels() const;
     QList<Model> getUpdatedModels() const;

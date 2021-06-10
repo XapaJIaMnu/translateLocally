@@ -34,6 +34,10 @@ ModelManager::ModelManager(QObject *parent)
     startupLoad();
 }
 
+bool ModelManager::isManagedModel(Model const &model) const {
+    return model.isLocal() && model.path.startsWith(configDir_.absolutePath());
+}
+
 Model ModelManager::writeModel(QFile *file, QString filename) {
     Model newmodel;
 
@@ -45,7 +49,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];
-    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
+    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absoluteFilePath(newModelDirName));
 
     // The function above should have added the path variable. it will error message if it fails.
     if (obj.find("path") == obj.end()) {
@@ -61,7 +65,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
 }
 
 bool ModelManager::removeModel(Model const &model) {
-    if (!model.isLocal())
+    if (!isManagedModel(model))
         return false;
 
     QDir modelDir = QDir(model.path);
