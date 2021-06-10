@@ -32,6 +32,11 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->setModel(modelManager_);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
+
+    connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelTableContextMenu);
+
+    // Update context menu state on start-up
+    updateModelTableContextMenu(QItemSelection(), QItemSelection());
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()
@@ -80,4 +85,25 @@ void TranslatorSettingsDialog::on_importModelButton_pressed() {
         QFile file = QFile(path);
         modelManager_->writeModel(&file);
     }
+}
+
+void TranslatorSettingsDialog::updateModelTableContextMenu(const QItemSelection &selected, const QItemSelection &deselected) {
+    Q_UNUSED(selected);
+    Q_UNUSED(deselected);
+
+    bool containsLocalModel = false;
+    bool containsDeletableModel = false;
+
+    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+        Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
+        
+        if (model.isLocal())
+            containsLocalModel = true;
+
+        if (modelManager_->isManagedModel(model))
+            containsDeletableModel = true;
+    }
+
+    ui_->actionRevealModel->setEnabled(containsLocalModel);
+    ui_->actionDeleteModel->setEnabled(containsDeletableModel);
 }

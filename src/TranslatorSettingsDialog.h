@@ -2,6 +2,7 @@
 #define TRANSLATORSETTINGS_H
 
 #include <QDialog>
+#include <QItemSelection>
 #include "Settings.h"
 #include "ModelManager.h"
 
@@ -25,6 +26,7 @@ private slots:
     void on_actionRevealModel_triggered();
     void on_actionDeleteModel_triggered();
     void on_importModelButton_pressed();
+    void updateModelTableContextMenu(const QItemSelection &selected, const QItemSelection &deselected);
 
 private:
     Ui::TranslatorSettingsDialog *ui_;
