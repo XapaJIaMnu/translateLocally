@@ -51,8 +51,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     }
 
     newmodel = parseModelInfo(obj);
-    if (insertLocalModel(newmodel))
-        std::sort(localModels_.begin(), localModels_.end());
+    insertLocalModel(newmodel);
     updateAvailableModels();
     
     return newmodel;
@@ -78,21 +77,38 @@ bool ModelManager::removeModel(Model const &model) {
         // should also remove the model from localModels_
     }
 
-    localModels_.removeOne(model);
-    updateAvailableModels();
+    int position = localModels_.indexOf(model);
 
+    if (position == -1)
+        return false;
+
+    beginRemoveRows(QModelIndex(), position, position + 1);
+    localModels_.removeOne(model);
+    endRemoveRows();
+    updateAvailableModels();
     return true;
 }
 
 bool ModelManager::insertLocalModel(Model model) {
+    int position = 0;
+
     for (int i = 0; i < localModels_.size(); ++i) {
+        // First, make sure we don't already have this model
         if (localModels_[i].isSameModel(model)) {
             localModels_[i] = model;
+            emit dataChanged(index(i, 0), index(i, columnCount()));
             return false;
         }
+
+        // Second, while we're iterating anyway, figure out where to insert
+        // this model.
+        if (localModels_[i] < model)
+            position = i + 1;
     }
 
+    beginInsertRows(QModelIndex(), position, position + 1);
     localModels_.append(model);
+    endInsertRows();
     return true;
 }
 
@@ -180,7 +196,7 @@ void ModelManager::scanForModels(QString path) {
             if (!obj.empty()) {
                 Model model = parseModelInfo(obj);
                 if (model.path != "") {
-                    models.append(model);
+                    insertLocalModel(model);
                 } else {
                     emit error(tr("Corrupted json file: %1/model_info.json. Delete or redownload.").arg(current));
                 }
@@ -196,12 +212,6 @@ void ModelManager::scanForModels(QString path) {
         }
     }
 
-    // Saves us a sort + emit if no models were found/added
-    if (models.isEmpty())
-        return;
-
-    localModels_ += models;
-    std::sort(localModels_.begin(), localModels_.end());
     updateAvailableModels();
 }
 
@@ -379,12 +389,13 @@ void ModelManager::updateAvailableModels() {
     for (auto &&model : remoteModels_) {
         bool installed = false;
         bool outdated = false;
-        for (auto &&localModel : localModels_) {
-            if (localModel.isSameModel(model)) {
-                localModel.remoteAPI = model.remoteAPI;
-                localModel.remoteversion = model.remoteversion;
+        for (int i = 0; i < localModels_.size(); ++i) {
+            if (localModels_[i].isSameModel(model)) {
+                localModels_[i].remoteAPI = model.remoteAPI;
+                localModels_[i].remoteversion = model.remoteversion;
                 installed = true;
-                outdated = localModel.outdated();
+                outdated = localModels_[i].outdated();
+                emit dataChanged(index(i, 0), index(i, columnCount()));
                 break;
             }
         }
