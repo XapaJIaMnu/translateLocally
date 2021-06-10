@@ -2,7 +2,9 @@
 #include "ui_TranslatorSettingsDialog.h"
 #include <thread>
 #include <QDesktopServices>
+#include <QUrl>
 #include <QFileDialog>
+
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
 : QDialog(parent)
@@ -82,7 +84,7 @@ void TranslatorSettingsDialog::on_importModelButton_pressed() {
         tr("Packaged translation model (*.tar.gz)"));
 
     for (QString const &path : paths) {
-        QFile file = QFile(path);
+        QFile file(path);
         modelManager_->writeModel(&file);
     }
 }
