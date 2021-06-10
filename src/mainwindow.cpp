@@ -54,6 +54,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     updateLocalModels();
 
+    // If we have preferred model, but it no longer exists on disk, reset it to empty
+    if (!settings_.translationModel().isEmpty() && !QDir(settings_.translationModel()).exists())
+        settings_.translationModel.setValue("");
+
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
         settings_.translationModel.setValue(models_.getInstalledModels().first().path);
@@ -281,19 +285,11 @@ void MainWindow::translate(QString const &text) {
 }
 
 void MainWindow::resetTranslator() {
-    // Don't do anything if there is no model selected.
-    if (settings_.translationModel().isEmpty())
-        return;
-
-    // Don't do anything if the path given isn't valid (e.g. user deleted
-    // model from disk but it is still mentioned in Settings)
-    if (!QDir(settings_.translationModel()).exists())
-        return;
-
+    // Note: settings_.translationModel() can be empty string, meaning unload the current model
     translator_->setModel(settings_.translationModel(), settings_.marianSettings());
     
     // Schedule re-translation immediately if we're in automatic mode.
-    if (settings_.translateImmediately())
+    if (!settings_.translationModel().isEmpty() && settings_.translateImmediately())
         translate();
 }
 

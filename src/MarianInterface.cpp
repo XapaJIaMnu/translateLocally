@@ -149,6 +149,11 @@ QString const &MarianInterface::model() const {
 void MarianInterface::setModel(QString path_to_model_dir, const translateLocally::marianSettings &settings) {
     model_ = path_to_model_dir;
 
+    // Empty model string means just "unload" the model. We don't do that (yet),
+    // instead this just causes translate(QString) to no longer work.
+    if (model_.isEmpty())
+        return;
+
     // move my shared_ptr from stack to heap
     QMutexLocker locker(&lock_);
     std::unique_ptr<ModelDescription> model(new ModelDescription{model_.toStdString(), settings});
