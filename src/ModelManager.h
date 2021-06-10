@@ -85,6 +85,13 @@ struct Model {
         return localversion<remoteversion || localAPI < remoteAPI;
     }
 
+    // Is-equal operator for removing models from list
+    inline bool operator==(const Model &other) const {
+        return isSameModel(other)
+            && (!isLocal() || path == other.path)
+            && (!isRemote() || url == other.url);
+    }
+
     // Debug
     inline void print() const {
         std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
@@ -101,6 +108,7 @@ class ModelManager : public QAbstractTableModel {
 public:
     ModelManager(QObject *parent);
     Model writeModel(QFile *file, QString filename);
+    bool removeModel(Model const &model);
 
     QList<Model> getInstalledModels() const;
     QList<Model> getRemoteModels() const;

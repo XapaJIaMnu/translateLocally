@@ -58,6 +58,32 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     return newmodel;
 }
 
+bool ModelManager::removeModel(Model const &model) {
+    if (!model.isLocal())
+        return false;
+
+    QDir modelDir = QDir(model.path);
+
+    // First attempt to remove the model_info.json file as a test. If that works
+    // we know that at least the model won't be loaded on next scan/start-up.
+
+    if (!modelDir.remove("model_info.json")) {
+        emit error(tr("Could not delete %1/model_info.json").arg(model.path));
+        return false;
+    }
+
+    if (!modelDir.removeRecursively()) {
+        emit error(tr("Could not completely remove the model directory %1").arg(model.path));
+        // no return here because we did remove model_info.json already, so we
+        // should also remove the model from localModels_
+    }
+
+    localModels_.removeOne(model);
+    updateAvailableModels();
+
+    return true;
+}
+
 bool ModelManager::insertLocalModel(Model model) {
     for (int i = 0; i < localModels_.size(); ++i) {
         if (localModels_[i].isSameModel(model)) {

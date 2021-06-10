@@ -63,5 +63,8 @@ void TranslatorSettingsDialog::on_actionRevealModel_triggered()
 
 void TranslatorSettingsDialog::on_actionDeleteModel_triggered()
 {
-
+    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+        Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
+        modelManager_->removeModel(model);
+    }
 }
