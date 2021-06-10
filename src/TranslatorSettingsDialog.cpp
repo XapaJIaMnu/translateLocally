@@ -2,6 +2,7 @@
 #include "ui_TranslatorSettingsDialog.h"
 #include <thread>
 #include <QDesktopServices>
+#include <QFileDialog>
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
 : QDialog(parent)
@@ -66,5 +67,17 @@ void TranslatorSettingsDialog::on_actionDeleteModel_triggered()
     for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
         modelManager_->removeModel(model);
+    }
+}
+
+void TranslatorSettingsDialog::on_importModelButton_pressed() {
+    QStringList paths = QFileDialog::getOpenFileNames(this,
+        tr("Open Translation model"),
+        QString(),
+        tr("Packaged translation model (*.tar.gz)"));
+
+    for (QString const &path : paths) {
+        QFile file = QFile(path);
+        modelManager_->writeModel(&file);
     }
 }

@@ -39,6 +39,9 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
 
     if (!extractTarGz(file))
         return newmodel;
+
+    if (filename.isEmpty())
+        filename = QFileInfo(*file).fileName();
     
     // Add the model to the local models and emit a signal with its index
     QString newModelDirName = filename.split(".tar.gz")[0];

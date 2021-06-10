@@ -107,7 +107,7 @@ class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
-    Model writeModel(QFile *file, QString filename);
+    Model writeModel(QFile *file, QString filename = QString());
     bool removeModel(Model const &model);
 
     QList<Model> getInstalledModels() const;
