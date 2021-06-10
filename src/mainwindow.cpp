@@ -280,7 +280,11 @@ void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
     ui_->translateButton->setEnabled(false);
     if (translator_->model().isEmpty()) {
-        popupError(tr("You need to download a translation model first. Do that through the drop down menu on top."));
+        if (models_.getInstalledModels().isEmpty()) {
+            popupError(tr("You need to download a translation model first. You can do that through the drop down menu on top."));
+        } else {
+            popupError(tr("You need to pick a translation model first. You can do that through the drop down menu on top."));
+        }
     } else {
         translator_->translate(text);
     }    
