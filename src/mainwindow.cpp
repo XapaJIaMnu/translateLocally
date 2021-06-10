@@ -69,6 +69,24 @@ MainWindow::MainWindow(QWidget *parent)
     // Update when the fetching remote model status changes
     connect(&models_, &ModelManager::fetchingRemoteModels, this, &MainWindow::updateLocalModels);
     connect(&models_, &ModelManager::fetchedRemoteModels, this, &MainWindow::updateLocalModels);
+    // Make sure we unload any models that get deleted
+    connect(&models_, &QAbstractItemModel::rowsAboutToBeRemoved, this, [&](const QModelIndex &parent, int first, int last) {
+        Q_UNUSED(parent);
+        // If no model is loaded right now, we don't need to worry.
+        if (settings_.translationModel() == "")
+            return;
+
+        // For all removed rows, figure out which model they referred to and check whether that's
+        // the currently loaded path. If it is, unload it.
+        for (int i = first; i < last; ++i) {
+            QVariant data = models_.data(models_.index(i, 0), Qt::UserRole);
+            if (data.canConvert<Model>() && data.value<Model>().path == settings_.translationModel()) {
+                settings_.translationModel.setValue("");
+                break;
+            }
+        }
+    });
+
     // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
