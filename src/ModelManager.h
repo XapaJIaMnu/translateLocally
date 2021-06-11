@@ -159,8 +159,8 @@ public slots:
 private:
     void startupLoad();
     void scanForModels(QString path);
-    bool extractTarGz(QFile *file);
-    bool extractTarGzInCurrentPath(QFile *file);
+    bool extractTarGz(QFile *file, QDir const &destination, QStringList &files);
+    bool extractTarGzInCurrentPath(QFile *file, QStringList &files);
     Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);

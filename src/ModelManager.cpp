@@ -40,8 +40,9 @@ bool ModelManager::isManagedModel(Model const &model) const {
 
 Model ModelManager::writeModel(QFile *file, QString filename) {
     Model newmodel;
+    QStringList extracted;
 
-    if (!extractTarGz(file))
+    if (!extractTarGz(file, configDir_, extracted))
         return newmodel;
 
     if (filename.isEmpty())
@@ -229,21 +230,26 @@ void ModelManager::startupLoad() {
 }
 
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
-bool ModelManager::extractTarGz(QFile *file) {
+bool ModelManager::extractTarGz(QFile *file, QDir const &destination, QStringList &files) {
     // Change current working directory while extracting
     QString currentPath = QDir::currentPath();
 
-    if (!QDir::setCurrent(configDir_.absolutePath())) {
-        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(configDir_.absolutePath()).arg(file->fileName()));
+    if (!QDir::setCurrent(destination.absolutePath())) {
+        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(destination.absolutePath()).arg(file->fileName()));
         return false;
     }
 
-    bool success = extractTarGzInCurrentPath(file);
+    QStringList extracted;
+    bool success = extractTarGzInCurrentPath(file, extracted);
+
+    for (QString const &file : extracted)
+        files << destination.filePath(file);
+
     QDir::setCurrent(currentPath);
     return success;
 }
 
-bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
+bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     auto warn = [&](const char *f, const char *m) {
         emit error(tr("Trouble while extracting language model after call to %1: %2").arg(f).arg(m));
     };
@@ -312,9 +318,12 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
         retval = archive_write_header(a_out, entry);
         if (retval < ARCHIVE_OK)
             warn("archive_write_header()", archive_error_string(a_out));
-        else if(archive_entry_size(entry) > 0) {
-            if (copy_data(a_in, a_out) < ARCHIVE_WARN)
-                return false;
+        else {
+            files << QString(archive_entry_pathname(entry));
+
+            if(archive_entry_size(entry) > 0)
+                if (copy_data(a_in, a_out) < ARCHIVE_WARN)
+                    return false;
         }
 
         retval = archive_write_finish_entry(a_out);
