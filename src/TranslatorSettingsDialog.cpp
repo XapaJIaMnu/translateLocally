@@ -35,10 +35,15 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
 
-    connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelTableContextMenu);
+    connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelActions);
+    connect(ui_->buttonBox, &QDialogButtonBox::accepted, this, &TranslatorSettingsDialog::applySettings);
+    connect(ui_->actionRevealModel, &QAction::triggered, this, &TranslatorSettingsDialog::revealSelectedModels);
+    connect(ui_->actionDeleteModel, &QAction::triggered, this, &TranslatorSettingsDialog::deleteSelectedModels);
+    connect(ui_->deleteModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::deleteSelectedModels);
+    connect(ui_->importModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::importModels);
 
     // Update context menu state on start-up
-    updateModelTableContextMenu(QItemSelection(), QItemSelection());
+    updateModelActions();
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()
@@ -46,22 +51,21 @@ TranslatorSettingsDialog::~TranslatorSettingsDialog()
     delete ui_;
 }
 
-void TranslatorSettingsDialog::showEvent(QShowEvent *ev)
+void TranslatorSettingsDialog::updateSettings()
 {
     ui_->coresBox->setCurrentIndex(ui_->coresBox->findData(settings_->cores()));
     ui_->memoryBox->setCurrentIndex(ui_->memoryBox->findData(settings_->workspace()));
     ui_->translateImmediatelyCheckbox->setChecked(settings_->translateImmediately());
 }
 
-void TranslatorSettingsDialog::on_buttonBox_accepted()
+void TranslatorSettingsDialog::applySettings()
 {
     settings_->cores.setValue(ui_->coresBox->currentData().toUInt());
     settings_->workspace.setValue(ui_->memoryBox->currentData().toUInt());
     settings_->translateImmediately.setValue(ui_->translateImmediatelyCheckbox->isChecked());
 }
 
-
-void TranslatorSettingsDialog::on_actionRevealModel_triggered()
+void TranslatorSettingsDialog::revealSelectedModels()
 {
     for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
@@ -69,7 +73,7 @@ void TranslatorSettingsDialog::on_actionRevealModel_triggered()
     }
 }
 
-void TranslatorSettingsDialog::on_actionDeleteModel_triggered()
+void TranslatorSettingsDialog::deleteSelectedModels()
 {
     for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
@@ -77,7 +81,7 @@ void TranslatorSettingsDialog::on_actionDeleteModel_triggered()
     }
 }
 
-void TranslatorSettingsDialog::on_importModelButton_pressed() {
+void TranslatorSettingsDialog::importModels() {
     QStringList paths = QFileDialog::getOpenFileNames(this,
         tr("Open Translation model"),
         QString(),
@@ -89,10 +93,15 @@ void TranslatorSettingsDialog::on_importModelButton_pressed() {
     }
 }
 
-void TranslatorSettingsDialog::updateModelTableContextMenu(const QItemSelection &selected, const QItemSelection &deselected) {
-    Q_UNUSED(selected);
-    Q_UNUSED(deselected);
+void TranslatorSettingsDialog::showEvent(QShowEvent *ev)
+{
+    // When this dialog pops up, update all widgets to reflect the current
+    // settings.
+    updateSettings();
+}
 
+void TranslatorSettingsDialog::updateModelActions()
+{
     bool containsLocalModel = false;
     bool containsDeletableModel = false;
 
@@ -108,4 +117,5 @@ void TranslatorSettingsDialog::updateModelTableContextMenu(const QItemSelection 
 
     ui_->actionRevealModel->setEnabled(containsLocalModel);
     ui_->actionDeleteModel->setEnabled(containsDeletableModel);
+    ui_->deleteModelButton->setEnabled(containsDeletableModel);
 }

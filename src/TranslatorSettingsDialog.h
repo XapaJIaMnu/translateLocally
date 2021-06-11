@@ -22,11 +22,12 @@ protected:
     void showEvent(QShowEvent *ev);
 
 private slots:
-    void on_buttonBox_accepted();
-    void on_actionRevealModel_triggered();
-    void on_actionDeleteModel_triggered();
-    void on_importModelButton_pressed();
-    void updateModelTableContextMenu(const QItemSelection &selected, const QItemSelection &deselected);
+    void updateSettings();
+    void applySettings();
+    void revealSelectedModels();
+    void deleteSelectedModels();
+    void importModels();
+    void updateModelActions();
 
 private:
     Ui::TranslatorSettingsDialog *ui_;
