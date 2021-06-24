@@ -39,7 +39,7 @@ namespace {
             // If we found a mismatch, we found a substring in it that's a
             // shorter common prefix.
             if (offsets.first != prefix.end())
-                prefix = it->sliced(0, offsets.second - it->begin());
+                prefix = it->left(offsets.second - it->begin());
         }
 
         // prefix.section("/", 0, -1)?
