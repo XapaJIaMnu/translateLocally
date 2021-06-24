@@ -102,8 +102,6 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     if (!extractTarGz(file, tempDir.path(), extracted))
         return Model{};
 
-    qDebug() << "Extracted: " << extracted;
-
     // Assert we extracted at least something.
     if (extracted.isEmpty()) {
         emit error(tr("Did not extract any files from the model archive."));
@@ -113,12 +111,12 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     // Get the common prefix of all files. In the ideal case, it's the same as
     // tempDir, but the archive might have had it's own sub folder.
     QString prefix = getCommonPrefixPath(extracted);
-    qDebug() << "Common prefix: " << prefix;
-
     if (prefix.isEmpty()) {
         emit error(tr("Could not determine prefix path of extracted model."));
         return Model{};
     }
+
+    Q_ASSERT(prefix.startsWith(tempDir.path()));
 
     // Try determining whether the model is any good before we continue to safe
     // it to a permanent destination
@@ -128,9 +126,6 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentSecsSinceEpoch());
     QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
 
-    qDebug() << "Rename " << prefix << " to " << newModelDirPath;
-
-    // Q_ASSERT(prefix exists in tempDir)
     if (!QDir().rename(prefix, newModelDirPath)) {
         emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path()).arg(newModelDirPath));
         return Model{};
