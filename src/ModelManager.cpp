@@ -180,7 +180,7 @@ bool ModelManager::removeModel(Model const &model) {
     if (position == -1)
         return false;
 
-    beginRemoveRows(QModelIndex(), position, position + 1);
+    beginRemoveRows(QModelIndex(), position, position);
     localModels_.removeOne(model);
     endRemoveRows();
     updateAvailableModels();
@@ -205,7 +205,7 @@ bool ModelManager::insertLocalModel(Model model) {
     }
 
     beginInsertRows(QModelIndex(), position, position + 1);
-    localModels_.append(model);
+    localModels_.insert(position, model);
     endInsertRows();
     return true;
 }
