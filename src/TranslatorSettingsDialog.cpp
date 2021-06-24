@@ -4,6 +4,7 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QFileDialog>
+#include <QMessageBox>
 
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
@@ -75,10 +76,21 @@ void TranslatorSettingsDialog::revealSelectedModels()
 
 void TranslatorSettingsDialog::deleteSelectedModels()
 {
-    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+    QList<Model> selection;
+    for (auto index : ui_->localModelTable->selectionModel()->selectedRows(0)) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
-        modelManager_->removeModel(model);
+        if (modelManager_->isManagedModel(model))
+            selection.append(model);
     }
+
+    if (QMessageBox::question(this,
+            tr("Delete models"),
+            tr("Are you sure you want to delete %n language model(s)?", "", selection.size())
+        ) != QMessageBox::Yes)
+        return;
+
+    for (auto &&model : selection)
+        modelManager_->removeModel(model);
 }
 
 void TranslatorSettingsDialog::importModels() {
