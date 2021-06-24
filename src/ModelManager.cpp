@@ -10,10 +10,42 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkReply>
+#include <QTemporaryDir>
 #include <iostream>
 // libarchive
 #include <archive.h>
 #include <archive_entry.h>
+#include <algorithm>
+
+namespace {
+    /**
+     * Give it a QStringList with multiple paths, and this will return the
+     * path prefix (i.e. the path to the shared root directory). Note: if only
+     * a single path is given, the prefix is the dirname part of the path.
+     */
+    QString getCommonPrefixPath(QStringList list) {
+        auto it = list.begin();
+
+        if (it == list.end())
+            return QString();
+
+        QString prefix = *it++;
+
+        for (; it != list.end(); ++it) {
+            auto offsets = std::mismatch(
+                prefix.begin(), prefix.end(),
+                it->begin(), it->end());
+
+            // If we found a mismatch, we found a substring in it that's a
+            // shorter common prefix.
+            if (offsets.first != prefix.end())
+                prefix = it->sliced(0, offsets.second - it->begin());
+        }
+
+        // prefix.section("/", 0, -1)?
+        return prefix.section("/", 0, -2);
+    }
+}
 
 
 ModelManager::ModelManager(QObject *parent)
@@ -38,31 +70,83 @@ bool ModelManager::isManagedModel(Model const &model) const {
     return model.isLocal() && model.path.startsWith(configDir_.absolutePath());
 }
 
+bool ModelManager::validateModel(QString path) {
+    QJsonObject obj = getModelInfoJsonFromDir(path);
+    if (obj.find("path") == obj.end()) {
+        emit error(tr("Failed to find, open or parse the model_info.json in %1").arg(path));
+        return false;
+    }
+
+    if (!parseModelInfo(obj).isLocal()) // parseModelInfo emits its own error signals
+        return false;
+
+    return true;
+}
+
 Model ModelManager::writeModel(QFile *file, QString filename) {
-    Model newmodel;
-    QStringList extracted;
-
-    if (!extractTarGz(file, configDir_, extracted))
-        return newmodel;
-
+    // Default value for filename is the basename of the file.
     if (filename.isEmpty())
         filename = QFileInfo(*file).fileName();
     
-    // Add the model to the local models and emit a signal with its index
-    QString newModelDirName = filename.split(".tar.gz")[0];
-    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absoluteFilePath(newModelDirName));
-
-    // The function above should have added the path variable. it will error message if it fails.
-    if (obj.find("path") == obj.end()) {
-        emit error(tr("Failed to find, open or parse the model_info.json for the newly dowloaded %1").arg(filename));
-        return newmodel;
+    // Initially extract to to a temporary directory. Will delete its contents
+    // when it goes out of scope
+    // QTemporaryDir tempDir(configDir_.filePath(".extracting-XXXXXXX"));
+    QTemporaryDir tempDir;
+    if (!tempDir.isValid()) {
+        emit error(tr("Could not create temporary directory in {} to extract the model archive to.").arg(configDir_.absolutePath()));
+        return Model{};
     }
 
-    newmodel = parseModelInfo(obj);
-    insertLocalModel(newmodel);
+    // Try to extract the archive to the temporary directory
+    QStringList extracted;
+    if (!extractTarGz(file, tempDir.path(), extracted))
+        return Model{};
+
+    qDebug() << "Extracted: " << extracted;
+
+    // Assert we extracted at least something.
+    if (extracted.isEmpty()) {
+        emit error(tr("Did not extract any files from the model archive."));
+        return Model{};
+    }
+
+    // Get the common prefix of all files. In the ideal case, it's the same as
+    // tempDir, but the archive might have had it's own sub folder.
+    QString prefix = getCommonPrefixPath(extracted);
+    qDebug() << "Common prefix: " << prefix;
+
+    if (prefix.isEmpty()) {
+        emit error(tr("Could not determine prefix path of extracted model."));
+        return Model{};
+    }
+
+    // Try determining whether the model is any good before we continue to safe
+    // it to a permanent destination
+    if (!validateModel(prefix)) // validateModel emits its own error() signals (hence validateModel and not isModelValid)
+        return Model{};
+
+    QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentSecsSinceEpoch());
+    QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
+
+    qDebug() << "Rename " << prefix << " to " << newModelDirPath;
+
+    // Q_ASSERT(prefix exists in tempDir)
+    if (!QDir().rename(prefix, newModelDirPath)) {
+        emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path()).arg(newModelDirPath));
+        return Model{};
+    }
+
+    // Don't try to delete the no-longer-temporary directry
+    tempDir.setAutoRemove(false);
+
+    QJsonObject obj = getModelInfoJsonFromDir(newModelDirPath);
+    Q_ASSERT(obj.find("path") != obj.end());
+
+    Model model = parseModelInfo(obj);
+    insertLocalModel(model);
     updateAvailableModels();
     
-    return newmodel;
+    return model;
 }
 
 bool ModelManager::removeModel(Model const &model) {
@@ -186,6 +270,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
     } else {
         emit error(tr("The json file provided is missing '%1' or is corrupted. Please redownload the model. "
                       "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
+        return Model{};
     }
 
     return model;

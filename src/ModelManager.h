@@ -165,6 +165,7 @@ private:
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
     bool insertLocalModel(Model model);
+    bool validateModel(QString path);
 
     QDir configDir_;
 
