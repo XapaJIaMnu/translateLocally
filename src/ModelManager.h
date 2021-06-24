@@ -116,6 +116,13 @@ public:
      */
     bool isManagedModel(Model const &model) const;
 
+    /**
+     * @Brief returns model from getInstalledModels() that matches the path.
+     * Useful for checking whether a model for which you've saved the path
+     * is still available.
+     */
+    Model getModelForPath(QString path) const; 
+
     QList<Model> getInstalledModels() const;
     QList<Model> getRemoteModels() const;
     QList<Model> getUpdatedModels() const;

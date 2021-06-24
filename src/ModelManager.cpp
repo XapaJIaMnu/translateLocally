@@ -483,6 +483,14 @@ QList<Model> ModelManager::getUpdatedModels() const {
     return updatedModels_;
 }
 
+Model ModelManager::getModelForPath(QString path) const {
+    for (Model const &model : getInstalledModels())
+        if (model.path == path)
+            return model;
+
+    return Model{};
+}
+
 void ModelManager::updateAvailableModels() {
     newModels_.clear();
     updatedModels_.clear();

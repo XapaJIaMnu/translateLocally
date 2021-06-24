@@ -55,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
     updateLocalModels();
 
     // If we have preferred model, but it no longer exists on disk, reset it to empty
-    if (!settings_.translationModel().isEmpty() && !QDir(settings_.translationModel()).exists())
+    if (!settings_.translationModel().isEmpty() && !models_.getModelForPath(settings_.translationModel()).isLocal())
         settings_.translationModel.setValue("");
 
     // If no model is preferred, load the first available one.
