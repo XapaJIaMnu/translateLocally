@@ -123,7 +123,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     if (!validateModel(prefix)) // validateModel emits its own error() signals (hence validateModel and not isModelValid)
         return Model{};
 
-    QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentSecsSinceEpoch());
+    QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentMSecsSinceEpoch() / 1000);
     QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
 
     if (!QDir().rename(prefix, newModelDirPath)) {
