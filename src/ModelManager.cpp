@@ -143,6 +143,17 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     Q_ASSERT(obj.find("path") != obj.end());
 
     Model model = parseModelInfo(obj);
+
+    // Upgrade behaviour: remove any older versions of this model. At least if
+    // the older model is part of the models managed by us. We don't delete
+    // models from the CWD.
+    // Note: Right now there's no check on version. We assume that if writeModel
+    // is called, it either was called from the upgrade path, or the user
+    // intentionally installing an older model through the model manager UI.
+    for (auto &&installed : localModels_)
+        if (installed.isSameModel(model) && isManagedModel(installed))
+            removeModel(installed);
+
     insertLocalModel(model);
     updateAvailableModels();
     
