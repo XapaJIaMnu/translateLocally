@@ -305,9 +305,7 @@ void MainWindow::resetTranslator() {
  */
 
 void MainWindow::popupError(QString error) {
-    QMessageBox msgBox(this);
-    msgBox.setText(error);
-    msgBox.exec();
+    QMessageBox::critical(this, tr("An error occurred"), error);
 }
 
 void MainWindow::on_fontAction_triggered() {
