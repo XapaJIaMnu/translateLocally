@@ -298,7 +298,7 @@ void ModelManager::fetchRemoteModels() {
     isFetchingRemoteModels_ = true;
     emit fetchingRemoteModels();
 
-    QUrl url("http://data.statmt.org/bergamot/models/models.json");
+    QUrl url(kModelListUrl);
     QNetworkRequest request(url);
     QNetworkReply *reply = network_->get(request);
     connect(reply, &QNetworkReply::finished, this, [=] {

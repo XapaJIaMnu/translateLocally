@@ -7,6 +7,7 @@
 #include "Network.h"
 #include "types.h"
 
+constexpr const char* kModelListUrl = "https://translatelocally.com/models.json";
 
 namespace translateLocally {
     namespace models {
