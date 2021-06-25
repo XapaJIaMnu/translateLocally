@@ -204,7 +204,7 @@ bool ModelManager::insertLocalModel(Model model) {
             position = i + 1;
     }
 
-    beginInsertRows(QModelIndex(), position, position + 1);
+    beginInsertRows(QModelIndex(), position, position);
     localModels_.insert(position, model);
     endInsertRows();
     return true;
