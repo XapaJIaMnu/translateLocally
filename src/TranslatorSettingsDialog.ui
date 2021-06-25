@@ -23,7 +23,7 @@
       <attribute name="title">
        <string>Behaviour</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout">
+      <layout class="QVBoxLayout" name="verticalLayout_1">
        <property name="leftMargin">
         <number>8</number>
        </property>
@@ -106,7 +106,7 @@
       <attribute name="title">
        <string>Languages</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout">
+      <layout class="QVBoxLayout" name="verticalLayout_3">
        <property name="leftMargin">
         <number>8</number>
        </property>
