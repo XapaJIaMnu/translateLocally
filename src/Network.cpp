@@ -19,20 +19,38 @@ QNetworkReply* Network::get(QNetworkRequest request) {
     return nam_->get(request);
 }
 
-QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
+QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::Algorithm algorithm, QByteArray hash) {
     QNetworkReply *reply = get(QNetworkRequest(url));
-    
+
     // Open in read/write so we can easily read the data when handling the
     // downloadComplete signal.
     if (!dest->open(QIODevice::ReadWrite)) {
         emit error(tr("Cannot open file for downloading."));
         return nullptr;
     }
+
+    // Optionally we have a hasher that hashes the download as it comes in and
+    // compares it against the provided hash when the download completes.
+    QCryptographicHash *hasher = nullptr;
+    if (!hash.isEmpty()) {
+        hasher = new QCryptographicHash(algorithm);
+
+        // Free the hasher when the reply is destroyed. All methods that access the
+        // pointer *hasher will only be called by reply anyway.
+        connect(reply, &QObject::destroyed, [=] {
+            delete hasher;
+        });
+    }
     
     // While chunks come in, write them to the temp file
     connect(reply, &QIODevice::readyRead, [=] {
-        if (dest->write(reply->readAll()) == -1)
+        QByteArray buffer = reply->readAll();
+
+        if (dest->write(buffer) == -1)
             emit error(tr("An error occurred while writing the downloaded data to disk: %1").arg(dest->errorString()));
+
+        if (hasher)
+            hasher->addData(buffer);
     });
 
     // When finished, emit downloadComplete(QFile*,QString)
@@ -41,6 +59,13 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
             case QNetworkReply::NoError: // Success
                 dest->flush(); // Flush the last downloaded data
                 dest->seek(0); // Rewind the file
+
+                // If we're checking the hash, now is the time as all data is downloaded.
+                if (!hash.isEmpty() && hasher->result() != hash) {
+                    emit error(tr("The cryptographic hash of %1 does not match the provided hash.").arg(url.toString()));
+                    break;
+                }
+                
                 emit downloadComplete(dest, reply->url().fileName());
                 break;
 
@@ -53,7 +78,8 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
                 break;
         }
 
-        // In all cases, delete the reply next event loop.
+        // In all cases, delete the reply next event loop. This will also free
+        // the QCryptographicHash if it was instantiated.
         reply->deleteLater();
     });
     
@@ -67,9 +93,9 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest) {
  * do not change the parent of the QTemporaryFile, it will be deleted
  * automatically after the downloadComplete(QFile*,QString) signal is handled.
  */
-QNetworkReply* Network::downloadFile(QUrl url) {
+QNetworkReply* Network::downloadFile(QUrl url, QCryptographicHash::Algorithm algorithm, QByteArray hash) {
     QTemporaryFile *dest = new QTemporaryFile();
-    QNetworkReply *reply = downloadFile(url, dest);
+    QNetworkReply *reply = downloadFile(url, dest, algorithm, hash);
     
     // Make the lifetime of the temporary as long as the reply object itself
     if (reply != nullptr)

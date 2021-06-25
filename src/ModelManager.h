@@ -25,6 +25,7 @@ struct Model {
     QString src;
     QString trg;
     QString type; // Base or tiny
+    QByteArray checksum;
     float localversion  = -1.0f;
     float localAPI = -1.0f;
     float remoteversion = -1.0f;
@@ -45,6 +46,8 @@ struct Model {
             trg = val;
         } else if (key == "type") {
             type = val;
+        } else if (key == "checksum") {
+            checksum = QByteArray::fromHex(val.toUtf8());
         } else {
             std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
         }

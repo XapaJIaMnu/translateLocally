@@ -2,6 +2,7 @@
 #define NETWORK_H
 #include <QObject>
 #include <QNetworkAccessManager>
+#include <QCryptographicHash>
 #include <memory>
 
 class QFile;
@@ -19,11 +20,11 @@ public:
 
     /**
      * Download a file to a destination on disk. Useful for skipping loading the
-     * file in memory. The `downloadComplete(QFile,QString)` signal will be 
-     * emitted with a pointer to the file and a suggested filename. During 
-     * download the `progressBar(qint64,qint64)` signal will be emitted.
+     * file in memory. Optionally a sha256The `downloadComplete(QFile,QString)` signal will be 
+     * emitted with a pointer to the file and suggested filename.
+     * During download the `progressBar(qint64,qint64)` signal will be emitted.
      */ 
-    QNetworkReply *downloadFile(QUrl url, QFile* dest);
+    QNetworkReply *downloadFile(QUrl url, QFile* dest, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray());
 
     /**
      * Overloaded version of `downloadFile(QUrl,QFile)` that downloads to a
@@ -31,7 +32,7 @@ public:
      * `QNetworkReply` object is destroyed. But you can change this by changing
      * the file's parent.
      */
-    QNetworkReply *downloadFile(QUrl url);
+    QNetworkReply *downloadFile(QUrl url, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray());
     
 private:
     std::unique_ptr<QNetworkAccessManager> nam_;
