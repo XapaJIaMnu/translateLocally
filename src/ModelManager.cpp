@@ -133,8 +133,9 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
         return Model{};
     }
 
-    // Don't try to delete the no-longer-temporary directry
-    tempDir.setAutoRemove(false);
+    // Only remove the temp directory if we moved a directory within it. Don't 
+    // attempt anything if we moved the whole directory itself.
+    tempDir.setAutoRemove(prefix != tempDir.path());
 
     QJsonObject obj = getModelInfoJsonFromDir(newModelDirPath);
     Q_ASSERT(obj.find("path") != obj.end());
