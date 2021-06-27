@@ -38,8 +38,10 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
     connect(reply, &QIODevice::readyRead, [=] {
         QByteArray buffer = reply->readAll();
 
-        if (dest->write(buffer) == -1)
+        if (dest->write(buffer) == -1) {
             emit error(tr("An error occurred while writing the downloaded data to disk: %1").arg(dest->errorString()));
+            reply->abort();
+        }
 
         hasher->addData(buffer);
     });
