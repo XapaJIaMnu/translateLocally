@@ -1,6 +1,7 @@
 #include "Network.h"
 #include <QNetworkReply>
 #include <QTemporaryFile>
+#include <QSharedPointer>
 #include <QCoreApplication>
 
 Network::Network(QObject *parent)
@@ -29,18 +30,9 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
         return nullptr;
     }
 
-    // Optionally we have a hasher that hashes the download as it comes in and
+    // We have a hasher that hashes the download as it comes in and
     // compares it against the provided hash when the download completes.
-    QCryptographicHash *hasher = nullptr;
-    if (!hash.isEmpty()) {
-        hasher = new QCryptographicHash(algorithm);
-
-        // Free the hasher when the reply is destroyed. All methods that access the
-        // pointer *hasher will only be called by reply anyway.
-        connect(reply, &QObject::destroyed, [=] {
-            delete hasher;
-        });
-    }
+    auto hasher = QSharedPointer<QCryptographicHash>::create(algorithm);
     
     // While chunks come in, write them to the temp file
     connect(reply, &QIODevice::readyRead, [=] {
@@ -49,8 +41,7 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
         if (dest->write(buffer) == -1)
             emit error(tr("An error occurred while writing the downloaded data to disk: %1").arg(dest->errorString()));
 
-        if (hasher)
-            hasher->addData(buffer);
+        hasher->addData(buffer);
     });
 
     // When finished, emit downloadComplete(QFile*,QString)
@@ -78,8 +69,7 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
                 break;
         }
 
-        // In all cases, delete the reply next event loop. This will also free
-        // the QCryptographicHash if it was instantiated.
+        // In all cases, delete the reply next event loop.
         reply->deleteLater();
     });
     
