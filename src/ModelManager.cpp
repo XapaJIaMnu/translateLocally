@@ -87,13 +87,15 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     // Default value for filename is the basename of the file.
     if (filename.isEmpty())
         filename = QFileInfo(*file).fileName();
-    
+
     // Initially extract to to a temporary directory. Will delete its contents
-    // when it goes out of scope
-    // QTemporaryDir tempDir(configDir_.filePath(".extracting-XXXXXXX"));
-    QTemporaryDir tempDir;
+    // when it goes out of scope. Creating a temporary directory specifically
+    // inside the target directory to make sure we're on the same filesystem.
+    // Otherwise `QDir::rename()` might fail. Note that directories starting
+    // with "extracting-" are explicitly skipped `scanForModels()`.
+    QTemporaryDir tempDir(configDir_.filePath("extracting-XXXXXXX"));
     if (!tempDir.isValid()) {
-        emit error(tr("Could not create temporary directory in {} to extract the model archive to.").arg(configDir_.absolutePath()));
+        emit error(tr("Could not create temporary directory in %1 to extract the model archive to.").arg(configDir_.path()));
         return Model{};
     }
 
@@ -291,6 +293,10 @@ void ModelManager::scanForModels(QString path) {
         QString current = it.next();
         QFileInfo f(current);
         if (f.isDir()) {
+            // Skip temporary directories created by `writeModel()`.
+            if (f.baseName().startsWith("extracting-"))
+                continue;
+
             QJsonObject obj = getModelInfoJsonFromDir(current);
             if (!obj.empty()) {
                 Model model = parseModelInfo(obj);
