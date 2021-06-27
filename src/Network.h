@@ -20,9 +20,9 @@ public:
 
     /**
      * Download a file to a destination on disk. Useful for skipping loading the
-     * file in memory. Optionally a sha256The `downloadComplete(QFile,QString)` signal will be 
-     * emitted with a pointer to the file and suggested filename.
-     * During download the `progressBar(qint64,qint64)` signal will be emitted.
+     * file in memory. The `downloadComplete(QFile,QString)` signal is emitted
+     * with a pointer to the file and suggested filename. During download the
+     * `progressBar(qint64,qint64)` signal is emitted.
      */ 
     QNetworkReply *downloadFile(QUrl url, QFile* dest, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray());
 
