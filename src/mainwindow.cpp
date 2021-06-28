@@ -167,7 +167,7 @@ void MainWindow::downloadModel(Model model) {
     ui_->cancelDownloadButton->setEnabled(true);
     showDownloadPane(true);
 
-    QNetworkReply *reply = network_.downloadFile(model.url);
+    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum);
     // If downloadFile could not create a temporary file, abort. network_ will
     // have emitted an error(QString) already so no need to notify.
     if (reply == nullptr) {
@@ -305,9 +305,7 @@ void MainWindow::resetTranslator() {
  */
 
 void MainWindow::popupError(QString error) {
-    QMessageBox msgBox(this);
-    msgBox.setText(error);
-    msgBox.exec();
+    QMessageBox::critical(this, tr("An error occurred"), error);
 }
 
 void MainWindow::on_fontAction_triggered() {

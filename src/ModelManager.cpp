@@ -101,7 +101,8 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"modelName"},
                                     QString{"src"},
                                     QString{"trg"},
-                                    QString{"type"}};
+                                    QString{"type"},
+                                    QString{"checksum"}};
     std::vector<QString> keysFLT{QString("version"), QString("API")};
     QString criticalKey = type==Local ? QString("path") : QString("url");
 
@@ -297,7 +298,7 @@ void ModelManager::fetchRemoteModels() {
     isFetchingRemoteModels_ = true;
     emit fetchingRemoteModels();
 
-    QUrl url("http://data.statmt.org/bergamot/models/models.json");
+    QUrl url(kModelListUrl);
     QNetworkRequest request(url);
     QNetworkReply *reply = network_->get(request);
     connect(reply, &QNetworkReply::finished, this, [=] {
