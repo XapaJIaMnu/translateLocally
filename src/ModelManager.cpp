@@ -10,14 +10,46 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkReply>
+#include <QTemporaryDir>
 #include <iostream>
 // libarchive
 #include <archive.h>
 #include <archive_entry.h>
+#include <algorithm>
+
+namespace {
+    /**
+     * Give it a QStringList with multiple paths, and this will return the
+     * path prefix (i.e. the path to the shared root directory). Note: if only
+     * a single path is given, the prefix is the dirname part of the path.
+     */
+    QString getCommonPrefixPath(QStringList list) {
+        auto it = list.begin();
+
+        if (it == list.end())
+            return QString();
+
+        QString prefix = *it++;
+
+        for (; it != list.end(); ++it) {
+            auto offsets = std::mismatch(
+                prefix.begin(), prefix.end(),
+                it->begin(), it->end());
+
+            // If we found a mismatch, we found a substring in it that's a
+            // shorter common prefix.
+            if (offsets.first != prefix.end())
+                prefix = it->left(offsets.second - it->begin());
+        }
+
+        // prefix.section("/", 0, -1)?
+        return prefix.section("/", 0, -2);
+    }
+}
 
 
 ModelManager::ModelManager(QObject *parent)
-    : QObject(parent)
+    : QAbstractTableModel(parent)
     , network_(new Network(this))
     , isFetchingRemoteModels_(false)
 {
@@ -34,39 +66,150 @@ ModelManager::ModelManager(QObject *parent)
     startupLoad();
 }
 
-Model ModelManager::writeModel(QFile *file, QString filename) {
-    Model newmodel;
+bool ModelManager::isManagedModel(Model const &model) const {
+    return model.isLocal() && model.path.startsWith(configDir_.absolutePath());
+}
 
-    if (!extractTarGz(file))
-        return newmodel;
-    
-    // Add the model to the local models and emit a signal with its index
-    QString newModelDirName = filename.split(".tar.gz")[0];
-    QJsonObject obj = getModelInfoJsonFromDir(configDir_.absolutePath() + QString("/") + newModelDirName);
-
-    // The function above should have added the path variable. it will error message if it fails.
+bool ModelManager::validateModel(QString path) {
+    QJsonObject obj = getModelInfoJsonFromDir(path);
     if (obj.find("path") == obj.end()) {
-        emit error(tr("Failed to find, open or parse the model_info.json for the newly dowloaded %1").arg(filename));
-        return newmodel;
+        emit error(tr("Failed to find, open or parse the model_info.json in %1").arg(path));
+        return false;
     }
 
-    newmodel = parseModelInfo(obj);
-    if (insertLocalModel(newmodel))
-        std::sort(localModels_.begin(), localModels_.end());
+    if (!parseModelInfo(obj).isLocal()) // parseModelInfo emits its own error signals
+        return false;
+
+    return true;
+}
+
+Model ModelManager::writeModel(QFile *file, QString filename) {
+    // Default value for filename is the basename of the file.
+    if (filename.isEmpty())
+        filename = QFileInfo(*file).fileName();
+
+    // Initially extract to to a temporary directory. Will delete its contents
+    // when it goes out of scope. Creating a temporary directory specifically
+    // inside the target directory to make sure we're on the same filesystem.
+    // Otherwise `QDir::rename()` might fail. Note that directories starting
+    // with "extracting-" are explicitly skipped `scanForModels()`.
+    QTemporaryDir tempDir(configDir_.filePath("extracting-XXXXXXX"));
+    if (!tempDir.isValid()) {
+        emit error(tr("Could not create temporary directory in %1 to extract the model archive to.").arg(configDir_.path()));
+        return Model{};
+    }
+
+    // Try to extract the archive to the temporary directory
+    QStringList extracted;
+    if (!extractTarGz(file, tempDir.path(), extracted))
+        return Model{};
+
+    // Assert we extracted at least something.
+    if (extracted.isEmpty()) {
+        emit error(tr("Did not extract any files from the model archive."));
+        return Model{};
+    }
+
+    // Get the common prefix of all files. In the ideal case, it's the same as
+    // tempDir, but the archive might have had it's own sub folder.
+    QString prefix = getCommonPrefixPath(extracted);
+    if (prefix.isEmpty()) {
+        emit error(tr("Could not determine prefix path of extracted model."));
+        return Model{};
+    }
+
+    Q_ASSERT(prefix.startsWith(tempDir.path()));
+
+    // Try determining whether the model is any good before we continue to safe
+    // it to a permanent destination
+    if (!validateModel(prefix)) // validateModel emits its own error() signals (hence validateModel and not isModelValid)
+        return Model{};
+
+    QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentMSecsSinceEpoch() / 1000);
+    QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
+
+    if (!QDir().rename(prefix, newModelDirPath)) {
+        emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path()).arg(newModelDirPath));
+        return Model{};
+    }
+
+    // Only remove the temp directory if we moved a directory within it. Don't 
+    // attempt anything if we moved the whole directory itself.
+    tempDir.setAutoRemove(prefix != tempDir.path());
+
+    QJsonObject obj = getModelInfoJsonFromDir(newModelDirPath);
+    Q_ASSERT(obj.find("path") != obj.end());
+
+    Model model = parseModelInfo(obj);
+
+    // Upgrade behaviour: remove any older versions of this model. At least if
+    // the older model is part of the models managed by us. We don't delete
+    // models from the CWD.
+    // Note: Right now there's no check on version. We assume that if writeModel
+    // is called, it either was called from the upgrade path, or the user
+    // intentionally installing an older model through the model manager UI.
+    for (auto &&installed : localModels_)
+        if (installed.isSameModel(model) && isManagedModel(installed))
+            removeModel(installed);
+
+    insertLocalModel(model);
     updateAvailableModels();
     
-    return newmodel;
+    return model;
+}
+
+bool ModelManager::removeModel(Model const &model) {
+    if (!isManagedModel(model))
+        return false;
+
+    QDir modelDir = QDir(model.path);
+
+    // First attempt to remove the model_info.json file as a test. If that works
+    // we know that at least the model won't be loaded on next scan/start-up.
+
+    if (!modelDir.remove("model_info.json")) {
+        emit error(tr("Could not delete %1/model_info.json").arg(model.path));
+        return false;
+    }
+
+    if (!modelDir.removeRecursively()) {
+        emit error(tr("Could not completely remove the model directory %1").arg(model.path));
+        // no return here because we did remove model_info.json already, so we
+        // should also remove the model from localModels_
+    }
+
+    int position = localModels_.indexOf(model);
+
+    if (position == -1)
+        return false;
+
+    beginRemoveRows(QModelIndex(), position, position);
+    localModels_.removeOne(model);
+    endRemoveRows();
+    updateAvailableModels();
+    return true;
 }
 
 bool ModelManager::insertLocalModel(Model model) {
+    int position = 0;
+
     for (int i = 0; i < localModels_.size(); ++i) {
+        // First, make sure we don't already have this model
         if (localModels_[i].isSameModel(model)) {
             localModels_[i] = model;
+            emit dataChanged(index(i, 0), index(i, columnCount()));
             return false;
         }
+
+        // Second, while we're iterating anyway, figure out where to insert
+        // this model.
+        if (localModels_[i] < model)
+            position = i + 1;
     }
 
-    localModels_.append(model);
+    beginInsertRows(QModelIndex(), position, position);
+    localModels_.insert(position, model);
+    endInsertRows();
     return true;
 }
 
@@ -137,6 +280,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
     } else {
         emit error(tr("The json file provided is missing '%1' or is corrupted. Please redownload the model. "
                       "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
+        return Model{};
     }
 
     return model;
@@ -151,11 +295,15 @@ void ModelManager::scanForModels(QString path) {
         QString current = it.next();
         QFileInfo f(current);
         if (f.isDir()) {
+            // Skip temporary directories created by `writeModel()`.
+            if (f.baseName().startsWith("extracting-"))
+                continue;
+
             QJsonObject obj = getModelInfoJsonFromDir(current);
             if (!obj.empty()) {
                 Model model = parseModelInfo(obj);
                 if (model.path != "") {
-                    models.append(model);
+                    insertLocalModel(model);
                 } else {
                     emit error(tr("Corrupted json file: %1/model_info.json. Delete or redownload.").arg(current));
                 }
@@ -171,12 +319,6 @@ void ModelManager::scanForModels(QString path) {
         }
     }
 
-    // Saves us a sort + emit if no models were found/added
-    if (models.isEmpty())
-        return;
-
-    localModels_ += models;
-    std::sort(localModels_.begin(), localModels_.end());
     updateAvailableModels();
 }
 
@@ -187,21 +329,26 @@ void ModelManager::startupLoad() {
 }
 
 // Adapted from https://github.com/libarchive/libarchive/blob/master/examples/untar.c#L136
-bool ModelManager::extractTarGz(QFile *file) {
+bool ModelManager::extractTarGz(QFile *file, QDir const &destination, QStringList &files) {
     // Change current working directory while extracting
     QString currentPath = QDir::currentPath();
 
-    if (!QDir::setCurrent(configDir_.absolutePath())) {
-        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(configDir_.absolutePath()).arg(file->fileName()));
+    if (!QDir::setCurrent(destination.absolutePath())) {
+        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(destination.absolutePath()).arg(file->fileName()));
         return false;
     }
 
-    bool success = extractTarGzInCurrentPath(file);
+    QStringList extracted;
+    bool success = extractTarGzInCurrentPath(file, extracted);
+
+    for (QString const &file : extracted)
+        files << destination.filePath(file);
+
     QDir::setCurrent(currentPath);
     return success;
 }
 
-bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
+bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     auto warn = [&](const char *f, const char *m) {
         emit error(tr("Trouble while extracting language model after call to %1: %2").arg(f).arg(m));
     };
@@ -270,9 +417,12 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file) {
         retval = archive_write_header(a_out, entry);
         if (retval < ARCHIVE_OK)
             warn("archive_write_header()", archive_error_string(a_out));
-        else if(archive_entry_size(entry) > 0) {
-            if (copy_data(a_in, a_out) < ARCHIVE_WARN)
-                return false;
+        else {
+            files << QString(archive_entry_pathname(entry));
+
+            if(archive_entry_size(entry) > 0)
+                if (copy_data(a_in, a_out) < ARCHIVE_WARN)
+                    return false;
         }
 
         retval = archive_write_finish_entry(a_out);
@@ -347,6 +497,14 @@ QList<Model> ModelManager::getUpdatedModels() const {
     return updatedModels_;
 }
 
+Model ModelManager::getModelForPath(QString path) const {
+    for (Model const &model : getInstalledModels())
+        if (model.path == path)
+            return model;
+
+    return Model{};
+}
+
 void ModelManager::updateAvailableModels() {
     newModels_.clear();
     updatedModels_.clear();
@@ -354,12 +512,13 @@ void ModelManager::updateAvailableModels() {
     for (auto &&model : remoteModels_) {
         bool installed = false;
         bool outdated = false;
-        for (auto &&localModel : localModels_) {
-            if (localModel.isSameModel(model)) {
-                localModel.remoteAPI = model.remoteAPI;
-                localModel.remoteversion = model.remoteversion;
+        for (int i = 0; i < localModels_.size(); ++i) {
+            if (localModels_[i].isSameModel(model)) {
+                localModels_[i].remoteAPI = model.remoteAPI;
+                localModels_[i].remoteversion = model.remoteversion;
                 installed = true;
-                outdated = localModel.outdated();
+                outdated = localModels_[i].outdated();
+                emit dataChanged(index(i, 0), index(i, columnCount()));
                 break;
             }
         }
@@ -373,4 +532,68 @@ void ModelManager::updateAvailableModels() {
     }
 
     emit localModelsChanged();
+}
+
+int ModelManager::rowCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+
+    return localModels_.size();
+} 
+
+int ModelManager::columnCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+
+    return 2;
+}
+
+QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (role != Qt::DisplayRole)
+        return QVariant();
+
+    if (orientation != Qt::Horizontal)
+        return QVariant();
+
+    switch (section) {
+        case Column::Name:
+            return tr("Name", "translation model name");
+        case Column::Version:
+            return tr("Version", "translation model version");
+        default:
+            return QVariant();
+    }
+}
+
+QVariant ModelManager::data(const QModelIndex &index, int role) const {
+    if (index.row() >= localModels_.size())
+        return QVariant();
+
+    Model model = localModels_[index.row()];
+
+    if (role == Qt::UserRole)
+        return QVariant::fromValue(model);
+
+    switch (index.column()) {
+        case Column::Name:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.modelName;
+                default:
+                    return QVariant();
+            }
+
+        case Column::Version:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.localversion;
+                case Qt::TextAlignmentRole:
+                    // @TODO figure out how to compile combined flag as below. 
+                    // Error is "can't convert the result to QVariant."
+                    // return Qt::AlignRight | Qt::AlignBaseline;
+                    return Qt::AlignRight;
+                default:
+                    return QVariant();
+            }
+    }
+
+    return QVariant();
 }

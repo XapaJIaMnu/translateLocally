@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui_(new Ui::MainWindow)
     , settings_(this)
     , models_(this)
-    , translatorSettingsDialog_(this, &settings_)
+    , translatorSettingsDialog_(this, &settings_, &models_)
     , network_(this)
     , translator_(new MarianInterface(this))
 {
@@ -54,6 +54,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     updateLocalModels();
 
+    // If we have preferred model, but it no longer exists on disk, reset it to empty
+    if (!settings_.translationModel().isEmpty() && !models_.getModelForPath(settings_.translationModel()).isLocal())
+        settings_.translationModel.setValue("");
+
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
         settings_.translationModel.setValue(models_.getInstalledModels().first().path);
@@ -65,6 +69,24 @@ MainWindow::MainWindow(QWidget *parent)
     // Update when the fetching remote model status changes
     connect(&models_, &ModelManager::fetchingRemoteModels, this, &MainWindow::updateLocalModels);
     connect(&models_, &ModelManager::fetchedRemoteModels, this, &MainWindow::updateLocalModels);
+    // Make sure we unload any models that get deleted
+    connect(&models_, &QAbstractItemModel::rowsAboutToBeRemoved, this, [&](const QModelIndex &parent, int first, int last) {
+        Q_UNUSED(parent);
+        // If no model is loaded right now, we don't need to worry.
+        if (settings_.translationModel() == "")
+            return;
+
+        // For all removed rows, figure out which model they referred to and check whether that's
+        // the currently loaded path. If it is, unload it.
+        for (int i = first; i < last; ++i) {
+            QVariant data = models_.data(models_.index(i, 0), Qt::UserRole);
+            if (data.canConvert<Model>() && data.value<Model>().path == settings_.translationModel()) {
+                settings_.translationModel.setValue("");
+                break;
+            }
+        }
+    });
+
     // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
@@ -253,11 +275,13 @@ void MainWindow::updateSelectedModel() {
     }
 
     // Normal behaviour: find the item that matches the local model
-    for (int i = 0; i < ui_->localModels->count(); ++i) {
-        QVariant item = ui_->localModels->itemData(i);
-        if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
-            ui_->localModels->setCurrentIndex(i);
-            return;
+    if (settings_.translationModel() != "") {
+        for (int i = 0; i < ui_->localModels->count(); ++i) {
+            QVariant item = ui_->localModels->itemData(i);
+            if (item.canConvert<Model>() && item.value<Model>().path == settings_.translationModel()) {
+                ui_->localModels->setCurrentIndex(i);
+                return;
+            }
         }
     }
 
@@ -274,26 +298,22 @@ void MainWindow::translate(QString const &text) {
     ui_->translateAction->setEnabled(false); //Disable the translate button before the translation finishes
     ui_->translateButton->setEnabled(false);
     if (translator_->model().isEmpty()) {
-        popupError(tr("You need to download a translation model first. Do that through the drop down menu on top."));
+        if (models_.getInstalledModels().isEmpty()) {
+            popupError(tr("You need to download a translation model first. You can do that through the drop down menu on top."));
+        } else {
+            popupError(tr("You need to pick a translation model first. You can do that through the drop down menu on top."));
+        }
     } else {
         translator_->translate(text);
     }    
 }
 
 void MainWindow::resetTranslator() {
-    // Don't do anything if there is no model selected.
-    if (settings_.translationModel().isEmpty())
-        return;
-
-    // Don't do anything if the path given isn't valid (e.g. user deleted
-    // model from disk but it is still mentioned in Settings)
-    if (!QDir(settings_.translationModel()).exists())
-        return;
-
+    // Note: settings_.translationModel() can be empty string, meaning unload the current model
     translator_->setModel(settings_.translationModel(), settings_.marianSettings());
     
     // Schedule re-translation immediately if we're in automatic mode.
-    if (settings_.translateImmediately())
+    if (!settings_.translationModel().isEmpty() && settings_.translateImmediately())
         translate();
 }
 

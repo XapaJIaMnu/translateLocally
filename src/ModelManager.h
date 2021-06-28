@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QList>
 #include <QFuture>
+#include <QAbstractTableModel>
 #include <iostream>
 #include "Network.h"
 #include "types.h"
@@ -88,6 +89,13 @@ struct Model {
         return localversion<remoteversion || localAPI < remoteAPI;
     }
 
+    // Is-equal operator for removing models from list
+    inline bool operator==(const Model &other) const {
+        return isSameModel(other)
+            && (!isLocal() || path == other.path)
+            && (!isRemote() || url == other.url);
+    }
+
     // Debug
     inline void print() const {
         std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
@@ -99,29 +107,83 @@ struct Model {
 
 Q_DECLARE_METATYPE(Model)
 
-class ModelManager : public QObject {
+class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent);
-    Model writeModel(QFile *file, QString filename);
 
-    QList<Model> getInstalledModels() const;
-    QList<Model> getRemoteModels() const;
-    QList<Model> getUpdatedModels() const;
-    QList<Model> getNewModels() const;
     /**
-     * @brief updateAvailableModels once new models are fetched from the interwebs, you update the local models with version information
-     *                        and make a list of new models as well as models that are just updates of local models, so that the
-     *                        user can download a new version.
+     * @Brief extract a model into the directory of models managed by this
+     * program. The optional filename argument is used to make up a folder name
+     * for the model. If none provided, the basename of file is used. On success
+     * the model is added to the local list of models (i.e. getInstalledModel())
+     * and the function will return the filled in model instance. On failure, an
+     * empty Model object is returned (i.e. model.isLocal() returns false).
      */
-    void updateAvailableModels(); // remote - local
+    Model writeModel(QFile *file, QString filename = QString());
 
+    /**
+     * @Brief Tries to delete a model from the getInstalledModels() list. Also
+     * removes the files. Only managed models can be deleted this way.
+     */
+    bool removeModel(Model const &model);
+
+    /**
+     * @Brief is this model managed by ModelManager (i.e. created with 
+     * writeModel()).
+     */
+    bool isManagedModel(Model const &model) const;
+
+    /**
+     * @Brief returns model from getInstalledModels() that matches the path.
+     * Useful for checking whether a model for which you've saved the path
+     * is still available.
+     */
+    Model getModelForPath(QString path) const; 
+
+    /**
+     * @Brief list of locally available models
+     */
+    QList<Model> getInstalledModels() const;
+
+    /**
+     * @Brief list of remotely available models. Only populated after
+     * fetchRemoteModels is called and the fetchedRemoteModels() signal is
+     * emitted.
+     */
+    QList<Model> getRemoteModels() const;
+
+    /**
+     * @Brief list of models that is both available locally and remote, but
+     * the remote version is newer. Only available after fetchRemoteModels().
+     */
+    QList<Model> getUpdatedModels() const;
+
+    /**
+     * @Brief list of models that is available remote and not also installed
+     * locally already. Only available after fetchRemoteModels().
+     */
+
+    QList<Model> getNewModels() const;
+    
     /**
      * @brief whether or not fetchRemoteModels is in progress
      */
     inline bool isFetchingRemoteModels() const {
         return isFetchingRemoteModels_;
     }
+
+    enum Column {
+        Name,
+        Version
+    };
+
+    Q_ENUM(Column);
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
 
 public slots:
     /**
@@ -136,12 +198,33 @@ public slots:
 private:
     void startupLoad();
     void scanForModels(QString path);
-    bool extractTarGz(QFile *file);
-    bool extractTarGzInCurrentPath(QFile *file);
+    bool extractTarGz(QFile *file, QDir const &destination, QStringList &files);
+    bool extractTarGzInCurrentPath(QFile *file, QStringList &files);
     Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
     void parseRemoteModels(QJsonObject obj);
     QJsonObject getModelInfoJsonFromDir(QString dir);
+    
+    /**
+     * @Brief insert a local model in the localModels_ list. Keeps it sorted and
+     * any views attached in sync. Will return True if the model is new, false
+     * if it updates an existing entry.
+     */
     bool insertLocalModel(Model model);
+
+    /**
+     * @Brief validate a model, currently by trying to parse the model_info.json
+     * file with getModelInfoJsonFromDir(QString) and parseModelInfo(QJsonObject).
+     * Will return true if it thinks the model can be loaded. If an error is
+     * encountered, it will emit error(QString) signals with error messages.
+     */
+    bool validateModel(QString path);
+
+    /**
+     * @Brief updates getNewModels() and getUpdatedModels() lists. Emits the
+     * localModelsChanged() signal. Possibly also the dataChanged() signal if
+     * an installed model appears to be outdated.
+     */
+     void updateAvailableModels();
 
     QDir configDir_;
 
