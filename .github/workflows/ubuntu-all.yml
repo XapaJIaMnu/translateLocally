@@ -1,4 +1,4 @@
-name: Ubuntu-{16-18-20}.04
+name: Ubuntu-{18-20}.04
 
 on: [push, pull_request]
 
@@ -11,18 +11,12 @@ jobs:
     strategy:
       matrix:
         include:
-          # Ubuntu 16.04
-          - name: "Ubuntu 16.04"
-            os: ubuntu-16.04
-            extradeps: qttools5-dev-tools # Ubuntu 16.04 requires additional dependencies
           # Ubuntu 18.04
           - name: "Ubuntu 18.04"
             os: ubuntu-18.04
-            extradeps: nano # Dummy extra dependency, something small, we don't actually need, but we can't have the field blank
           # Ubuntu 20.04
           - name: "Ubuntu 20.04"
             os: ubuntu-20.04
-            extradeps: nano # Dummy extra dependency, something small, we don't actually need, but we can't have the field blank
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -37,7 +31,7 @@ jobs:
     - name: Dependencies  # @TODO should also test qt6, but it's not present yet
       run: |
        sudo apt-get update
-       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ${{ matrix.extradeps }}
+       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
