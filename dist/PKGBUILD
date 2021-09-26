@@ -1,36 +1,36 @@
 # Maintainer: Nikolay Bogoychev <nheart@gmail.com>
 
 pkgname=translatelocally-git
-pkgver=0.0.2
+pkgver=r002.e81917c
 pkgrel=1
 pkgdesc='A fast privacy focused machine translation client that translates on your own machine.'
 arch=('x86_64')
 url='https://github.com/XapaJIaMnu/translateLocally'
 license=('MIT')
-depends=('qt5-base' 'qt5-tools' 'qt5-svg' 'pcre2' 'libarchive' 'protobuf')
-makedepends=('git' 'cmake' 'gcc-libs' 'make' 'binutils')
+depends=('qt5-base' 'qt5-svg' 'pcre2' 'libarchive' 'protobuf')
+makedepends=('git' 'cmake' 'qt5-tools' 'gcc-libs' 'make' 'binutils')
 source=("git+$url.git")
 sha256sums=('SKIP')
 
 pkgver() {
   cd translateLocally
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
   # No tags, do this when we have tags
-  # git describe --long | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
-  git rev-parse --short HEAD
+  # git describe --long --tags | sed 's/^foo-//;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
 build() {
   cd translateLocally
   mkdir -p build
   cd build
-  cmake .. -DSSPLIT_USE_INTERNAL_PCRE2=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-  make #${MAKEFLAGS}
-  strip -s translateLocally
+  cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+  make
 }
 
 package() {
-  cd translateLocally
-  install -Dm644 LICENCE.md "$pkgdir/usr/share/licenses/$pkgname/LICENCE"
-  cd build
+  cd translateLocally/build
+  install -Dm644 ../LICENCE.md "$pkgdir/usr/share/licenses/$pkgname/LICENCE"
   make DESTDIR="$pkgdir" install
 }
