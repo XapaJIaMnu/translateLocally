@@ -17,6 +17,7 @@ marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, t
                                      "--cpu-threads", std::to_string(settings.cpu_threads),
                                      "--workspace", std::to_string(settings.workspace),
                                      "--mini-batch-words", "1000",
+                                     "--alignment", "0.2",
                                      "--quiet"};
 
     std::vector<char *> argv;
@@ -49,6 +50,17 @@ int countWords(std::string input) {
 }
 
 } // Anonymous namespace
+
+
+Translation::Translation(marian::bergamot::Response &&response, int speed)
+: response_(std::make_shared<marian::bergamot::Response>(std::move(response)))
+, speed_(speed) {
+    //
+}
+
+QString Translation::translation() const {
+    return QString::fromStdString(response_->target.text);
+}
 
 struct ModelDescription {
     std::string config_file;
@@ -119,7 +131,14 @@ MarianInterface::MarianInterface(QObject *parent)
                     if (service) {
                         auto start = std::chrono::steady_clock::now(); // Time the translation
                         std::future<int> num_words = std::async (countWords,*input); // @TODO we're doing an unnecessary string copy here
-                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input));
+                        std::future<marian::bergamot::Response> responseFuture = service->translate(
+                            std::move(*input),
+                            marian::bergamot::ResponseOptions{
+                                .qualityScores=true,
+                                .alignment=true,
+                                .alignmentThreshold=0.2f
+                            }
+                        );
                         responseFuture.wait();
                         marian::bergamot::Response response = responseFuture.get();
                         num_words.wait();
@@ -128,7 +147,7 @@ MarianInterface::MarianInterface(QObject *parent)
                         double words = num_words.get();
                         std::chrono::duration<double> elapsed_seconds = end-start;
                         int translationSpeed = std::ceil(words/elapsed_seconds.count()); // @TODO this could probably be done in the service in the future
-                        emit translationReady(QString::fromStdString(response.target.text), translationSpeed);
+                        emit translationReady(Translation(std::move(response), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }

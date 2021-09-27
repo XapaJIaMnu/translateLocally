@@ -96,12 +96,12 @@ MainWindow::MainWindow(QWidget *parent)
     // Set up the connection to the translator
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation, int speed) {
-        ui_->outputBox->setText(translation);
+    connect(translator_.get(), &MarianInterface::translationReady, this, [&](Translation translation) {
+        ui_->outputBox->setText(translation.translation());
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
-        if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(speed));
+        if (translation.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
+            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(translation.wordsPerSecond()));
         } else {
             ui_->statusbar->clearMessage();
         }
