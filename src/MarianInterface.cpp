@@ -140,14 +140,12 @@ MarianInterface::MarianInterface(QObject *parent)
                             }
                         );
                         responseFuture.wait();
-                        marian::bergamot::Response response = responseFuture.get();
-                        num_words.wait();
                         auto end = std::chrono::steady_clock::now();
                         // Calculate translation speed in terms of words per second
                         double words = num_words.get();
                         std::chrono::duration<double> elapsed_seconds = end-start;
                         int translationSpeed = std::ceil(words/elapsed_seconds.count()); // @TODO this could probably be done in the service in the future
-                        emit translationReady(Translation(std::move(response), translationSpeed));
+                        emit translationReady(Translation(std::move(responseFuture.get()), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }

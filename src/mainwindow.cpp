@@ -98,6 +98,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](Translation translation) {
         ui_->outputBox->setText(translation.translation());
+        auto highlighter = new AlignmentHighlighter(ui_->outputBox->document());
+
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
         if (translation.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
@@ -342,4 +344,8 @@ void MainWindow::on_actionSplit_Horizontally_triggered() {
 
 void MainWindow::on_actionSplit_Vertically_triggered() {
     settings_.splitOrientation.setValue(Qt::Vertical);
+}
+
+void MainWindow::on_outputBox_cursorPositionChanged() {
+    // translator_->queryAlignment(ui_->outputBox->textCursor().position());
 }

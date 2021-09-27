@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QJsonObject>
 #include <memory>
+#include "AlignmentHighlighter.h"
 #include "Network.h"
 #include "ModelManager.h"
 #include "TranslatorSettingsDialog.h"
@@ -37,6 +38,8 @@ public slots:
 
 private slots:
     void on_inputBox_textChanged();
+
+    void on_outputBox_cursorPositionChanged();
 
     void on_translateAction_triggered();
 
