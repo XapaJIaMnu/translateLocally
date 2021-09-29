@@ -16,7 +16,7 @@ void AlignmentHighlighter::highlightBlock(QString const &text) {
 	if (previousBlockState() != -1)
 		offset = previousBlockState();
 
-	setCurrentBlockState(offset + text.length());
+	setCurrentBlockState(offset + text.length() + 1); // Add 1 for assumed "\n"
 
 	for (auto const &word : alignment_) {
 		if (word.end < offset)
@@ -26,11 +26,12 @@ void AlignmentHighlighter::highlightBlock(QString const &text) {
 			break;
 		
 		QColor color(Qt::blue);
-		color.setAlpha(255 * word.prob);
+		color.setAlphaF(word.prob);
 		
 		QTextCharFormat format;
 		format.setBackground(QBrush(color));
 		
 		setFormat(offset > word.begin ? 0 : word.begin - offset, word.end - word.begin, format);
+		// qDebug() << "from " << (word.begin - offset) << "to" << (word.end - offset) << ": " << word.prob;
 	}
 }
