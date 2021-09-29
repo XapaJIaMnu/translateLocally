@@ -67,8 +67,7 @@ private slots:
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
-    AlignmentHighlighter *highlighter_; // Owned by ui_->outputBox
-                                        // @TODO: risky pointer to possibly freed object!
+    std::unique_ptr<AlignmentHighlighter> highlighter_;
 
     // Translator related settings
     std::unique_ptr<MarianInterface> translator_;

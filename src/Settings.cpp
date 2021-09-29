@@ -13,6 +13,7 @@ Settings::Settings(QObject *parent)
 , cores(backing_, "cpu_cores", std::thread::hardware_concurrency())
 , workspace(backing_, "workspace", 128)
 , splitOrientation(backing_, "split", Qt::Vertical)
+, showAlignment(backing_, "show_alignment", false)
 , windowGeometry(backing_, "window_geometry") {
     //
 }

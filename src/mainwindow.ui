@@ -203,6 +203,8 @@
     </property>
     <addaction name="actionSplit_Horizontally"/>
     <addaction name="actionSplit_Vertically"/>
+    <addaction name="separator"/>
+    <addaction name="actionShowAlignment"/>
    </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
@@ -258,6 +260,14 @@
    <property name="shortcut">
     <string>Ctrl+2</string>
    </property>
+  </action>
+  <action name="actionShowAlignment">
+    <property name="checkable">
+      <bool>true</bool>
+    </property>
+    <property name="text">
+      <string>Show Alignment</string>
+    </property>
   </action>
  </widget>
  <resources/>

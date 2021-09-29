@@ -37,7 +37,6 @@ MainWindow::MainWindow(QWidget *parent)
     , translator_(new MarianInterface(this))
 {
     ui_->setupUi(this);
-    highlighter_ = new AlignmentHighlighter(ui_->outputBox->document());
 
     // Create icon for the main window
     QIcon icon = translateLocally::logo::getLogoFromSVG();
@@ -121,6 +120,18 @@ MainWindow::MainWindow(QWidget *parent)
     bind(settings_.translateImmediately, [&](bool enabled) {
         ui_->actionTranslateImmediately->setChecked(enabled);
         ui_->translateButton->setVisible(!enabled);
+    });
+
+    // Connect alignment highlight feature
+    connect(ui_->actionShowAlignment, &QAction::toggled, std::bind(&decltype(Settings::showAlignment)::setValue, &settings_.showAlignment, std::placeholders::_1, Setting::EmitWhenChanged));
+    bind(settings_.showAlignment, [&](bool enabled) {
+        ui_->actionShowAlignment->setChecked(enabled);
+        if (enabled) {
+            highlighter_.reset(new AlignmentHighlighter(ui_->outputBox->document()));
+            on_inputBox_cursorPositionChanged(); // trigger update
+        } else {
+            highlighter_.reset(); // freeing highlighter also deregisters it
+        }
     });
 
     // Connect changing split orientation
@@ -348,7 +359,7 @@ void MainWindow::on_actionSplit_Vertically_triggered() {
 }
 
 void MainWindow::on_inputBox_cursorPositionChanged() {
-    if (!translation_)
+    if (!translation_ || !highlighter_)
         return;
 
     auto alignments = translation_.alignments(ui_->inputBox->textCursor().position());
