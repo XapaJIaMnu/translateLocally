@@ -8,7 +8,6 @@
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
-#include <QDebug>
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
@@ -62,27 +61,17 @@ bool contains(marian::bergamot::ByteRange const &span, std::size_t pos) {
 }
 
 bool findWordByBytePosition(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
-    qDebug() << "Here";
-
     for (sentenceIdx = 0; sentenceIdx < annotation.numSentences(); ++sentenceIdx) {
         if (::contains(annotation.sentence(sentenceIdx), pos))
             break;
     }
 
-    qDebug() << "sentenceIdx=" << static_cast<quint64>(sentenceIdx);
-
-    if (sentenceIdx == annotation.numSentences()) {
-        qDebug() << "sentenceIdx == annotation.numSentences()";
+    if (sentenceIdx == annotation.numSentences())
         return false;
-    }
-
+    
     for (wordIdx = 0; wordIdx < annotation.numWords(sentenceIdx); ++wordIdx)
         if (::contains(annotation.word(sentenceIdx, wordIdx), pos))
             break;
-
-    qDebug() << "wordIdx=" << static_cast<quint64>(wordIdx);
-
-    qDebug() << "annotation.numWords(sentenceIdx)=" << annotation.numWords(sentenceIdx);
 
     return wordIdx != annotation.numWords(sentenceIdx);
 }

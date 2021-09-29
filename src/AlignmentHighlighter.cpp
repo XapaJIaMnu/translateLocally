@@ -33,6 +33,4 @@ void AlignmentHighlighter::highlightBlock(QString const &text) {
 		
 		setFormat(offset > word.begin ? 0 : word.begin - offset, word.end - word.begin, format);
 	}
-
-	qDebug() << "highlightBlock called with offset" << offset << "and" << text.length() << "chars";
 }
