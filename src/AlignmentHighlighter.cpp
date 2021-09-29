@@ -26,7 +26,7 @@ void AlignmentHighlighter::highlightBlock(QString const &text) {
 			break;
 		
 		QColor color(Qt::blue);
-		color.setAlphaF(word.prob);
+		color.setAlphaF(.5f * word.prob);
 		
 		QTextCharFormat format;
 		format.setBackground(QBrush(color));
