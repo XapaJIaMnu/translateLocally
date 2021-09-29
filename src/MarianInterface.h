@@ -23,6 +23,13 @@ struct WordAlignment {
     std::size_t begin;
     std::size_t end;
     float prob;
+
+    inline WordAlignment(std::size_t begin, std::size_t end, float prob)
+    : begin(begin)
+    , end(end)
+    , prob(prob) {
+        //
+    }
 };
 
 class Translation {

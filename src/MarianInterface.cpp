@@ -49,11 +49,7 @@ int countWords(std::string input) {
 }
 
 WordAlignment MakeWordAlignment(marian::bergamot::ByteRange const &span, float prob) {
-    return WordAlignment{
-        .begin=span.begin,
-        .end=span.end,
-        .prob=prob
-    };
+    return WordAlignment(span.begin, span.end, prob);
 }
 
 bool contains(marian::bergamot::ByteRange const &span, std::size_t pos) {
@@ -182,15 +178,13 @@ MarianInterface::MarianInterface(QObject *parent)
                 } else if (input) {
                     if (service) {
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        std::future<int> num_words = std::async (countWords,*input); // @TODO we're doing an unnecessary string copy here
-                        std::future<marian::bergamot::Response> responseFuture = service->translate(
-                            std::move(*input),
-                            marian::bergamot::ResponseOptions{
-                                .qualityScores=true,
-                                .alignment=true,
-                                .alignmentThreshold=0.2f
-                            }
-                        );
+                        std::future<int> num_words = std::async(countWords, *input); // @TODO we're doing an unnecessary string copy here
+
+                        marian::bergamot::ResponseOptions options;
+                        options.alignment = true;
+                        options.alignmentThreshold = 0.2f;
+
+                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input), options);
                         responseFuture.wait();
                         auto end = std::chrono::steady_clock::now();
                         // Calculate translation speed in terms of words per second
