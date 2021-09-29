@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
     , translator_(new MarianInterface(this))
 {
     ui_->setupUi(this);
+    highlighter_ = new AlignmentHighlighter(ui_->outputBox->document());
 
     // Create icon for the main window
     QIcon icon = translateLocally::logo::getLogoFromSVG();
@@ -97,13 +98,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](Translation translation) {
-        ui_->outputBox->setText(translation.translation());
-        auto highlighter = new AlignmentHighlighter(ui_->outputBox->document());
-
+        translation_ = translation;
+        
+        ui_->outputBox->setText(translation_.translation());
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
-        if (translation.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(translation.wordsPerSecond()));
+        if (translation_.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
+            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(translation_.wordsPerSecond()));
         } else {
             ui_->statusbar->clearMessage();
         }
@@ -346,6 +347,10 @@ void MainWindow::on_actionSplit_Vertically_triggered() {
     settings_.splitOrientation.setValue(Qt::Vertical);
 }
 
-void MainWindow::on_outputBox_cursorPositionChanged() {
-    // translator_->queryAlignment(ui_->outputBox->textCursor().position());
+void MainWindow::on_inputBox_cursorPositionChanged() {
+    if (!translation_)
+        return;
+
+    auto alignments = translation_.alignments(ui_->inputBox->textCursor().position());
+    highlighter_->setWordAlignment(alignments);
 }

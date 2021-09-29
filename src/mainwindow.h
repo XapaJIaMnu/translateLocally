@@ -39,7 +39,7 @@ public slots:
 private slots:
     void on_inputBox_textChanged();
 
-    void on_outputBox_cursorPositionChanged();
+    void on_inputBox_cursorPositionChanged();
 
     void on_translateAction_triggered();
 
@@ -67,8 +67,13 @@ private slots:
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
+    AlignmentHighlighter *highlighter_; // Owned by ui_->outputBox
+                                        // @TODO: risky pointer to possibly freed object!
+
     // Translator related settings
     std::unique_ptr<MarianInterface> translator_;
+    Translation translation_;
+
     void resetTranslator();
     void showDownloadPane(bool visible);
     void downloadModel(Model model);

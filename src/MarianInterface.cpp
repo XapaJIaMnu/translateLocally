@@ -8,7 +8,7 @@
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
-
+#include <QDebug>
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
@@ -49,8 +49,53 @@ int countWords(std::string input) {
     return numWords;
 }
 
+WordAlignment MakeWordAlignment(marian::bergamot::ByteRange const &span, float prob) {
+    return WordAlignment{
+        .begin=span.begin,
+        .end=span.end,
+        .prob=prob
+    };
+}
+
+bool contains(marian::bergamot::ByteRange const &span, std::size_t pos) {
+    return pos >= span.begin && pos <= span.end;
+}
+
+bool findWordByBytePosition(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
+    qDebug() << "Here";
+
+    for (sentenceIdx = 0; sentenceIdx < annotation.numSentences(); ++sentenceIdx) {
+        if (::contains(annotation.sentence(sentenceIdx), pos))
+            break;
+    }
+
+    qDebug() << "sentenceIdx=" << static_cast<quint64>(sentenceIdx);
+
+    if (sentenceIdx == annotation.numSentences()) {
+        qDebug() << "sentenceIdx == annotation.numSentences()";
+        return false;
+    }
+
+    for (wordIdx = 0; wordIdx < annotation.numWords(sentenceIdx); ++wordIdx)
+        if (::contains(annotation.word(sentenceIdx, wordIdx), pos))
+            break;
+
+    qDebug() << "wordIdx=" << static_cast<quint64>(wordIdx);
+
+    qDebug() << "annotation.numWords(sentenceIdx)=" << annotation.numWords(sentenceIdx);
+
+    return wordIdx != annotation.numWords(sentenceIdx);
+}
+
 } // Anonymous namespace
 
+
+
+Translation::Translation()
+: response_()
+, speed_(-1) {
+    //
+}
 
 Translation::Translation(marian::bergamot::Response &&response, int speed)
 : response_(std::make_shared<marian::bergamot::Response>(std::move(response)))
@@ -60,6 +105,24 @@ Translation::Translation(marian::bergamot::Response &&response, int speed)
 
 QString Translation::translation() const {
     return QString::fromStdString(response_->target.text);
+}
+
+QList<WordAlignment> Translation::alignments(std::size_t pos) const {
+    QList<WordAlignment> alignments;
+    std::size_t sentenceIdx, wordIdx;
+
+    if (!response_)
+        return alignments;
+
+    if (!findWordByBytePosition(response_->source.annotation, pos, sentenceIdx, wordIdx))
+        return alignments;
+
+    assert(sentenceIdx < response_->alignments.size());
+    for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx])
+        if (point.src == wordIdx)
+            alignments.append(MakeWordAlignment(response_->target.wordAsByteRange(sentenceIdx, point.tgt), point.prob));
+
+    return alignments;
 }
 
 struct ModelDescription {

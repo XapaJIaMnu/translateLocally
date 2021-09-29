@@ -1,6 +1,7 @@
 #ifndef MARIANINTERFACE_H
 #define MARIANINTERFACE_H
 #include <QString>
+#include <QList>
 #include <QObject>
 #include <QMutex>
 #include <QSemaphore>
@@ -18,18 +19,30 @@ namespace marian {
 
 struct ModelDescription;
 
+struct WordAlignment {
+    std::size_t begin;
+    std::size_t end;
+    float prob;
+};
+
 class Translation {
 private:
     std::shared_ptr<marian::bergamot::Response> response_;
     int speed_;
 public:
+    Translation();
     Translation(marian::bergamot::Response &&response, int speed);
 
     inline std::size_t wordsPerSecond() const {
         return speed_;
     }
 
+    inline operator bool() const {
+        return !!response_;
+    }
+
     QString translation() const;
+    QList<WordAlignment> alignments(std::size_t pos) const;
 };
 
 Q_DECLARE_METATYPE(Translation)
