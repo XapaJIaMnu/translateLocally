@@ -60,6 +60,9 @@
           <property name="placeholderText">
            <string>Enter text to be translated here...</string>
           </property>
+          <property name="tabChangesFocus">
+            <bool>true</bool>
+          </property>
          </widget>
          <widget class="QTextBrowser" name="outputBox"/>
         </widget>
