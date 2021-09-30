@@ -48,15 +48,11 @@ int countWords(std::string input) {
     return numWords;
 }
 
-WordAlignment MakeWordAlignment(marian::bergamot::ByteRange const &span, float prob) {
-    return WordAlignment(span.begin, span.end, prob);
+bool contains(marian::bergamot::ByteRange const &span, std::size_t offset) {
+    return offset >= span.begin && offset < span.end;
 }
 
-bool contains(marian::bergamot::ByteRange const &span, std::size_t pos) {
-    return pos >= span.begin && pos <= span.end;
-}
-
-bool findWordByBytePosition(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
+bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
     for (sentenceIdx = 0; sentenceIdx < annotation.numSentences(); ++sentenceIdx) {
         if (::contains(annotation.sentence(sentenceIdx), pos))
             break;
@@ -70,6 +66,17 @@ bool findWordByBytePosition(marian::bergamot::Annotation const &annotation, std:
             break;
 
     return wordIdx != annotation.numWords(sentenceIdx);
+}
+
+qsizetype offsetToPosition(std::string const &text, std::size_t offset) {
+    if (offset > text.size())
+        return -1;
+
+    return QString::fromUtf8(text.data(), offset).size();
+}
+
+std::size_t positionToOffset(QString text, qsizetype pos) {
+    return QStringView(text).left(pos).toLocal8Bit().size();
 }
 
 } // Anonymous namespace
@@ -92,20 +99,29 @@ QString Translation::translation() const {
     return QString::fromStdString(response_->target.text);
 }
 
-QList<WordAlignment> Translation::alignments(std::size_t pos) const {
+QList<WordAlignment> Translation::alignments(qsizetype sourcePos) const {
     QList<WordAlignment> alignments;
     std::size_t sentenceIdx, wordIdx;
 
     if (!response_)
         return alignments;
 
-    if (!findWordByBytePosition(response_->source.annotation, pos, sentenceIdx, wordIdx))
+    std::size_t sourceOffset = ::positionToOffset(QString::fromStdString(response_->source.text), sourcePos);
+
+    if (!findWordByByteOffset(response_->source.annotation, sourceOffset, sentenceIdx, wordIdx))
         return alignments;
 
     assert(sentenceIdx < response_->alignments.size());
-    for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx])
-        if (point.src == wordIdx)
-            alignments.append(MakeWordAlignment(response_->target.wordAsByteRange(sentenceIdx, point.tgt), point.prob));
+    for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx]) {
+        if (point.src == wordIdx) {
+            auto span = response_->target.wordAsByteRange(sentenceIdx, point.tgt);
+            WordAlignment alignment;
+            alignment.begin = ::offsetToPosition(response_->target.text, span.begin);
+            alignment.end = ::offsetToPosition(response_->target.text, span.end);
+            alignment.prob = point.prob;
+            alignments.append(alignment);
+        }
+    }
 
     return alignments;
 }

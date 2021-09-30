@@ -48,8 +48,21 @@ public:
         return !!response_;
     }
 
+    inline std::size_t wordsPerSecond() const {
+        return speed_;
+    }
+
+    /**
+     * Translation result
+     */
     QString translation() const;
-    QList<WordAlignment> alignments(std::size_t pos) const;
+
+    /**
+     * Looks up a list of character ranges and probability scores for words
+     * aligning with the word at char pos `pos` in the source sentence. Returns
+     * an empty list on failure.
+     */
+    QList<WordAlignment> alignments(qsizetype pos) const;
 };
 
 Q_DECLARE_METATYPE(Translation)
