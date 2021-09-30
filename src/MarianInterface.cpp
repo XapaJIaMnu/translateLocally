@@ -50,7 +50,11 @@ int countWords(std::string input) {
 }
 
 bool contains(marian::bergamot::ByteRange const &span, std::size_t offset) {
-    return offset >= span.begin && offset < span.end;
+    // return offset >= span.begin && offset < span.end;
+
+    // Note: technically incorrect, but gives better user experience for those
+    // not aware exactly what is happening with sentence piece tokens.
+    return offset > span.begin && offset <= span.end;
 }
 
 bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
