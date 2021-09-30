@@ -8,6 +8,7 @@
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
+#include <QDebug>
 
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
@@ -124,6 +125,37 @@ QList<WordAlignment> Translation::alignments(qsizetype sourcePos) const {
     }
 
     return alignments;
+}
+
+qsizetype Translation::findSourcePosition(qsizetype targetPos) const {
+    std::size_t sentenceIdx, wordIdx;
+
+    if (!response_)
+        return -1;
+
+    std::size_t targetOffset = ::positionToOffset(QString::fromStdString(response_->target.text), targetPos);
+
+    if (!findWordByByteOffset(response_->target.annotation, targetOffset, sentenceIdx, wordIdx))
+        return -1;
+
+    auto word = response_->target.word(sentenceIdx, wordIdx);
+    // qDebug() << "Found position" << targetPos << "in word" << QString::fromUtf8(word.data(), word.size());
+
+    marian::bergamot::Point best;
+    best.prob = -1.0f;
+
+    assert(sentenceIdx < response_->alignments.size());
+    for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx])
+        if (point.tgt == wordIdx && point.prob > best.prob)
+            best = point;
+
+    if (best.prob < 0.0)
+        return -1;
+
+    auto sourceOffset = response_->source.wordAsByteRange(sentenceIdx, best.src).begin;
+    // qDebug() << "Found opposite word at " << sourceOffset << "with word" << QString::fromUtf8(response_->source.word(sentenceIdx, best.src));
+
+    return ::offsetToPosition(response_->source.text, sourceOffset);
 }
 
 struct ModelDescription {

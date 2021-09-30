@@ -23,13 +23,6 @@ struct WordAlignment {
     std::size_t begin;
     std::size_t end;
     float prob;
-
-    inline WordAlignment(std::size_t begin, std::size_t end, float prob)
-    : begin(begin)
-    , end(end)
-    , prob(prob) {
-        //
-    }
 };
 
 class Translation {
@@ -39,10 +32,6 @@ private:
 public:
     Translation();
     Translation(marian::bergamot::Response &&response, int speed);
-
-    inline std::size_t wordsPerSecond() const {
-        return speed_;
-    }
 
     inline operator bool() const {
         return !!response_;
@@ -63,6 +52,12 @@ public:
      * an empty list on failure.
      */
     QList<WordAlignment> alignments(qsizetype pos) const;
+
+    /**
+     * Looks up the best cursor position for a source word when the position
+     * of a target word is given. Returns -1 on failure.
+     */
+    qsizetype findSourcePosition(qsizetype pos) const;
 };
 
 Q_DECLARE_METATYPE(Translation)

@@ -365,3 +365,19 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     auto alignments = translation_.alignments(ui_->inputBox->textCursor().position());
     highlighter_->setWordAlignment(alignments);
 }
+
+void MainWindow::on_outputBox_cursorPositionChanged() {
+    if (!translation_)
+        return;
+
+    int outputPosition = ui_->outputBox->textCursor().position();
+    
+    int sourcePosition = translation_.findSourcePosition(outputPosition);
+    
+    if (sourcePosition < 0)
+        return;
+    
+    QTextCursor cursor(ui_->inputBox->textCursor());
+    cursor.setPosition(sourcePosition);
+    ui_->inputBox->setTextCursor(cursor);
+}
