@@ -110,6 +110,8 @@ set(PROJECT_SOURCES
         src/Network.h
         src/Settings.cpp
         src/Settings.h
+        src/Translation.h
+        src/Translation.cpp
         src/types.h
         logo/logo_svg.h
         ${TS_FILES}
