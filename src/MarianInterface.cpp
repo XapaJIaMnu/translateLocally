@@ -70,14 +70,16 @@ bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::s
 }
 
 qsizetype offsetToPosition(std::string const &text, std::size_t offset) {
-    if (offset > text.size())
+    if (offset > text.size()) {
+        qDebug() << "Warning:" << offset << ">" << text.size();
         return -1;
+    }
 
     return QString::fromUtf8(text.data(), offset).size();
 }
 
-std::size_t positionToOffset(QString text, qsizetype pos) {
-    return QStringView(text).left(pos).toLocal8Bit().size();
+std::size_t positionToOffset(std::string const &text, qsizetype pos) {
+    return QString::fromStdString(text).left(pos).toLocal8Bit().size();
 }
 
 } // Anonymous namespace
@@ -100,27 +102,45 @@ QString Translation::translation() const {
     return QString::fromStdString(response_->target.text);
 }
 
-QList<WordAlignment> Translation::alignments(qsizetype sourcePos) const {
+QList<WordAlignment> Translation::alignments(qsizetype sourcePosFirst, qsizetype sourcePosLast) const {
     QList<WordAlignment> alignments;
-    std::size_t sentenceIdx, wordIdx;
+    std::size_t sentenceIdxFirst, sentenceIdxLast, wordIdxFirst, wordIdxLast;
 
     if (!response_)
         return alignments;
 
-    std::size_t sourceOffset = ::positionToOffset(QString::fromStdString(response_->source.text), sourcePos);
+    if (sourcePosFirst > sourcePosLast)
+        std::swap(sourcePosFirst, sourcePosLast);
 
-    if (!findWordByByteOffset(response_->source.annotation, sourceOffset, sentenceIdx, wordIdx))
+    std::size_t sourceOffsetFirst = ::positionToOffset(response_->source.text, sourcePosFirst);
+
+    if (!findWordByByteOffset(response_->source.annotation, sourceOffsetFirst, sentenceIdxFirst, wordIdxFirst))
         return alignments;
 
-    assert(sentenceIdx < response_->alignments.size());
-    for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx]) {
-        if (point.src == wordIdx) {
-            auto span = response_->target.wordAsByteRange(sentenceIdx, point.tgt);
-            WordAlignment alignment;
-            alignment.begin = ::offsetToPosition(response_->target.text, span.begin);
-            alignment.end = ::offsetToPosition(response_->target.text, span.end);
-            alignment.prob = point.prob;
-            alignments.append(alignment);
+    std::size_t sourceOffsetLast = ::positionToOffset(response_->source.text, sourcePosLast);
+
+    if (!findWordByByteOffset(response_->source.annotation, sourceOffsetLast, sentenceIdxLast, wordIdxLast))
+        return alignments;
+
+    qDebug() << "From" <<sourcePosFirst << "to" << sourcePosLast << "==" << sentenceIdxFirst << ":" << wordIdxFirst << "to" << sentenceIdxLast << ":" << wordIdxLast;
+
+    assert(sentenceIdxFirst <= sentenceIdxLast);
+    assert(sentenceIdxFirst != sentenceIdxLast || wordIdxFirst <= wordIdxLast);
+    assert(sentenceIdxLast < response_->alignments.size());
+
+    for (std::size_t sentenceIdx = sentenceIdxFirst; sentenceIdx <= sentenceIdxLast; ++sentenceIdx) {
+        assert(sentenceIdx < response_->alignments.size());
+        std::size_t firstWord = sentenceIdx == sentenceIdxFirst ? wordIdxFirst : 0;
+        std::size_t lastWord = sentenceIdx == sentenceIdxLast ? wordIdxLast : response_->source.numWords(sentenceIdx) - 1;
+        for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx]) {
+            if (point.src >= firstWord && point.src <= lastWord) {
+                auto span = response_->target.wordAsByteRange(sentenceIdx, point.tgt);
+                WordAlignment alignment;
+                alignment.begin = ::offsetToPosition(response_->target.text, span.begin);
+                alignment.end = ::offsetToPosition(response_->target.text, span.end);
+                alignment.prob = point.prob;
+                alignments.append(alignment);
+            }
         }
     }
 
@@ -133,7 +153,7 @@ qsizetype Translation::findSourcePosition(qsizetype targetPos) const {
     if (!response_)
         return -1;
 
-    std::size_t targetOffset = ::positionToOffset(QString::fromStdString(response_->target.text), targetPos);
+    std::size_t targetOffset = ::positionToOffset(response_->target.text, targetPos);
 
     if (!findWordByByteOffset(response_->target.annotation, targetOffset, sentenceIdx, wordIdx))
         return -1;

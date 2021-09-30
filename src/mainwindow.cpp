@@ -362,7 +362,8 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
-    auto alignments = translation_.alignments(ui_->inputBox->textCursor().position());
+    auto cursor = ui_->inputBox->textCursor();
+    auto alignments = translation_.alignments(cursor.position(), cursor.anchor());
     highlighter_->setWordAlignment(alignments);
 }
 

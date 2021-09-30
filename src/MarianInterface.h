@@ -51,7 +51,7 @@ public:
      * aligning with the word at char pos `pos` in the source sentence. Returns
      * an empty list on failure.
      */
-    QList<WordAlignment> alignments(qsizetype pos) const;
+    QList<WordAlignment> alignments(qsizetype begin, qsizetype end) const;
 
     /**
      * Looks up the best cursor position for a source word when the position
