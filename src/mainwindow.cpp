@@ -362,6 +362,8 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
+    // Highlight words in the translation box that match the words currently
+    // selected in the input box.
     auto cursor = ui_->inputBox->textCursor();
     auto alignments = translation_.alignments(cursor.position(), cursor.anchor());
     highlighter_->setWordAlignment(alignments);
@@ -371,13 +373,17 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
     if (!translation_)
         return;
 
+    // Find which word (and its character position) is most relevant for the
+    // word under the cursor in the translation I just clicked on.
     int outputPosition = ui_->outputBox->textCursor().position();
-    
     int sourcePosition = translation_.findSourcePosition(outputPosition);
     
     if (sourcePosition < 0)
         return;
     
+    // Move cursor in input box to that position.
+    // TODO: maybe also move focus to this box so you can see the cursor? Might
+    // interfere with copy/paste interaction though.
     QTextCursor cursor(ui_->inputBox->textCursor());
     cursor.setPosition(sourcePosition);
     ui_->inputBox->setTextCursor(cursor);
