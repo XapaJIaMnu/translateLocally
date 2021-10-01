@@ -42,13 +42,13 @@ public:
      * aligning with the word at char pos `pos` in the source sentence. Returns
      * an empty list on failure.
      */
-    QList<WordAlignment> alignments(qsizetype begin, qsizetype end) const;
+    QList<WordAlignment> alignments(int begin, int end) const;
 
     /**
      * Looks up the best cursor position for a source word when the position
      * of a target word is given. Returns -1 on failure.
      */
-    qsizetype findSourcePosition(qsizetype pos) const;
+    int findSourcePosition(int pos) const;
 };
 
 Q_DECLARE_METATYPE(Translation)

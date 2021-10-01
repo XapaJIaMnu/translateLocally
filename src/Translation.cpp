@@ -28,14 +28,14 @@ bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::s
     return wordIdx != annotation.numWords(sentenceIdx);
 }
 
-qsizetype offsetToPosition(std::string const &text, std::size_t offset) {
+int offsetToPosition(std::string const &text, std::size_t offset) {
     if (offset > text.size())
         return -1;
 
     return QString::fromUtf8(text.data(), offset).size();
 }
 
-std::size_t positionToOffset(std::string const &text, qsizetype pos) {
+std::size_t positionToOffset(std::string const &text, int pos) {
     return QString::fromStdString(text).left(pos).toLocal8Bit().size();
 }
 
@@ -57,7 +57,7 @@ QString Translation::translation() const {
     return QString::fromStdString(response_->target.text);
 }
 
-QList<WordAlignment> Translation::alignments(qsizetype sourcePosFirst, qsizetype sourcePosLast) const {
+QList<WordAlignment> Translation::alignments(int sourcePosFirst, int sourcePosLast) const {
     QList<WordAlignment> alignments;
     std::size_t sentenceIdxFirst, sentenceIdxLast, wordIdxFirst, wordIdxLast;
 
@@ -102,7 +102,7 @@ QList<WordAlignment> Translation::alignments(qsizetype sourcePosFirst, qsizetype
     return alignments;
 }
 
-qsizetype Translation::findSourcePosition(qsizetype targetPos) const {
+int Translation::findSourcePosition(int targetPos) const {
     std::size_t sentenceIdx, wordIdx;
 
     if (!response_)
