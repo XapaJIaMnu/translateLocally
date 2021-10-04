@@ -16,7 +16,7 @@ marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, t
                                      "--cpu-threads", std::to_string(settings.cpu_threads),
                                      "--workspace", std::to_string(settings.workspace),
                                      "--mini-batch-words", "1000",
-                                     "--alignment", "0.0",
+                                     "--alignment", "0.1",
                                      "--quiet"};
 
     std::vector<char *> argv;
@@ -122,7 +122,7 @@ MarianInterface::MarianInterface(QObject *parent)
 
                         marian::bergamot::ResponseOptions options;
                         options.alignment = true;
-                        options.alignmentThreshold = -1.0f; // 0.0f triggers hardAlginments
+                        options.alignmentThreshold = 0.1f;
 
                         std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input), options);
                         responseFuture.wait();
