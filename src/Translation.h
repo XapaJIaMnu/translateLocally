@@ -56,18 +56,14 @@ public:
      */
     QString translation() const;
 
+    enum Direction { source_to_translation, translation_to_source };
+
     /**
      * Looks up a list of character ranges and probability scores for words
      * aligning with the word at char pos `pos` in the source sentence. Returns
      * an empty list on failure.
      */
-    QList<WordAlignment> alignments(int begin, int end) const;
-
-    /**
-     * Looks up the best cursor position for a source word when the position
-     * of a target word is given. Returns -1 on failure.
-     */
-    int findSourcePosition(int pos) const;
+    QList<WordAlignment> alignments(Direction direction, int begin, int end) const;
 };
 
 Q_DECLARE_METATYPE(Translation)
