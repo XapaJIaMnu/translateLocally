@@ -99,6 +99,10 @@ QList<WordAlignment> Translation::alignments(int sourcePosFirst, int sourcePosLa
         }
     }
 
+    std::sort(alignments.begin(), alignments.end(), [](WordAlignment const &a, WordAlignment const &b) {
+        return a.begin < b.begin && a.prob > b.prob;
+    });
+
     return alignments;
 }
 
