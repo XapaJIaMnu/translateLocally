@@ -100,6 +100,7 @@ MainWindow::MainWindow(QWidget *parent)
         translation_ = translation;
         
         ui_->outputBox->setText(translation_.translation());
+        ui_->inputBox->document()->setModified(false); // Mark document as unmodified to tell highlighter alignment information is okay to use.
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
         if (translation_.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
@@ -362,10 +363,19 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
-    // Highlight words in the translation box that match the words currently
-    // selected in the input box.
-    auto cursor = ui_->inputBox->textCursor();
-    auto alignments = translation_.alignments(cursor.position(), cursor.anchor());
+    QList<WordAlignment> alignments;
+    qDebug() << ui_->inputBox->document()->isModified();
+
+    // Only show alignments when the document hasn't been modified since the
+    // translation was made. Otherwise alignment information might be outdated
+    // (i.e. offsets no longer match up with input text)
+    if (!ui_->inputBox->document()->isModified()) {
+        // Highlight words in the translation box that match the words currently
+        // selected in the input box.
+        auto cursor = ui_->inputBox->textCursor();
+        alignments = translation_.alignments(cursor.position(), cursor.anchor());
+    }
+
     highlighter_->setWordAlignment(alignments);
 }
 
