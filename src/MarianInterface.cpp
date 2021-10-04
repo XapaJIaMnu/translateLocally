@@ -118,7 +118,7 @@ MarianInterface::MarianInterface(QObject *parent)
                 } else if (input) {
                     if (service) {
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        std::future<int> num_words = std::async(countWords, *input); // @TODO we're doing an unnecessary string copy here
+                        std::future<int> num_words = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
 
                         marian::bergamot::ResponseOptions options;
                         options.alignment = true;
