@@ -364,7 +364,6 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
         return;
 
     QList<WordAlignment> alignments;
-    qDebug() << ui_->inputBox->document()->isModified();
 
     // Only show alignments when the document hasn't been modified since the
     // translation was made. Otherwise alignment information might be outdated
