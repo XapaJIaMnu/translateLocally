@@ -32,6 +32,7 @@ private:
     // passing Translation objects through Qt signals/slots.
     std::shared_ptr<marian::bergamot::Response> response_;
 
+    // Words per second as measured by runtime/word count in MarianInterface
     // @TODO this could probably be part of marian::bergamot::Response in the future
     int speed_;
 public:
