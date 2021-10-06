@@ -34,18 +34,24 @@ std::size_t positionToOffset(std::string const &text, int pos) {
     return QString::fromStdString(text).left(pos).toLocal8Bit().size();
 }
 
-auto _source(marian::bergamot::Response const &response, Translation::Direction direction) {
-    return direction == Translation::source_to_translation ? response.source : response.target;
+marian::bergamot::AnnotatedText const &_source(marian::bergamot::Response const &response, Translation::Direction direction) {
+    if (direction == Translation::source_to_translation)
+        return response.source;
+    else
+        return response.target;
 }
 
-auto _target(marian::bergamot::Response &response, Translation::Direction direction) {
-    return direction == Translation::source_to_translation ? response.target : response.source;
+marian::bergamot::AnnotatedText const &_target(marian::bergamot::Response &response, Translation::Direction direction) {
+    if (direction == Translation::source_to_translation)
+        return response.target;
+    else
+        return response.source;
 }
 
 } // Anonymous namespace
 
 Translation::Translation()
-: response_()
+: response_(nullptr)
 , speed_(-1) {
     //
 }
