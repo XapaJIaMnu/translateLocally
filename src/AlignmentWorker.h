@@ -1,7 +1,9 @@
 #ifndef ALIGNMENTWORKER_H
 #define ALIGNMENTWORKER_H
 #include <QObject>
+#include <QMutex>
 #include <QSemaphore>
+#include <memory>
 #include <thread>
 #include "Translation.h"
 

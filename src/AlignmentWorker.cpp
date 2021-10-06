@@ -1,4 +1,5 @@
 #include "AlignmentWorker.h"
+#include <QMutexLocker>
 
 AlignmentWorker::AlignmentWorker(QObject *parent)
 : QObject(parent)
