@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
     , translatorSettingsDialog_(this, &settings_, &models_)
     , network_(this)
     , translator_(new MarianInterface(this))
+    , alignmentWorker_(new AlignmentWorker(this))
 {
     ui_->setupUi(this);
 
@@ -108,6 +109,11 @@ MainWindow::MainWindow(QWidget *parent)
         } else {
             ui_->statusbar->clearMessage();
         }
+    });
+
+    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QList<WordAlignment> alignments) {
+        if (highlighter_)
+            highlighter_->setWordAlignment(alignments);
     });
 
     // Pop open the model list again when remote model list is available
@@ -363,20 +369,15 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
-    QList<WordAlignment> alignments;
-
     // Only show alignments when the document hasn't been modified since the
     // translation was made. Otherwise alignment information might be outdated
     // (i.e. offsets no longer match up with input text)
     if (!ui_->inputBox->document()->isModified()) {
-        // Highlight words in the translation box that match the words currently
-        // selected in the input box.
         auto cursor = ui_->inputBox->textCursor();
-        alignments = translation_.alignments(Translation::source_to_translation, cursor.position(), cursor.anchor());
+        alignmentWorker_->query(translation_, Translation::source_to_translation, cursor.position(), cursor.anchor());
+    } else {
+        alignmentWorker_->query(Translation(), Translation::source_to_translation, 0, 0);
     }
-
-    highlighter_->setDocument(ui_->outputBox->document());
-    highlighter_->setWordAlignment(alignments);
 }
 
 void MainWindow::on_outputBox_cursorPositionChanged() {

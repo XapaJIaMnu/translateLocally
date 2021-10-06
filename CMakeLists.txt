@@ -99,6 +99,8 @@ set(PROJECT_SOURCES
         src/mainwindow.ui
         src/AlignmentHighlighter.cpp
         src/AlignmentHighlighter.h
+        src/AlignmentWorker.cpp
+        src/AlignmentWorker.h
         src/TranslatorSettingsDialog.ui
         src/TranslatorSettingsDialog.cpp
         src/TranslatorSettingsDialog.h

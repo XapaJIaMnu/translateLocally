@@ -14,6 +14,8 @@ private:
 public:
 	AlignmentHighlighter(QTextDocument *document);
 	void setWordAlignment(QList<WordAlignment> alignment);
+
+protected:
 	void highlightBlock(QString const &text);
 };
 
