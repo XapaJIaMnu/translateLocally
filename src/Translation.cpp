@@ -4,10 +4,10 @@
 
 namespace {
 
-bool contains(marian::bergamot::ByteRange const &span, std::size_t offset) {
-    return offset >= span.begin && offset < span.end;
-}
-
+/**
+ * Finds sentence and word index for a given byte offset in an annotated
+ * string. These come out of marian::bergamot::Service.translate().
+ */
 bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
     for (sentenceIdx = 0; sentenceIdx < annotation.numSentences(); ++sentenceIdx)
         if (annotation.sentence(sentenceIdx).end >= pos)
@@ -23,15 +23,29 @@ bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::s
     return wordIdx < annotation.numWords(sentenceIdx);
 }
 
+/**
+ * Converts byte offset into utf-8 aware character position.
+ * Unicode checking blatantly stolen from https://stackoverflow.com/a/
+ */
 int offsetToPosition(std::string const &text, std::size_t offset) {
-    if (offset > text.size())
-        return -1;
-
-    return QString::fromUtf8(text.data(), offset).size();
+    std::size_t pos = 0;
+    for (char const *p = text.c_str(); offset > 0 && p != 0; --offset, p++) {
+        if ((*p & 0xc0) != 0x80) // if is not utf-8 continuation character
+            ++pos;
+    }
+    return pos;
 }
 
+/**
+ * Other way around: converts utf-8 character position into a byte offset.
+ */
 std::size_t positionToOffset(std::string const &text, int pos) {
-    return QString::fromStdString(text).left(pos).toLocal8Bit().size();
+    char const *p = text.c_str();
+    for (; p != 0 && (pos > 0 || (*p & 0xc0) == 0x80); p++) {
+        if ((*p & 0xc0) != 0x80)
+            --pos;
+    }
+    return p - text.c_str();
 }
 
 marian::bergamot::AnnotatedText const &_source(marian::bergamot::Response const &response, Translation::Direction direction) {
