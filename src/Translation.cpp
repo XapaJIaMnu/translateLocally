@@ -29,7 +29,7 @@ bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::s
  */
 int offsetToPosition(std::string const &text, std::size_t offset) {
     std::size_t pos = 0;
-    for (char const *p = text.c_str(); offset > 0 && p != 0; --offset, p++) {
+    for (char const *p = text.c_str(); offset > 0 && *p != 0; --offset, p++) {
         if ((*p & 0xc0) != 0x80) // if is not utf-8 continuation character
             ++pos;
     }
@@ -41,7 +41,7 @@ int offsetToPosition(std::string const &text, std::size_t offset) {
  */
 std::size_t positionToOffset(std::string const &text, int pos) {
     char const *p = text.c_str();
-    for (; p != 0 && (pos > 0 || (*p & 0xc0) == 0x80); p++) {
+    for (; *p != 0 && (pos > 0 || (*p & 0xc0) == 0x80); p++) {
         if ((*p & 0xc0) != 0x80)
             --pos;
     }
