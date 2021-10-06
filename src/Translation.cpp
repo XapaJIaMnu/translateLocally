@@ -8,22 +8,19 @@ bool contains(marian::bergamot::ByteRange const &span, std::size_t offset) {
     return offset >= span.begin && offset < span.end;
 }
 
-auto findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::size_t pos) {
-    std::size_t sentenceIdx, wordIdx;
-
-    for (sentenceIdx = 0; sentenceIdx < annotation.numSentences() - 1; ++sentenceIdx)
-        if (annotation.sentence(sentenceIdx).end > pos) // annotations are sorted, so this should be safe to assume.
+bool findWordByByteOffset(marian::bergamot::Annotation const &annotation, std::size_t pos, std::size_t &sentenceIdx, std::size_t &wordIdx) {
+    for (sentenceIdx = 0; sentenceIdx < annotation.numSentences(); ++sentenceIdx)
+        if (annotation.sentence(sentenceIdx).end >= pos)
             break;
 
-    // if not found, sentenceIdx == numSentences() - 1 (i.e. the last sentence)
+    if (sentenceIdx == annotation.numSentences())
+        return false;
     
-    for (wordIdx = 0; wordIdx < annotation.numWords(sentenceIdx) - 1; ++wordIdx)
+    for (wordIdx = 0; wordIdx < annotation.numWords(sentenceIdx); ++wordIdx)
         if (annotation.word(sentenceIdx, wordIdx).end >= pos)
             break;
 
-    // Same. worst case, wordIdx == annotation.numWords(sentenceIdx) - 1
-
-    return std::tuple(sentenceIdx, wordIdx);
+    return wordIdx < annotation.numWords(sentenceIdx);
 }
 
 int offsetToPosition(std::string const &text, std::size_t offset) {
@@ -74,10 +71,13 @@ QList<WordAlignment> Translation::alignments(Direction direction, int sourcePosF
         std::swap(sourcePosFirst, sourcePosLast);
 
     std::size_t sourceOffsetFirst = ::positionToOffset(::_source(*response_, direction).text, sourcePosFirst);
-    std::tie(sentenceIdxFirst, wordIdxFirst) = ::findWordByByteOffset(::_source(*response_, direction).annotation, sourceOffsetFirst);
+    if (!::findWordByByteOffset(::_source(*response_, direction).annotation, sourceOffsetFirst, sentenceIdxFirst, wordIdxFirst))
+        return alignments;
 
     std::size_t sourceOffsetLast = ::positionToOffset(::_source(*response_, direction).text, sourcePosLast);
-    std::tie(sentenceIdxLast, wordIdxLast) = ::findWordByByteOffset(::_source(*response_, direction).annotation, sourceOffsetLast);
+    if (!::findWordByByteOffset(::_source(*response_, direction).annotation, sourceOffsetLast, sentenceIdxLast, wordIdxLast))
+        return alignments;
+
 
     assert(sentenceIdxFirst <= sentenceIdxLast);
     assert(sentenceIdxFirst != sentenceIdxLast || wordIdxFirst <= wordIdxLast);
