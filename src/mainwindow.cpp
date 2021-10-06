@@ -380,6 +380,7 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     }
 }
 
+/*
 void MainWindow::on_outputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
@@ -399,3 +400,4 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
     highlighter_->setDocument(ui_->inputBox->document());
     highlighter_->setWordAlignment(alignments);
 }
+*/

@@ -42,7 +42,7 @@ private slots:
 
     void on_inputBox_cursorPositionChanged();
 
-    void on_outputBox_cursorPositionChanged();
+    // void on_outputBox_cursorPositionChanged();
 
     void on_translateAction_triggered();
 
