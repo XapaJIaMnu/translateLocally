@@ -111,7 +111,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QList<WordAlignment> alignments) {
+    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments) {
         if (highlighter_)
             highlighter_->setWordAlignment(alignments);
     });
@@ -385,7 +385,7 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
-    QList<WordAlignment> alignments;
+    QVector<WordAlignment> alignments;
 
     // Only show alignments when the document hasn't been modified since the
     // translation was made. Otherwise alignment information might be outdated

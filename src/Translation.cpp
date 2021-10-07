@@ -80,8 +80,8 @@ QString Translation::translation() const {
     return QString::fromStdString(response_->target.text);
 }
 
-QList<WordAlignment> Translation::alignments(Direction direction, int sourcePosFirst, int sourcePosLast) const {
-    QList<WordAlignment> alignments;
+QVector<WordAlignment> Translation::alignments(Direction direction, int sourcePosFirst, int sourcePosLast) const {
+    QVector<WordAlignment> alignments;
     std::size_t sentenceIdxFirst, sentenceIdxLast, wordIdxFirst, wordIdxLast;
 
     if (!response_)

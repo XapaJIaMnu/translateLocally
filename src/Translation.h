@@ -2,6 +2,7 @@
 #define TRANSLATION_H
 #include <QMetaType>
 #include <QString>
+#include <QVector>
 #include <memory>
 
 namespace marian {
@@ -63,7 +64,7 @@ public:
      * aligning with the word at char pos `pos` in the source sentence. Returns
      * an empty list on failure.
      */
-    QList<WordAlignment> alignments(Direction direction, int begin, int end) const;
+    QVector<WordAlignment> alignments(Direction direction, int begin, int end) const;
 };
 
 Q_DECLARE_METATYPE(Translation)

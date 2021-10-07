@@ -5,7 +5,7 @@ AlignmentHighlighter::AlignmentHighlighter(QTextDocument *document)
 	//
 }
 
-void AlignmentHighlighter::setWordAlignment(QList<WordAlignment> alignment) {
+void AlignmentHighlighter::setWordAlignment(QVector<WordAlignment> alignment) {
 	alignment_ = alignment;
 	rehighlight();
 }

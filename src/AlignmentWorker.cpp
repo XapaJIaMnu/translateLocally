@@ -18,7 +18,7 @@ AlignmentWorker::AlignmentWorker(QObject *parent)
 			if (!request)
 					break;
 
-			QList<WordAlignment> alignments;
+			QVector<WordAlignment> alignments;
 
 			if (request->translation)
 				alignments = request->translation.alignments(Translation::source_to_translation, request->begin, request->end);
