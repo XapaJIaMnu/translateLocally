@@ -95,6 +95,8 @@ private:
     // Network code:
     Network network_;
 
+    // Little utility to connect settings to callbacks that initialise and 
+    // update them. Part of class def because connect() is a QObject method.
     template <typename T, typename Fun>
     void bind(SettingImpl<T> &setting, Fun update) {
         // Update initially
