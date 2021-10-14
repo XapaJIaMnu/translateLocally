@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 #include <QMainWindow>
 #include <QJsonObject>
-#include <memory>
+#include <QPointer>
 #include "AlignmentHighlighter.h"
 #include "AlignmentWorker.h"
 #include "Network.h"
@@ -42,7 +42,7 @@ private slots:
 
     void on_inputBox_cursorPositionChanged();
 
-    // void on_outputBox_cursorPositionChanged();
+    void on_outputBox_cursorPositionChanged();
 
     void on_translateAction_triggered();
 
@@ -71,11 +71,12 @@ private slots:
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
 
-    std::unique_ptr<AlignmentWorker> alignmentWorker_;
-    std::unique_ptr<AlignmentHighlighter> highlighter_;
+    // Note: these QPointers are freed through parent/child relation
+    QPointer<AlignmentWorker> alignmentWorker_;
+    QPointer<AlignmentHighlighter> highlighter_;
 
     // Translator related settings
-    std::unique_ptr<MarianInterface> translator_;
+    QPointer<MarianInterface> translator_;
     Translation translation_;
 
     void resetTranslator();

@@ -15,8 +15,10 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QFontDialog>
+#include <QSignalBlocker>
 #include <QStandardItem>
 #include <QWindow>
+#include "Translation.h"
 #include "logo/logo_svg.h"
 #include <iostream>
 
@@ -98,8 +100,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_.get(), &MarianInterface::translationReady, this, [&](Translation translation) {
+        QSignalBlocker blocker(ui_->outputBox); // Prevent `on_outputBox_cursorPositionChanged()` from triggering
         translation_ = translation;
-        
         ui_->outputBox->setText(translation_.translation());
         ui_->inputBox->document()->setModified(false); // Mark document as unmodified to tell highlighter alignment information is okay to use.
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
@@ -111,9 +113,19 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-        if (highlighter_)
-            highlighter_->setWordAlignment(alignments);
     connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments, Translation::Direction direction) {
+        if (!highlighter_)
+            return;
+
+        if (direction == Translation::source_to_translation) {
+            QSignalBlocker blocker(ui_->outputBox); // block document change events caused by highlighter adding formatting
+            highlighter_->setDocument(ui_->outputBox->document());
+            highlighter_->highlight(alignments);    
+        } else {
+            QSignalBlocker blocker(ui_->inputBox);
+            highlighter_->setDocument(ui_->inputBox->document());
+            highlighter_->highlight(alignments);
+        }
     });
 
     // Pop open the model list again when remote model list is available
@@ -134,10 +146,12 @@ MainWindow::MainWindow(QWidget *parent)
     bind(settings_.showAlignment, [&](bool enabled) {
         ui_->actionShowAlignment->setChecked(enabled);
         if (enabled) {
-            highlighter_.reset(new AlignmentHighlighter(ui_->outputBox->document()));
+            QSignalBlocker blocker(ui_->outputBox);
+            highlighter_ = new AlignmentHighlighter(this);
             on_inputBox_cursorPositionChanged(); // trigger update
         } else {
-            highlighter_.reset(); // freeing highlighter also deregisters it
+            highlighter_->deleteLater(); // Give it time to clean up old highlights
+            highlighter_.clear(); // (note: deleteLater() would have done this as well, eventually)
         }
     });
 
