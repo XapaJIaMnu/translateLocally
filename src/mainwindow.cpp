@@ -97,9 +97,9 @@ MainWindow::MainWindow(QWidget *parent)
     
     
     // Set up the connection to the translator
-    connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
-    connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](Translation translation) {
+    connect(translator_, &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
+    connect(translator_, &MarianInterface::error, this, &MainWindow::popupError);
+    connect(translator_, &MarianInterface::translationReady, this, [&](Translation translation) {
         QSignalBlocker blocker(ui_->outputBox); // Prevent `on_outputBox_cursorPositionChanged()` from triggering
         translation_ = translation;
         ui_->outputBox->setText(translation_.translation());
@@ -113,7 +113,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments, Translation::Direction direction) {
+    connect(alignmentWorker_, &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments, Translation::Direction direction) {
         if (!highlighter_)
             return;
 
