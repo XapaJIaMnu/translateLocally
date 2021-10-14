@@ -101,6 +101,8 @@ set(PROJECT_SOURCES
         src/AlignmentHighlighter.h
         src/AlignmentWorker.cpp
         src/AlignmentWorker.h
+        src/ColorWell.cpp
+        src/ColorWell.h
         src/TranslatorSettingsDialog.ui
         src/TranslatorSettingsDialog.cpp
         src/TranslatorSettingsDialog.h

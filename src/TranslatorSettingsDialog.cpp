@@ -57,6 +57,8 @@ void TranslatorSettingsDialog::updateSettings()
     ui_->coresBox->setCurrentIndex(ui_->coresBox->findData(settings_->cores()));
     ui_->memoryBox->setCurrentIndex(ui_->memoryBox->findData(settings_->workspace()));
     ui_->translateImmediatelyCheckbox->setChecked(settings_->translateImmediately());
+    ui_->showAligmentsCheckbox->setChecked(settings_->showAlignment());
+    ui_->alignmentColorButton->setColor(settings_->alignmentColor());
 }
 
 void TranslatorSettingsDialog::applySettings()
@@ -64,6 +66,8 @@ void TranslatorSettingsDialog::applySettings()
     settings_->cores.setValue(ui_->coresBox->currentData().toUInt());
     settings_->workspace.setValue(ui_->memoryBox->currentData().toUInt());
     settings_->translateImmediately.setValue(ui_->translateImmediatelyCheckbox->isChecked());
+    settings_->showAlignment.setValue(ui_->showAligmentsCheckbox->isChecked());
+    settings_->alignmentColor.setValue(ui_->alignmentColorButton->color());
 }
 
 void TranslatorSettingsDialog::revealSelectedModels()

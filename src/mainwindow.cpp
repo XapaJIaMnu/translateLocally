@@ -148,11 +148,17 @@ MainWindow::MainWindow(QWidget *parent)
         if (enabled) {
             QSignalBlocker blocker(ui_->outputBox);
             highlighter_ = new AlignmentHighlighter(this);
+            highlighter_->setColor(settings_.alignmentColor());
             on_inputBox_cursorPositionChanged(); // trigger update
         } else {
             highlighter_->deleteLater(); // Give it time to clean up old highlights
             highlighter_.clear(); // (note: deleteLater() would have done this as well, eventually)
         }
+    });
+
+    connect(&settings_.alignmentColor, &Setting::valueChanged, [&](QString name, QVariant color) {
+        if (highlighter_)
+            highlighter_->setColor(color.value<QColor>());
     });
 
     // Connect changing split orientation

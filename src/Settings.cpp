@@ -14,6 +14,7 @@ Settings::Settings(QObject *parent)
 , workspace(backing_, "workspace", 128)
 , splitOrientation(backing_, "split", Qt::Vertical)
 , showAlignment(backing_, "show_alignment", false)
+, alignmentColor(backing_, "alignment_color", QColor(Qt::blue))
 , windowGeometry(backing_, "window_geometry") {
     //
 }
