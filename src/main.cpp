@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
 
     // Register types so they can be used with Qt's signal/slots.
     qRegisterMetaType<Translation>("Translation");
+    qRegisterMetaType<QVector<WordAlignment>>("QVector<WordAlignment>");
 
     QApplication translateLocally(argc, argv);
     QCoreApplication::setApplicationName("translateLocally");
