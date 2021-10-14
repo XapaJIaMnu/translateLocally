@@ -1,55 +1,93 @@
 #include "AlignmentHighlighter.h"
+#include "Translation.h"
+#include <QTextBlock>
 
-AlignmentHighlighter::AlignmentHighlighter(QTextDocument *document)
-: QSyntaxHighlighter(document) {
-	//
+AlignmentHighlighter::AlignmentHighlighter(QObject *parent)
+: QObject(parent)
+, color_(Qt::blue) {
+	
 }
 
-void AlignmentHighlighter::setWordAlignment(QVector<WordAlignment> alignment) {
-	alignment_ = alignment;
-	rehighlight();
+AlignmentHighlighter::~AlignmentHighlighter() {
+	// Remove any left-over highlights when this highlighter is destroyed
+	highlight(QVector<WordAlignment>());
 }
 
-void AlignmentHighlighter::highlightBlock(QString const &text) {
-	std::size_t offset = 0;
+void AlignmentHighlighter::setColor(QColor color) {
+	color_ = color;
+	highlight(alignments_);
+}
 
-	if (previousBlockState() != -1)
-		offset = previousBlockState();
-
-	setCurrentBlockState(offset + text.length() + 1); // Add 1 for assumed "\n"
-	                                                  // @TODO: safe assumption?
-
-		
-	// Optimisation: directly skip this while block if we know that both the start
-	// and end of the whole span we have alignment information for is outside it.
-	if (alignment_.empty() || alignment_.last().end < offset || alignment_.first().begin > offset + text.length())
+void AlignmentHighlighter::setDocument(QTextDocument *document) {
+	// no-op if this is already the current document
+	if (document == document_.data())
 		return;
 
-	WordAlignment prev;
-	for (auto const &word : alignment_) {
-		// If this block is further down the page than this word, skip.
-		if (word.end < offset)
-			continue;
+	highlight(QVector<WordAlignment>()); // clear highlights from old document
+	document_ = document;
+}
 
-		// If this word is further down the page than this block, stop. alignment_
-		// is guaranteed to be sorted by word.begin.
-		if (word.begin > offset + text.length())
-			break;
+void AlignmentHighlighter::highlight(QVector<WordAlignment> alignments) {
+	render(alignments);
+	alignments_ = alignments;
+}
 
-		// Skip spans that have the same overlap, but a lower probability. We can
-		// do this because Translation::alignments() has a guaranteed order of
-		// <word.begin low-to-high, word.prob high-to-low>.
-		if (word.begin == prev.begin && word.prob < prev.prob)
-			continue;
-		
-		QColor color(Qt::blue);
-		color.setAlphaF(.5f * word.prob);
-		
-		QTextCharFormat format;
-		format.setBackground(QBrush(color));
-		
-		setFormat(offset > word.begin ? 0 : word.begin - offset, word.end - word.begin, format);
+void AlignmentHighlighter::render(QVector<WordAlignment> alignments) {
+	if (!document_)
+		return;
 
-		prev = word;
+	QTextBlock block = document_->end();
+
+	auto alignment = alignments.cbegin();
+
+	// Find first block to touch based on old alignments (we touch them to clear
+	// the old formatting)
+	if (!alignments_.empty())
+		block = document_->findBlock(alignments_.first().begin);
+
+	// Find the first block according to new alignments. See which one is earlier.
+	if (alignment != alignments.cend())
+		if (!block.isValid() || alignment->begin < block.position())
+			block = document_->findBlock(alignment->begin);
+
+	// Move through all blocks until the end of the document to figure out whether
+	// alignments fall inside them.
+	// TODO: early stopping based on max(alignments_.last().end alignments.last().end)
+	for (; block != document_->end(); block = block.next()) {
+		QTextLayout *layout = block.layout();
+		QList<QTextFormat> formats;
+		bool dirty = false;
+
+		QList<QTextLayout::FormatRange> ranges;
+
+		// Remove any old formatting left by previous highlighting?
+		if (!layout->formats().empty())
+				dirty = true;
+
+		// If we're out of alignments, or ff this block is behind the current
+		// alignment iterator, stop and move to the next block iteration.
+		// Note: assumes a single WordAlignment never spans across QTextBlock.
+		for (; alignment != alignments.cend() && alignment->begin < block.position() + block.length(); ++alignment) {
+			QColor color(color_);
+			color.setAlphaF(.5f * alignment->prob);
+
+			QTextCharFormat format;
+			format.setBackground(QBrush(color));
+
+			QTextLayout::FormatRange range;
+			range.format = format;
+			range.start = alignment->begin - block.position();
+			range.length = alignment->end - alignment->begin;
+
+			ranges.append(range);
+		}
+
+		if (dirty || !ranges.empty()) {
+				layout->setFormats(ranges);
+				document_->markContentsDirty(block.position(), block.length());
+		}
 	}
+
+	// Note: Not necessarily a bug! e.g. empty document on initialisation.
+	// assert(alignment == alignments.cend());
 }

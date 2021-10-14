@@ -1,22 +1,27 @@
 #ifndef ALIGNMENTHIGHLIGHTER_H
 #define ALIGNMENTHIGHLIGHTER_H
-#include "MarianInterface.h"
-#include <QVector>
-#include <QSyntaxHighlighter>
-#include <QDebug>
+#include "Translation.h"
+#include <QTextDocument>
+#include <QColor>
+#include <QPointer>
 
-class AlignmentHighlighter: public QSyntaxHighlighter {
+class AlignmentHighlighter: public QObject {
 	Q_OBJECT
 
 private:
-	QVector<WordAlignment> alignment_;
+	QPointer<QTextDocument> document_;
+	QColor color_;
+	QVector<WordAlignment> alignments_;
 
 public:
-	AlignmentHighlighter(QTextDocument *document);
-	void setWordAlignment(QVector<WordAlignment> alignment);
-
-protected:
-	void highlightBlock(QString const &text);
+	AlignmentHighlighter(QObject *parent = nullptr);
+	~AlignmentHighlighter();
+	
+	void setDocument(QTextDocument *document);
+	void setColor(QColor color);
+	void highlight(QVector<WordAlignment> alignment);
+private:
+	void render(QVector<WordAlignment> alignment);
 };
 
 #endif // ALIGNMENTHIGHLIGHTER_H
