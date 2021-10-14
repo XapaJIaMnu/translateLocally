@@ -58,7 +58,7 @@ void AlignmentHighlighter::render(QVector<WordAlignment> alignments) {
 		QList<QTextFormat> formats;
 		bool dirty = false;
 
-		QList<QTextLayout::FormatRange> ranges;
+		QVector<QTextLayout::FormatRange> ranges;
 
 		// Remove any old formatting left by previous highlighting?
 		if (!layout->formats().empty())
