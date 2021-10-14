@@ -21,9 +21,9 @@ AlignmentWorker::AlignmentWorker(QObject *parent)
 			QVector<WordAlignment> alignments;
 
 			if (request->translation)
-				alignments = request->translation.alignments(Translation::source_to_translation, request->begin, request->end);
+				alignments = request->translation.alignments(request->direction, request->begin, request->end);
 			
-			emit ready(alignments);
+			emit ready(alignments, request->direction);
 		}
 	});
 }

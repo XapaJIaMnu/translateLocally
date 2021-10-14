@@ -30,7 +30,7 @@ public:
 	void query(Translation const &translation, Translation::Direction direction, int begin, int end);
 
 signals:
-	void ready(QVector<WordAlignment> alignments);
+	void ready(QVector<WordAlignment> alignments, Translation::Direction direction);
 };
 
 #endif

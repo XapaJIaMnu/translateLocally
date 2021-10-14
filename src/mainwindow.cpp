@@ -111,9 +111,9 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments) {
         if (highlighter_)
             highlighter_->setWordAlignment(alignments);
+    connect(alignmentWorker_.get(), &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments, Translation::Direction direction) {
     });
 
     // Pop open the model list again when remote model list is available
@@ -380,24 +380,17 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
     }
 }
 
-/*
 void MainWindow::on_outputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
         return;
 
-    QVector<WordAlignment> alignments;
-
     // Only show alignments when the document hasn't been modified since the
     // translation was made. Otherwise alignment information might be outdated
     // (i.e. offsets no longer match up with input text)
-    if (!ui_->inputBox->document()->isModified()) {
-        // Highlight words in the translation box that match the words currently
-        // selected in the input box.
+    if (!ui_->outputBox->document()->isModified()) {
         auto cursor = ui_->outputBox->textCursor();
-        alignments = translation_.alignments(Translation::translation_to_source, cursor.position(), cursor.anchor());
+        alignmentWorker_->query(translation_, Translation::translation_to_source, cursor.position(), cursor.anchor());
+    } else {
+        alignmentWorker_->query(Translation(), Translation::translation_to_source, 0, 0);
     }
-
-    highlighter_->setDocument(ui_->inputBox->document());
-    highlighter_->setWordAlignment(alignments);
 }
-*/
