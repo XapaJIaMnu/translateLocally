@@ -1,6 +1,4 @@
-#ifndef DACTCOLORWELL_H
-#define DACTCOLORWELL_H
-
+#pragma once
 #include <QColor>
 #include <QIcon>
 #include <QPixmap>
@@ -29,5 +27,3 @@ private:
     QIcon icon_;
     QPixmap swatch_;
 };
-
-#endif

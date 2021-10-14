@@ -1,5 +1,4 @@
-#ifndef TRANSLATION_H
-#define TRANSLATION_H
+#pragma once
 #include <QMetaType>
 #include <QString>
 #include <QVector>
@@ -68,5 +67,3 @@ public:
 };
 
 Q_DECLARE_METATYPE(Translation)
-
-#endif // TRANSLATION_H

@@ -1,5 +1,4 @@
-#ifndef ALIGNMENTWORKER_H
-#define ALIGNMENTWORKER_H
+#pragma once
 #include <QObject>
 #include <QMutex>
 #include <QSemaphore>
@@ -32,5 +31,3 @@ public:
 signals:
 	void ready(QVector<WordAlignment> alignments, Translation::Direction direction);
 };
-
-#endif

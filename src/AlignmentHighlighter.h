@@ -1,5 +1,4 @@
-#ifndef ALIGNMENTHIGHLIGHTER_H
-#define ALIGNMENTHIGHLIGHTER_H
+#pragma once
 #include "Translation.h"
 #include <QTextDocument>
 #include <QColor>
@@ -16,12 +15,10 @@ private:
 public:
 	AlignmentHighlighter(QObject *parent = nullptr);
 	~AlignmentHighlighter();
-	
+
 	void setDocument(QTextDocument *document);
 	void setColor(QColor color);
 	void highlight(QVector<WordAlignment> alignment);
 private:
 	void render(QVector<WordAlignment> alignment);
 };
-
-#endif // ALIGNMENTHIGHLIGHTER_H
