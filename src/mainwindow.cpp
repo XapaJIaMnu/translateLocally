@@ -21,11 +21,18 @@
 #include "Translation.h"
 #include "logo/logo_svg.h"
 #include <iostream>
+#include <QScrollBar>
 
 namespace {
     void addDisabledItem(QComboBox *combobox, QString label) {
         combobox->addItem(label);
         dynamic_cast<QStandardItemModel*>(combobox->model())->item(combobox->count() - 1, 0)->setEnabled(false);
+    }
+
+    auto copyScrollPosition(QAbstractScrollArea *inputBox, QAbstractScrollArea *outputBox) {
+        int value = inputBox->verticalScrollBar()->value();
+        float percentage = (float) value / inputBox->verticalScrollBar()->maximum();
+        outputBox->verticalScrollBar()->setValue((int) (outputBox->verticalScrollBar()->maximum() * percentage));
     }
 }
 
@@ -100,9 +107,25 @@ MainWindow::MainWindow(QWidget *parent)
     connect(translator_, &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
     connect(translator_, &MarianInterface::error, this, &MainWindow::popupError);
     connect(translator_, &MarianInterface::translationReady, this, [&](Translation translation) {
-        QSignalBlocker blocker(ui_->outputBox); // Prevent `on_outputBox_cursorPositionChanged()` from triggering
         translation_ = translation;
-        ui_->outputBox->setText(translation_.translation());
+        
+        {   
+            // setPlainText() triggers a scrollpos reset to 0. We don't want
+            // that, it looks really janky. So we block that signal, and then
+            // manually resync the position afterwards.
+            QSignalBlocker blocker(ui_->outputBox->verticalScrollBar());
+
+            // We add a newline to the output to match the behaviour of the
+            // input box which has an unreachable at the end of the text! You 
+            // can't reach it with cursor keys, but it does show up when you use
+            // the scrollbar. So to match the line count better, also add it to
+            // the output.
+            ui_->outputBox->setPlainText(translation_.translation() + QString("\n"));
+        }
+
+        // Restore scroll position after it jumped to 0 due to setPlainText.
+        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+        
         ui_->inputBox->document()->setModified(false); // Mark document as unmodified to tell highlighter alignment information is okay to use.
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
@@ -183,6 +206,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect model changes to reloading model and trigger initial loading of model
     bind(settings_.translationModel, std::bind(&MainWindow::resetTranslator, this));
+
+    // When input box scrolls, scroll output box as well.
+    connect(ui_->inputBox->verticalScrollBar(), &QAbstractSlider::valueChanged, [&]() {
+        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    });
+
+    // Oddly enough cursor movement doesn't trigger QAbstractSlider::valueChanged?
+    // I don't know why, but using Qt::QueuedConnection makes it less jumpy when
+    // adding newlines at the end in the input box. Maybe it gives the input
+    // box more time to update its height and its scrollbar to update?
+    connect(ui_->inputBox, &QPlainTextEdit::cursorPositionChanged, this, [&]() {
+        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    }, Qt::QueuedConnection);
 }
 
 MainWindow::~MainWindow() {
@@ -402,6 +438,11 @@ void MainWindow::on_inputBox_cursorPositionChanged() {
 
 void MainWindow::on_outputBox_cursorPositionChanged() {
     if (!translation_ || !highlighter_)
+        return;
+
+    // Ignore when it's not triggered by user interaction with this text box,
+    // e.g when it is triggered by setPlainText() when translation's ready.
+    if (!ui_->outputBox->hasFocus())
         return;
 
     // Only show alignments when the document hasn't been modified since the
