@@ -172,19 +172,23 @@ MainWindow::MainWindow(QWidget *parent)
             QSignalBlocker blocker(ui_->outputBox);
             highlighter_ = new AlignmentHighlighter(this);
             highlighter_->setColor(settings_.alignmentColor());
-            on_inputBox_cursorPositionChanged(); // trigger update
+            on_inputBox_cursorPositionChanged(); // trigger first highlight pass
         } else {
             highlighter_->deleteLater(); // Give it time to clean up old highlights
             highlighter_.clear(); // (note: deleteLater() would have done this as well, eventually)
         }
     });
 
+    // Connect changing the highlight colour in settings to updating the highlighter to use it.
     connect(&settings_.alignmentColor, &Setting::valueChanged, [&](QString name, QVariant color) {
         if (highlighter_)
             highlighter_->setColor(color.value<QColor>());
+        // if highlighter_ is not set right now, but will be created later on,
+        // it will be initialised with the new colour.
     });
 
     // Connect changing split orientation
+    // TODO: we're not storing the position of the splitter, only orientation.
     bind(settings_.splitOrientation, [&](Qt::Orientation orientation) {
         ui_->splitter->setOrientation(orientation);
         ui_->actionSplit_Horizontally->setChecked(orientation == Qt::Horizontal);
@@ -200,7 +204,7 @@ MainWindow::MainWindow(QWidget *parent)
         updateSelectedModel();
     });
 
-    // Connect settings changes to reloading the model.
+    // Connect translator setting changes to reloading the model.
     connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
     connect(&settings_.workspace, &Setting::valueChanged, this, &MainWindow::resetTranslator);
 
@@ -212,9 +216,9 @@ MainWindow::MainWindow(QWidget *parent)
         ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     });
 
-    // Oddly enough cursor movement doesn't trigger QAbstractSlider::valueChanged?
-    // I don't know why, but using Qt::QueuedConnection makes it less jumpy when
-    // adding newlines at the end in the input box. Maybe it gives the input
+    // Oddly enough cursor movement doesn't trigger QAbstractSlider::valueChanged.
+    // Note: Using Qt::QueuedConnection seems to make it less jumpy when you enter
+    // newlines at the end in the input box. Maybe it gives the input
     // box more time to update its height and its scrollbar to update?
     connect(ui_->inputBox, &QPlainTextEdit::cursorPositionChanged, this, [&]() {
         ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
@@ -441,7 +445,7 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
         return;
 
     // Ignore when it's not triggered by user interaction with this text box,
-    // e.g when it is triggered by setPlainText() when translation's ready.
+    // e.g when it is triggered by setPlainText() when translation is ready.
     if (!ui_->outputBox->hasFocus())
         return;
 

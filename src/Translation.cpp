@@ -61,7 +61,7 @@ marian::bergamot::AnnotatedText const &_source(marian::bergamot::Response const 
         return response.target;
 }
 
-marian::bergamot::AnnotatedText const &_target(marian::bergamot::Response &response, Translation::Direction direction) {
+marian::bergamot::AnnotatedText const &_target(marian::bergamot::Response const &response, Translation::Direction direction) {
     if (direction == Translation::source_to_translation)
         return response.target;
     else
@@ -104,7 +104,6 @@ QVector<WordAlignment> Translation::alignments(Direction direction, int sourcePo
     if (!::findWordByByteOffset(::_source(*response_, direction).annotation, sourceOffsetLast, sentenceIdxLast, wordIdxLast))
         return alignments;
 
-
     assert(sentenceIdxFirst <= sentenceIdxLast);
     assert(sentenceIdxFirst != sentenceIdxLast || wordIdxFirst <= wordIdxLast);
     assert(sentenceIdxLast < response_->alignments.size());
@@ -125,6 +124,7 @@ QVector<WordAlignment> Translation::alignments(Direction direction, int sourcePo
         }
     }
 
+    // Sort by position (left to right), highest probability first.
     std::sort(alignments.begin(), alignments.end(), [](WordAlignment const &a, WordAlignment const &b) {
         return a.begin <= b.begin && a.prob > b.prob;
     });
