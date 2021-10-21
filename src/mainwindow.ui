@@ -208,6 +208,7 @@
     <addaction name="actionSplit_Vertically"/>
     <addaction name="separator"/>
     <addaction name="actionShowAlignment"/>
+    <addaction name="actionSyncScrolling"/>
    </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
@@ -270,6 +271,14 @@
     </property>
     <property name="text">
       <string>Show Alignment</string>
+    </property>
+  </action>
+  <action name="actionSyncScrolling">
+    <property name="checkable">
+      <bool>true</bool>
+    </property>
+    <property name="text">
+      <string>Sync Scrolling</string>
     </property>
   </action>
  </widget>

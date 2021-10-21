@@ -91,5 +91,6 @@ public:
     SettingImpl<Qt::Orientation> splitOrientation;
     SettingImpl<bool> showAlignment;
     SettingImpl<QColor> alignmentColor;
+    SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
 };

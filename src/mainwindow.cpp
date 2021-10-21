@@ -124,7 +124,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         // Restore scroll position after it jumped to 0 due to setPlainText.
-        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
         
         ui_->inputBox->document()->setModified(false); // Mark document as unmodified to tell highlighter alignment information is okay to use.
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
@@ -187,6 +188,14 @@ MainWindow::MainWindow(QWidget *parent)
         // it will be initialised with the new colour.
     });
 
+    // Connect synced scrolling toggle to setting
+    connect(ui_->actionSyncScrolling, &QAction::toggled, std::bind(&decltype(Settings::syncScrolling)::setValue, &settings_.syncScrolling, std::placeholders::_1, Setting::EmitWhenChanged));
+    bind(settings_.syncScrolling, [&](bool enabled) {
+        ui_->actionSyncScrolling->setChecked(enabled);
+        if (enabled)
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    });
+
     // Connect changing split orientation
     // TODO: we're not storing the position of the splitter, only orientation.
     bind(settings_.splitOrientation, [&](Qt::Orientation orientation) {
@@ -213,7 +222,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // When input box scrolls, scroll output box as well.
     connect(ui_->inputBox->verticalScrollBar(), &QAbstractSlider::valueChanged, [&]() {
-        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     });
 
     // Oddly enough cursor movement doesn't trigger QAbstractSlider::valueChanged.
@@ -221,7 +231,8 @@ MainWindow::MainWindow(QWidget *parent)
     // newlines at the end in the input box. Maybe it gives the input
     // box more time to update its height and its scrollbar to update?
     connect(ui_->inputBox, &QPlainTextEdit::cursorPositionChanged, this, [&]() {
-        ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     }, Qt::QueuedConnection);
 }
 
