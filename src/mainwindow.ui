@@ -207,8 +207,8 @@
     <addaction name="actionSplit_Horizontally"/>
     <addaction name="actionSplit_Vertically"/>
     <addaction name="separator"/>
-    <addaction name="actionShowAlignment"/>
     <addaction name="actionSyncScrolling"/>
+    <addaction name="actionShowAlignment"/>
    </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
@@ -270,7 +270,7 @@
       <bool>true</bool>
     </property>
     <property name="text">
-      <string>Show Alignment</string>
+      <string>Highlight translation</string>
     </property>
   </action>
   <action name="actionSyncScrolling">
