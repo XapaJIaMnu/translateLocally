@@ -59,6 +59,7 @@ void TranslatorSettingsDialog::updateSettings()
     ui_->translateImmediatelyCheckbox->setChecked(settings_->translateImmediately());
     ui_->showAligmentsCheckbox->setChecked(settings_->showAlignment());
     ui_->alignmentColorButton->setColor(settings_->alignmentColor());
+    ui_->syncScrollingCheckbox->setChecked(settings_->syncScrolling());
 }
 
 void TranslatorSettingsDialog::applySettings()
@@ -68,6 +69,7 @@ void TranslatorSettingsDialog::applySettings()
     settings_->translateImmediately.setValue(ui_->translateImmediatelyCheckbox->isChecked());
     settings_->showAlignment.setValue(ui_->showAligmentsCheckbox->isChecked());
     settings_->alignmentColor.setValue(ui_->alignmentColorButton->color());
+    settings_->syncScrolling.setValue(ui_->syncScrollingCheckbox->isChecked());
 }
 
 void TranslatorSettingsDialog::revealSelectedModels()
