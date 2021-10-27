@@ -1,6 +1,5 @@
 #include "Translation.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
-#include <QDebug>
 
 namespace {
 
