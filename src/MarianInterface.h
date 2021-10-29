@@ -1,10 +1,12 @@
 #ifndef MARIANINTERFACE_H
 #define MARIANINTERFACE_H
 #include <QString>
+#include <QList>
 #include <QObject>
 #include <QMutex>
 #include <QSemaphore>
 #include "types.h"
+#include "Translation.h"
 #include <thread>
 #include <memory>
 
@@ -35,7 +37,7 @@ public:
     void setModel(QString path_to_model_dir, const translateLocally::marianSettings& settings);
     void translate(QString in);
 signals:
-    void translationReady(QString translation, int);
+    void translationReady(Translation translation);
     void pendingChanged(bool isBusy);
     void error(QString message);
 };

@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QSettings>
+#include <QColor>
 #include "types.h"
 
 /**
@@ -88,5 +89,8 @@ public:
     SettingImpl<unsigned int> cores;
     SettingImpl<unsigned int> workspace;
     SettingImpl<Qt::Orientation> splitOrientation;
+    SettingImpl<bool> showAlignment;
+    SettingImpl<QColor> alignmentColor;
+    SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
 };

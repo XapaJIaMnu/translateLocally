@@ -2,7 +2,9 @@
 #define MAINWINDOW_H
 #include <QMainWindow>
 #include <QJsonObject>
-#include <memory>
+#include <QPointer>
+#include "AlignmentHighlighter.h"
+#include "AlignmentWorker.h"
 #include "Network.h"
 #include "ModelManager.h"
 #include "TranslatorSettingsDialog.h"
@@ -38,6 +40,10 @@ public slots:
 private slots:
     void on_inputBox_textChanged();
 
+    void on_inputBox_cursorPositionChanged();
+
+    void on_outputBox_cursorPositionChanged();
+
     void on_translateAction_triggered();
 
     void on_translateButton_clicked();
@@ -64,8 +70,15 @@ private slots:
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is
+
+    // Note: these QPointers are freed through parent/child relation
+    QPointer<AlignmentWorker> alignmentWorker_;
+    QPointer<AlignmentHighlighter> highlighter_;
+
     // Translator related settings
-    std::unique_ptr<MarianInterface> translator_;
+    QPointer<MarianInterface> translator_;
+    Translation translation_;
+
     void resetTranslator();
     void showDownloadPane(bool visible);
     void downloadModel(Model model);
@@ -83,6 +96,8 @@ private:
     // Network code:
     Network network_;
 
+    // Little utility to connect settings to callbacks that initialise and 
+    // update them. Part of class def because connect() is a QObject method.
     template <typename T, typename Fun>
     void bind(SettingImpl<T> &setting, Fun update) {
         // Update initially

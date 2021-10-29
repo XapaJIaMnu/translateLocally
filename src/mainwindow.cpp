@@ -15,15 +15,24 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QFontDialog>
+#include <QSignalBlocker>
 #include <QStandardItem>
 #include <QWindow>
+#include "Translation.h"
 #include "logo/logo_svg.h"
 #include <iostream>
+#include <QScrollBar>
 
 namespace {
     void addDisabledItem(QComboBox *combobox, QString label) {
         combobox->addItem(label);
         dynamic_cast<QStandardItemModel*>(combobox->model())->item(combobox->count() - 1, 0)->setEnabled(false);
+    }
+
+    auto copyScrollPosition(QAbstractScrollArea *inputBox, QAbstractScrollArea *outputBox) {
+        int value = inputBox->verticalScrollBar()->value();
+        float percentage = (float) value / inputBox->verticalScrollBar()->maximum();
+        outputBox->verticalScrollBar()->setValue((int) (outputBox->verticalScrollBar()->maximum() * percentage));
     }
 }
 
@@ -35,6 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     , translatorSettingsDialog_(this, &settings_, &models_)
     , network_(this)
     , translator_(new MarianInterface(this))
+    , alignmentWorker_(new AlignmentWorker(this))
 {
     ui_->setupUi(this);
 
@@ -94,16 +104,51 @@ MainWindow::MainWindow(QWidget *parent)
     
     
     // Set up the connection to the translator
-    connect(translator_.get(), &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
-    connect(translator_.get(), &MarianInterface::error, this, &MainWindow::popupError);
-    connect(translator_.get(), &MarianInterface::translationReady, this, [&](QString translation, int speed) {
-        ui_->outputBox->setText(translation);
+    connect(translator_, &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
+    connect(translator_, &MarianInterface::error, this, &MainWindow::popupError);
+    connect(translator_, &MarianInterface::translationReady, this, [&](Translation translation) {
+        translation_ = translation;
+        
+        {   
+            // setPlainText() triggers a scrollpos reset to 0. We don't want
+            // that, it looks really janky. So we block that signal, and then
+            // manually resync the position afterwards.
+            QSignalBlocker blocker(ui_->outputBox->verticalScrollBar());
+
+            // We add a newline to the output to match the behaviour of the
+            // input box which has an unreachable at the end of the text! You 
+            // can't reach it with cursor keys, but it does show up when you use
+            // the scrollbar. So to match the line count better, also add it to
+            // the output.
+            ui_->outputBox->setPlainText(translation_.translation() + QString("\n"));
+        }
+
+        // Restore scroll position after it jumped to 0 due to setPlainText.
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+        
+        ui_->inputBox->document()->setModified(false); // Mark document as unmodified to tell highlighter alignment information is okay to use.
         ui_->translateAction->setEnabled(true); // Re-enable button after translation is done
         ui_->translateButton->setEnabled(true);
-        if (speed > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
-            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(speed));
+        if (translation_.wordsPerSecond() > 0) { // Display the translation speed only if it's > 0. This prevents the user seeing weird number if pressed translate with empty input
+            ui_->statusbar->showMessage(tr("Translation speed: %1 words per second.").arg(translation_.wordsPerSecond()));
         } else {
             ui_->statusbar->clearMessage();
+        }
+    });
+
+    connect(alignmentWorker_, &AlignmentWorker::ready, this, [&](QVector<WordAlignment> alignments, Translation::Direction direction) {
+        if (!highlighter_)
+            return;
+
+        if (direction == Translation::source_to_translation) {
+            QSignalBlocker blocker(ui_->outputBox); // block document change events caused by highlighter adding formatting
+            highlighter_->setDocument(ui_->outputBox->document());
+            highlighter_->highlight(alignments);    
+        } else {
+            QSignalBlocker blocker(ui_->inputBox);
+            highlighter_->setDocument(ui_->inputBox->document());
+            highlighter_->highlight(alignments);
         }
     });
 
@@ -120,7 +165,39 @@ MainWindow::MainWindow(QWidget *parent)
         ui_->translateButton->setVisible(!enabled);
     });
 
+    // Connect alignment highlight feature
+    connect(ui_->actionShowAlignment, &QAction::toggled, std::bind(&decltype(Settings::showAlignment)::setValue, &settings_.showAlignment, std::placeholders::_1, Setting::EmitWhenChanged));
+    bind(settings_.showAlignment, [&](bool enabled) {
+        ui_->actionShowAlignment->setChecked(enabled);
+        if (enabled) {
+            QSignalBlocker blocker(ui_->outputBox);
+            highlighter_ = new AlignmentHighlighter(this);
+            highlighter_->setColor(settings_.alignmentColor());
+            on_inputBox_cursorPositionChanged(); // trigger first highlight pass
+        } else {
+            highlighter_->deleteLater(); // Give it time to clean up old highlights
+            highlighter_.clear(); // (note: deleteLater() would have done this as well, eventually)
+        }
+    });
+
+    // Connect changing the highlight colour in settings to updating the highlighter to use it.
+    connect(&settings_.alignmentColor, &Setting::valueChanged, [&](QString name, QVariant color) {
+        if (highlighter_)
+            highlighter_->setColor(color.value<QColor>());
+        // if highlighter_ is not set right now, but will be created later on,
+        // it will be initialised with the new colour.
+    });
+
+    // Connect synced scrolling toggle to setting
+    connect(ui_->actionSyncScrolling, &QAction::toggled, std::bind(&decltype(Settings::syncScrolling)::setValue, &settings_.syncScrolling, std::placeholders::_1, Setting::EmitWhenChanged));
+    bind(settings_.syncScrolling, [&](bool enabled) {
+        ui_->actionSyncScrolling->setChecked(enabled);
+        if (enabled)
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    });
+
     // Connect changing split orientation
+    // TODO: we're not storing the position of the splitter, only orientation.
     bind(settings_.splitOrientation, [&](Qt::Orientation orientation) {
         ui_->splitter->setOrientation(orientation);
         ui_->actionSplit_Horizontally->setChecked(orientation == Qt::Horizontal);
@@ -136,12 +213,27 @@ MainWindow::MainWindow(QWidget *parent)
         updateSelectedModel();
     });
 
-    // Connect settings changes to reloading the model.
+    // Connect translator setting changes to reloading the model.
     connect(&settings_.cores, &Setting::valueChanged, this, &MainWindow::resetTranslator);
     connect(&settings_.workspace, &Setting::valueChanged, this, &MainWindow::resetTranslator);
 
     // Connect model changes to reloading model and trigger initial loading of model
     bind(settings_.translationModel, std::bind(&MainWindow::resetTranslator, this));
+
+    // When input box scrolls, scroll output box as well.
+    connect(ui_->inputBox->verticalScrollBar(), &QAbstractSlider::valueChanged, [&]() {
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    });
+
+    // Oddly enough cursor movement doesn't trigger QAbstractSlider::valueChanged.
+    // Note: Using Qt::QueuedConnection seems to make it less jumpy when you enter
+    // newlines at the end in the input box. Maybe it gives the input
+    // box more time to update its height and its scrollbar to update?
+    connect(ui_->inputBox, &QPlainTextEdit::cursorPositionChanged, this, [&]() {
+        if (settings_.syncScrolling())
+            ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
+    }, Qt::QueuedConnection);
 }
 
 MainWindow::~MainWindow() {
@@ -342,4 +434,39 @@ void MainWindow::on_actionSplit_Horizontally_triggered() {
 
 void MainWindow::on_actionSplit_Vertically_triggered() {
     settings_.splitOrientation.setValue(Qt::Vertical);
+}
+
+void MainWindow::on_inputBox_cursorPositionChanged() {
+    if (!translation_ || !highlighter_)
+        return;
+
+    // Only show alignments when the document hasn't been modified since the
+    // translation was made. Otherwise alignment information might be outdated
+    // (i.e. offsets no longer match up with input text)
+    if (!ui_->inputBox->document()->isModified()) {
+        auto cursor = ui_->inputBox->textCursor();
+        alignmentWorker_->query(translation_, Translation::source_to_translation, cursor.position(), cursor.anchor());
+    } else {
+        alignmentWorker_->query(Translation(), Translation::source_to_translation, 0, 0);
+    }
+}
+
+void MainWindow::on_outputBox_cursorPositionChanged() {
+    if (!translation_ || !highlighter_)
+        return;
+
+    // Ignore when it's not triggered by user interaction with this text box,
+    // e.g when it is triggered by setPlainText() when translation is ready.
+    if (!ui_->outputBox->hasFocus())
+        return;
+
+    // Only show alignments when the document hasn't been modified since the
+    // translation was made. Otherwise alignment information might be outdated
+    // (i.e. offsets no longer match up with input text)
+    if (!ui_->outputBox->document()->isModified()) {
+        auto cursor = ui_->outputBox->textCursor();
+        alignmentWorker_->query(translation_, Translation::translation_to_source, cursor.position(), cursor.anchor());
+    } else {
+        alignmentWorker_->query(Translation(), Translation::translation_to_source, 0, 0);
+    }
 }

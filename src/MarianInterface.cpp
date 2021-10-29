@@ -9,7 +9,6 @@
 #include <chrono>
 #include <QMutexLocker>
 
-
 namespace  {
 marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
     std::string model_path = path_to_model_dir + "/config.intgemm8bitalpha.yml";
@@ -17,6 +16,7 @@ marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, t
                                      "--cpu-threads", std::to_string(settings.cpu_threads),
                                      "--workspace", std::to_string(settings.workspace),
                                      "--mini-batch-words", "1000",
+                                     "--alignment", "0.1",
                                      "--quiet"};
 
     std::vector<char *> argv;
@@ -118,17 +118,20 @@ MarianInterface::MarianInterface(QObject *parent)
                 } else if (input) {
                     if (service) {
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        std::future<int> num_words = std::async (countWords,*input); // @TODO we're doing an unnecessary string copy here
-                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input));
+                        std::future<int> num_words = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
+
+                        marian::bergamot::ResponseOptions options;
+                        options.alignment = true;
+                        options.alignmentThreshold = 0.1f;
+
+                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input), options);
                         responseFuture.wait();
-                        marian::bergamot::Response response = responseFuture.get();
-                        num_words.wait();
                         auto end = std::chrono::steady_clock::now();
                         // Calculate translation speed in terms of words per second
                         double words = num_words.get();
                         std::chrono::duration<double> elapsed_seconds = end-start;
                         int translationSpeed = std::ceil(words/elapsed_seconds.count()); // @TODO this could probably be done in the service in the future
-                        emit translationReady(QString::fromStdString(response.target.text), translationSpeed);
+                        emit translationReady(Translation(std::move(responseFuture.get()), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }

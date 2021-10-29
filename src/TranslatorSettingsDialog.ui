@@ -53,6 +53,55 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="presentationGroup">
+         <property name="title">
+          <string>Presentation</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <property name="leftMargin">
+           <number>10</number>
+          </property>
+          <property name="topMargin">
+           <number>8</number>
+          </property>
+          <property name="rightMargin">
+           <number>10</number>
+          </property>
+          <property name="bottomMargin">
+           <number>8</number>
+          </property>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QCheckBox" name="showAligmentsCheckbox">
+              <property name="text">
+               <string>Highlight matching words in translation</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="ColorWell" name="alignmentColorButton">
+              <property name="minimumSize">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="syncScrollingCheckbox">
+            <property name="text">
+             <string>Scroll text input and translation simultaneously</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="resourceGroup">
          <property name="title">
           <string>Resource usage</string>
@@ -203,6 +252,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ColorWell</class>
+   <extends>QToolButton</extends>
+   <header>ColorWell.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

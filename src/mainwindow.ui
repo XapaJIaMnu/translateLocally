@@ -60,6 +60,9 @@
           <property name="placeholderText">
            <string>Enter text to be translated here...</string>
           </property>
+          <property name="tabChangesFocus">
+            <bool>true</bool>
+          </property>
          </widget>
          <widget class="QTextBrowser" name="outputBox"/>
         </widget>
@@ -203,6 +206,9 @@
     </property>
     <addaction name="actionSplit_Horizontally"/>
     <addaction name="actionSplit_Vertically"/>
+    <addaction name="separator"/>
+    <addaction name="actionSyncScrolling"/>
+    <addaction name="actionShowAlignment"/>
    </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
@@ -258,6 +264,22 @@
    <property name="shortcut">
     <string>Ctrl+2</string>
    </property>
+  </action>
+  <action name="actionShowAlignment">
+    <property name="checkable">
+      <bool>true</bool>
+    </property>
+    <property name="text">
+      <string>Highlight translation</string>
+    </property>
+  </action>
+  <action name="actionSyncScrolling">
+    <property name="checkable">
+      <bool>true</bool>
+    </property>
+    <property name="text">
+      <string>Sync Scrolling</string>
+    </property>
   </action>
  </widget>
  <resources/>
