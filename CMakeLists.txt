@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+CMAKE_POLICY(SET CMP0020 NEW) # This should help linking on windows in some edge cases. It is also a new default behaviour and we will get warnings unless we set it with cmake 3.22+
 
 if(APPLE) # This needs to happen before the project definition due to a cmake bug
   # https://gitlab.kitware.com/cmake/cmake/-/issues/21608
