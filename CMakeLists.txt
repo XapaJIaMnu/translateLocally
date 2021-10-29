@@ -171,6 +171,11 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
+if(WIN32) # Do not launch console on win32
+    set_property(TARGET translateLocally-bin PROPERTY WIN32_EXECUTABLE TRUE)
+endif()
+
+
 set(LINK_LIBRARIES
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Gui
