@@ -16,8 +16,8 @@ static void CLIArgumentInit(QApplication& translateLocallyApp, QCommandLineParse
     parser.addVersionOption();
     parser.addOption({{"l", "list-models"}, QObject::tr("List available models.")});
     parser.addOption({{"m", "model"}, QObject::tr("Select model for translation."), "model", ""});
-    parser.addOption({{"s", "source-text"}, QObject::tr("Source translation text (or just used stdin)"), "srctxt", ""});
-    parser.addOption({{"t", "target-text"}, QObject::tr("Target translation output (or just used stdout)"), "trgtxt", ""});
+    parser.addOption({{"i", "input"}, QObject::tr("Source translation text (or just used stdin)"), "input", ""});
+    parser.addOption({{"o", "output"}, QObject::tr("Target translation output (or just used stdout)"), "output", ""});
     parser.process(translateLocallyApp);
 }
 
@@ -28,7 +28,7 @@ static void CLIArgumentInit(QApplication& translateLocallyApp, QCommandLineParse
  */
 
 static bool isCLIOnly(QCommandLineParser& parser) {
-    QList<QString> cmdonlyflags = {"m", "l", "s", "t"};
+    QList<QString> cmdonlyflags = {"m", "l", "i", "o"};
     bool cliONLY = false;
     for (auto&& flag : cmdonlyflags) {
         if (parser.isSet(flag)) {
