@@ -1,6 +1,8 @@
 #include "CommandLineIface.h"
 #include <QFile>
 
+#include <array>
+
 CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent) : QObject(parent), eventLoop_(this), parser_(parser), models_(this),
                                                                                    settings_(this), translator_(new MarianInterface(this)),
                                                                                    qcin_(stdin), qcout_(stdout), qcerr_(stderr) {
@@ -8,7 +10,7 @@ CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent)
     if (parser_.isSet("i")) {
         infile_.reset(new QFile(parser_.value("i")));
         if (infile_->open(QIODevice::ReadOnly)) {
-            instream_.reset(new QTextStream(infile_.get()));
+            instream_.reset(new QTextStream(infile_.data()));
         } else {
             outputError(QString("Couldn't open input file: " + parser_.value("i")));
         }
@@ -17,7 +19,7 @@ CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent)
     if (parser_.isSet("o")) {
         outfile_.reset(new QFile(parser_.value("o")));
         if (outfile_->open(QIODevice::WriteOnly)) {
-            outstream_.reset(new QTextStream(outfile_.get()));
+            outstream_.reset(new QTextStream(outfile_.data()));
         } else {
             outputError(QString("Couldn't open output file: " + parser_.value("o")));
         }
@@ -69,13 +71,17 @@ inline QString CommandLineIface::fetchData() {
     int counter = 0;
     if (parser_.isSet("i")) {
         while(counter < prefetchLines && !instream_->atEnd()) {
-            ret = ret + instream_->readLine();
+            ret = ret + instream_->readLine() + "\n"; // The new line has no EoL characters
             counter++;
         }
     } else {
+        static std::array<char, 8> inbuff;
         while (counter < prefetchLines && !qcin_.atEnd()) {
-            ret = ret + qcin_.readLine();
+            ret = ret + qcin_.readLine() + "\n";
             counter++;
+            if (qcin_.device()->peek(inbuff.data(), 8) == 0) { // This check gets rid of empty new line input
+                break;
+            }
         }
     }
     return ret;
@@ -84,17 +90,13 @@ inline QString CommandLineIface::fetchData() {
 /* This function is pseudo blocking, via an event loop.*/
 void CommandLineIface::doTranslation() {
     // Find whether input is stdin or a file
-    QString input;
-    if (parser_.isSet("i")) {
-        input = instream_->readAll(); // @TODO this should be more complicated batching thingie, but alas. Should work fine with most small inputs.
-    } else {
-        input = qcin_.readAll(); // @TODO again this should do some batching and allow for full cmd usage but I *really* don't want to re-implement marian...
-                                 // Maybe expose the raw marian interface with their batcher, or the service which has some sort of CLI usage.
+    QString input = fetchData();
+    while (input != "" && input != "\n") { // Some files end in new line, others don't...
+        translator_->translate(input);
+        // Start event loop to block unti translation is ready:
+        eventLoop_.exec();
+        input = fetchData();
     }
-    translator_->translate(input);
-
-    // Start event loop to block unti translation is ready:
-    eventLoop_.exec();
 }
 
 void CommandLineIface::outputError(QString error) {
@@ -106,7 +108,7 @@ void CommandLineIface::outputError(QString error) {
 void CommandLineIface::outputTranslation(Translation output) {
     // Find whether output is stdin or a file
     if (parser_.isSet("o")) {
-        *outstream_.get() << output.translation();
+        *outstream_.data() << output.translation();
         outfile_->flush();
     } else {
         qcout_ << output.translation();
