@@ -1,10 +1,29 @@
 #include "CommandLineIface.h"
 #include <QFile>
 
-
 CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent) : QObject(parent), eventLoop_(this), parser_(parser), models_(this),
                                                                                    settings_(this), translator_(new MarianInterface(this)),
                                                                                    qcin_(stdin), qcout_(stdout), qcerr_(stderr) {
+    // Initialise input and output streams files if necessary
+    if (parser_.isSet("i")) {
+        infile_.reset(new QFile(parser_.value("i")));
+        if (infile_->open(QIODevice::ReadOnly)) {
+            instream_.reset(new QTextStream(infile_.get()));
+        } else {
+            outputError(QString("Couldn't open input file: " + parser_.value("i")));
+        }
+    }
+
+    if (parser_.isSet("o")) {
+        outfile_.reset(new QFile(parser_.value("o")));
+        if (outfile_->open(QIODevice::WriteOnly)) {
+            outstream_.reset(new QTextStream(outfile_.get()));
+        } else {
+            outputError(QString("Couldn't open output file: " + parser_.value("o")));
+        }
+    }
+
+    // Take care of slots and signals
     connect(translator_, &MarianInterface::error, this, &CommandLineIface::outputError);
     connect(translator_, &MarianInterface::translationReady, this, &CommandLineIface::outputTranslation);
 }
@@ -44,20 +63,30 @@ void CommandLineIface::printLocalModels() {
     }
 }
 
+inline QString CommandLineIface::fetchData() {
+    // Fetch up to prefetchLines number of lines from input
+    QString ret("");
+    int counter = 0;
+    if (parser_.isSet("i")) {
+        while(counter < prefetchLines && !instream_->atEnd()) {
+            ret = ret + instream_->readLine();
+            counter++;
+        }
+    } else {
+        while (counter < prefetchLines && !qcin_.atEnd()) {
+            ret = ret + qcin_.readLine();
+            counter++;
+        }
+    }
+    return ret;
+}
+
 /* This function is pseudo blocking, via an event loop.*/
 void CommandLineIface::doTranslation() {
     // Find whether input is stdin or a file
     QString input;
     if (parser_.isSet("i")) {
-        QFile inputFile(parser_.value("i"));
-        if (inputFile.open(QIODevice::ReadOnly)) {
-           QTextStream in(&inputFile);
-           input = in.readAll(); // @TODO this should be more complicated batching thingie, but alas. Should work fine with most small inputs.
-                                 // Alternative is to read it line by line but then it would be horribly inefficient as we would lose all batching.
-           inputFile.close();
-        } else {
-            outputError(QString("Couldn't open input file: " + parser_.value("i")));
-        }
+        input = instream_->readAll(); // @TODO this should be more complicated batching thingie, but alas. Should work fine with most small inputs.
     } else {
         input = qcin_.readAll(); // @TODO again this should do some batching and allow for full cmd usage but I *really* don't want to re-implement marian...
                                  // Maybe expose the raw marian interface with their batcher, or the service which has some sort of CLI usage.
@@ -70,21 +99,27 @@ void CommandLineIface::doTranslation() {
 
 void CommandLineIface::outputError(QString error) {
     qcerr_ << error << "\n";
+    qcerr_.flush();
     exit(22);
 }
 
 void CommandLineIface::outputTranslation(Translation output) {
     // Find whether output is stdin or a file
     if (parser_.isSet("o")) {
-        QFile outputFile(parser_.value("o"));
-        if (outputFile.open(QIODevice::WriteOnly)) {
-            QTextStream out(&outputFile);
-            out << output.translation();
-        } else {
-            outputError(QString("Couldnl't open output file: " + parser_.value("o")));
-        }
+        *outstream_.get() << output.translation();
+        outfile_->flush();
     } else {
         qcout_ << output.translation();
+        qcout_.flush();
     }
-    eventLoop_.exit();
+    eventLoop_.exit(); // Unblock the main thread
+}
+
+CommandLineIface::~CommandLineIface() {
+    if (parser_.isSet("i")) {
+        infile_->close();
+    }
+    if (parser_.isSet("o")) {
+        outfile_->close();
+    }
 }

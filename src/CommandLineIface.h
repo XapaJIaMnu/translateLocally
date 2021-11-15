@@ -28,11 +28,23 @@ private:
     // Event loop that would wait until translation completes
     QEventLoop eventLoop_;
 
-public:
-    CommandLineIface(QCommandLineParser&, QObject * parent = nullptr);
-    int run();
+    // do_once file in and file out
+    QScopedPointer<QFile> infile_;
+    QScopedPointer<QFile> outfile_;
+    QScopedPointer<QTextStream> instream_;
+    QScopedPointer<QTextStream> outstream_;
+
+    static const int constexpr prefetchLines = 320;
+
+    // Functions
     void printLocalModels();
     void doTranslation();
+    inline QString fetchData();
+
+public:
+    CommandLineIface(QCommandLineParser&, QObject * parent = nullptr);
+    ~CommandLineIface();
+    int run();
 
 private slots:
     void outputError(QString error);

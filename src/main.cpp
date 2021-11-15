@@ -27,9 +27,6 @@ int main(int argc, char *argv[])
 
     // Launch application unless we're supposed to be in CLI mode
     if (translateLocally::isCLIOnly(parser)) {
-        // The CLI is supposed to just do something and then die.
-        // To do that we will just have an object whose constructor as a side
-        // effect will do the thing and die.
         CommandLineIface CLIiface = CommandLineIface(parser);
         return CLIiface.run(); // Also takes care of exit codes
     } else {
