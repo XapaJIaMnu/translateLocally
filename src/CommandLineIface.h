@@ -2,9 +2,9 @@
 #define COMMANDLINEIFACE_H
 
 #include <QObject>
+#include <QPointer>
 #include <QTextStream>
 #include <QCommandLineParser>
-#include <QPointer>
 #include <QEventLoop>
 #include "ModelManager.h"
 #include "Settings.h"
@@ -14,13 +14,8 @@
 class CommandLineIface : public QObject {
     Q_OBJECT
 private:
-    const QCommandLineParser& parser_;
-
     ModelManager models_;
-    QTextStream qcin_;
-    QTextStream qcout_;
-    QTextStream qcerr_;
-
+    
     // Settings and translator:
     Settings settings_;
     QPointer<MarianInterface> translator_;
@@ -29,22 +24,21 @@ private:
     QEventLoop eventLoop_;
 
     // do_once file in and file out
-    QScopedPointer<QFile> infile_;
-    QScopedPointer<QFile> outfile_;
-    QScopedPointer<QTextStream> instream_;
-    QScopedPointer<QTextStream> outstream_;
+    QFile infile_;
+    QFile outfile_;
+    QTextStream instream_;
+    QTextStream outstream_;
 
     static const int constexpr prefetchLines = 320;
 
     // Functions
     void printLocalModels();
     void doTranslation();
-    inline QString fetchData();
+    inline QString &fetchData(QString &);
 
 public:
-    CommandLineIface(QCommandLineParser&, QObject * parent = nullptr);
-    ~CommandLineIface();
-    int run();
+    explicit CommandLineIface(QObject * parent = nullptr);
+    int run(QCommandLineParser const &);
 
 private slots:
     void outputError(QString error);

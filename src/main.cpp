@@ -27,8 +27,7 @@ int main(int argc, char *argv[])
 
     // Launch application unless we're supposed to be in CLI mode
     if (translateLocally::isCLIOnly(parser)) {
-        CommandLineIface CLIiface = CommandLineIface(parser);
-        return CLIiface.run(); // Also takes care of exit codes
+        return CommandLineIface().run(parser); // Also takes care of exit codes
     } else {
         MainWindow w;
         w.show();
