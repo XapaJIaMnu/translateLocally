@@ -4,7 +4,8 @@
 #include "Translation.h"
 
 #include <QApplication>
-#include <QCommandLineParser>
+#include "CLIParsing.h"
+#include "CommandLineIface.h"
 
 int main(int argc, char *argv[])
 {
@@ -22,13 +23,15 @@ int main(int argc, char *argv[])
 
     // Command line parsing
     QCommandLineParser parser;
-    parser.setApplicationDescription("A secure translation service that performs translations for you locally, on your own machine.");
-    parser.addHelpOption();
-    parser.addVersionOption();
-    parser.process(translateLocally);
+    translateLocally::CLIArgumentInit(translateLocally, parser);
 
-    // Launch application
-    MainWindow w;
-    w.show();
-    return translateLocally.exec();
+    // Launch application unless we're supposed to be in CLI mode
+    if (translateLocally::isCLIOnly(parser)) {
+        CommandLineIface CLIiface = CommandLineIface(parser);
+        return CLIiface.run(); // Also takes care of exit codes
+    } else {
+        MainWindow w;
+        w.show();
+        return translateLocally.exec();
+    }
 }

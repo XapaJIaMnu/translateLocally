@@ -118,6 +118,9 @@ set(PROJECT_SOURCES
         src/Translation.h
         src/Translation.cpp
         src/types.h
+        src/CommandLineIface.h
+        src/CommandLineIface.cpp
+        src/CLIParsing.h
         logo/logo_svg.h
         ${TS_FILES}
 )
