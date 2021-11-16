@@ -2,6 +2,7 @@
 #define COMMANDLINEIFACE_H
 
 #include <QObject>
+#include <QPointer>
 #include <QTextStream>
 #include <QCommandLineParser>
 #include <QEventLoop>
