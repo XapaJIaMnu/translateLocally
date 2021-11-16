@@ -16,8 +16,8 @@ static void CLIArgumentInit(QApplication& translateLocallyApp, QCommandLineParse
     parser.addVersionOption();
     parser.addOption({{"l", "list-models"}, QObject::tr("List available models.")});
     parser.addOption({{"m", "model"}, QObject::tr("Select model for translation."), "model", ""});
-    parser.addOption({{"i", "input"}, QObject::tr("Source translation text (or just used stdin)"), "input", ""});
-    parser.addOption({{"o", "output"}, QObject::tr("Target translation output (or just used stdout)"), "output", ""});
+    parser.addOption({{"i", "input"}, QObject::tr("Source translation text (or just used stdin)."), "input", ""});
+    parser.addOption({{"o", "output"}, QObject::tr("Target translation output (or just used stdout)."), "output", ""});
     parser.process(translateLocallyApp);
 }
 
