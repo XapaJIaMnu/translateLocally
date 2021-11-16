@@ -1,5 +1,5 @@
 #pragma once
-
+#include <stddef.h>
 namespace translateLocally {
 
 struct marianSettings {

@@ -139,32 +139,32 @@ public:
      * Useful for checking whether a model for which you've saved the path
      * is still available.
      */
-    Model getModelForPath(QString path) const; 
+    Model getModelForPath(QString path) const;
 
     /**
      * @Brief list of locally available models
      */
-    QList<Model> getInstalledModels() const;
+    const QList<Model>& getInstalledModels() const;
 
     /**
      * @Brief list of remotely available models. Only populated after
      * fetchRemoteModels is called and the fetchedRemoteModels() signal is
      * emitted.
      */
-    QList<Model> getRemoteModels() const;
+    const QList<Model>& getRemoteModels() const;
 
     /**
      * @Brief list of models that is both available locally and remote, but
      * the remote version is newer. Only available after fetchRemoteModels().
      */
-    QList<Model> getUpdatedModels() const;
+    const QList<Model>& getUpdatedModels() const;
 
     /**
      * @Brief list of models that is available remote and not also installed
      * locally already. Only available after fetchRemoteModels().
      */
 
-    QList<Model> getNewModels() const;
+    const QList<Model>& getNewModels() const;
     
     /**
      * @brief whether or not fetchRemoteModels is in progress

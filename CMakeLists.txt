@@ -193,7 +193,7 @@ set(LINK_LIBRARIES
     ${LibArchive_LIBRARIES}
     ${CMAKE_DL_LIBS}) # On unix necessary sometimes
 
-# Reserver the translateLocally name for the MacOS and Windows (potentially) executables. Rename the unix executable to that
+# Reserve the translateLocally name for the MacOS executables. Rename the Linux and Windows executable to translateLocally after compilation
 target_link_libraries(translateLocally-bin PRIVATE ${LINK_LIBRARIES})
 set_target_properties(translateLocally-bin PROPERTIES OUTPUT_NAME translateLocally)
 
