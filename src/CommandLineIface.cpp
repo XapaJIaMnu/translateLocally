@@ -77,12 +77,12 @@ void CommandLineIface::printLocalModels() {
 }
 
 QString &CommandLineIface::fetchData(QString &buffer) {
-    // Fetch up to prefetchLines number of lines from input
     int counter = 0;
     buffer.clear();
+    static QString line;
     
-    while(counter < prefetchLines && !instream_.atEnd()) {
-        buffer.append(instream_.readLine());
+    while(counter < prefetchLines && instream_.readLineInto(&line)) {
+        buffer.append(line);
         buffer.append('\n'); // The new line has no EoL characters
         counter++;
     }
