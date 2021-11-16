@@ -70,7 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
-        settings_.translationModel.setValue(models_.getInstalledModels().first().path);
+        settings_.translationModel.setValue(models_.getInstalledModels().at(0).path);
 
     // Attach slots
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
@@ -181,7 +181,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Connect changing the highlight colour in settings to updating the highlighter to use it.
-    connect(&settings_.alignmentColor, &Setting::valueChanged, [&](QString name, QVariant color) {
+    connect(&settings_.alignmentColor, &Setting::valueChanged, this, [&](QString name, QVariant color) {
         if (highlighter_)
             highlighter_->setColor(color.value<QColor>());
         // if highlighter_ is not set right now, but will be created later on,
@@ -221,7 +221,7 @@ MainWindow::MainWindow(QWidget *parent)
     bind(settings_.translationModel, std::bind(&MainWindow::resetTranslator, this));
 
     // When input box scrolls, scroll output box as well.
-    connect(ui_->inputBox->verticalScrollBar(), &QAbstractSlider::valueChanged, [&]() {
+    connect(ui_->inputBox->verticalScrollBar(), &QAbstractSlider::valueChanged, this, [&]() {
         if (settings_.syncScrolling())
             ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     });

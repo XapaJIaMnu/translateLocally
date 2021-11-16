@@ -74,7 +74,7 @@ void TranslatorSettingsDialog::applySettings()
 
 void TranslatorSettingsDialog::revealSelectedModels()
 {
-    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+    for (auto&& index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
         QDesktopServices::openUrl(QUrl(QString("file://%1").arg(model.path), QUrl::TolerantMode));
     }
@@ -82,8 +82,8 @@ void TranslatorSettingsDialog::revealSelectedModels()
 
 void TranslatorSettingsDialog::deleteSelectedModels()
 {
-    QList<Model> selection;
-    for (auto index : ui_->localModelTable->selectionModel()->selectedRows(0)) {
+    QVector<Model> selection;
+    for (auto&& index : ui_->localModelTable->selectionModel()->selectedRows(0)) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
         if (modelManager_->isManagedModel(model))
             selection.append(model);
@@ -123,7 +123,7 @@ void TranslatorSettingsDialog::updateModelActions()
     bool containsLocalModel = false;
     bool containsDeletableModel = false;
 
-    for (auto index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
+    for (auto&& index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
         
         if (model.isLocal())

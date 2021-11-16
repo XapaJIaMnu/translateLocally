@@ -129,7 +129,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
 
     if (!QDir().rename(prefix, newModelDirPath)) {
-        emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path()).arg(newModelDirPath));
+        emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path(), newModelDirPath));
         return Model{};
     }
 
@@ -290,7 +290,6 @@ void ModelManager::scanForModels(QString path) {
     //Iterate over all files in the folder and take note of available models and archives
     //@TODO currently, archives can only be extracted from the config dir
     QDirIterator it(path, QDir::NoFilter);
-    QList<Model> models;
     while (it.hasNext()) {
         QString current = it.next();
         QFileInfo f(current);
@@ -334,14 +333,14 @@ bool ModelManager::extractTarGz(QFile *file, QDir const &destination, QStringLis
     QString currentPath = QDir::currentPath();
 
     if (!QDir::setCurrent(destination.absolutePath())) {
-        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(destination.absolutePath()).arg(file->fileName()));
+        emit error(tr("Failed to change path to the configuration directory %1. %2 won't be extracted.").arg(destination.absolutePath(), file->fileName()));
         return false;
     }
 
     QStringList extracted;
     bool success = extractTarGzInCurrentPath(file, extracted);
 
-    for (QString const &file : extracted)
+    for (QString const &file : qAsConst(extracted))
         files << destination.filePath(file);
 
     QDir::setCurrent(currentPath);
@@ -350,7 +349,7 @@ bool ModelManager::extractTarGz(QFile *file, QDir const &destination, QStringLis
 
 bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     auto warn = [&](const char *f, const char *m) {
-        emit error(tr("Trouble while extracting language model after call to %1: %2").arg(f).arg(m));
+        emit error(tr("Trouble while extracting language model after call to %1: %2").arg(f, m));
     };
 
     auto copy_data = [=](struct archive *a_in, struct archive *a_out) {
@@ -390,7 +389,7 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     archive_read_support_filter_gzip(a_in);
     
     if (!file->open(QIODevice::ReadOnly)) {
-        emit error(tr("Trouble while extracting language model after call to %1: %2").arg("QIODevice::open()").arg(file->errorString()));
+        emit error(tr("Trouble while extracting language model after call to %1: %2").arg("QIODevice::open()", file->errorString()));
         return false;
     }
     
@@ -481,19 +480,19 @@ void ModelManager::parseRemoteModels(QJsonObject obj) {
     updateAvailableModels();
 }
 
-QList<Model> ModelManager::getInstalledModels() const {
+const QList<Model>& ModelManager::getInstalledModels() const {
     return localModels_;
 }
 
-QList<Model> ModelManager::getRemoteModels() const {
+const QList<Model>& ModelManager::getRemoteModels() const {
     return remoteModels_;
 }
 
-QList<Model> ModelManager::getNewModels() const {
+const QList<Model>& ModelManager::getNewModels() const {
     return newModels_;
 }
 
-QList<Model> ModelManager::getUpdatedModels() const {
+const QList<Model>& ModelManager::getUpdatedModels() const {
     return updatedModels_;
 }
 

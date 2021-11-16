@@ -55,7 +55,6 @@ void AlignmentHighlighter::render(QVector<WordAlignment> alignments) {
 	// TODO: early stopping based on max(alignments_.last().end alignments.last().end)
 	for (; block != document_->end(); block = block.next()) {
 		QTextLayout *layout = block.layout();
-		QList<QTextFormat> formats;
 		bool dirty = false;
 
 		QVector<QTextLayout::FormatRange> ranges;
