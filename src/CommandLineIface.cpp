@@ -3,10 +3,9 @@
 
 #include <array>
 
-CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent)
+CommandLineIface::CommandLineIface(QObject * parent)
 : QObject(parent)
 , eventLoop_(this)
-, parser_(parser)
 , models_(this)
 , settings_(this)
 , translator_(new MarianInterface(this))
@@ -17,34 +16,34 @@ CommandLineIface::CommandLineIface(QCommandLineParser& parser, QObject * parent)
     connect(translator_, &MarianInterface::translationReady, this, &CommandLineIface::outputTranslation);
 }
 
-int CommandLineIface::run() {
-    if (parser_.isSet("l")) {
+int CommandLineIface::run(QCommandLineParser const &parser) {
+    if (parser.isSet("l")) {
         printLocalModels();
         return 0;
-    } else if (parser_.isSet("m")) {
+    } else if (parser.isSet("m")) {
         // Open file as input stream if necessary
-        if (parser_.isSet("i")) {
-            infile_.setFileName(parser_.value("i"));
+        if (parser.isSet("i")) {
+            infile_.setFileName(parser.value("i"));
             if (infile_.open(QIODevice::ReadOnly)) {
                 instream_.setDevice(&infile_);
             } else {
-                qCritical() << "Couldn't open input file:" + parser_.value("i");
+                qCritical() << "Couldn't open input file:" + parser.value("i");
                 return 3;
             }
         }
 
         // Same, but output stream
-        if (parser_.isSet("o")) {
-            outfile_.setFileName(parser_.value("o"));
+        if (parser.isSet("o")) {
+            outfile_.setFileName(parser.value("o"));
             if (outfile_.open(QIODevice::WriteOnly)) {
                 outstream_.setDevice(&outfile_);
             } else {
-                qCritical() << "Couldn't open output file:" + parser_.value("o");
+                qCritical() << "Couldn't open output file:" + parser.value("o");
                 return 4;
             }
         }
 
-        QString model_shortname = parser_.value("model");
+        QString model_shortname = parser.value("model");
 
         // Try to find our model in the list of models
         QString modelpath;

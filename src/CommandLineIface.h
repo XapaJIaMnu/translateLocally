@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QTextStream>
 #include <QCommandLineParser>
-#include <QPointer>
 #include <QEventLoop>
 #include "ModelManager.h"
 #include "Settings.h"
@@ -14,8 +13,6 @@
 class CommandLineIface : public QObject {
     Q_OBJECT
 private:
-    const QCommandLineParser& parser_;
-
     ModelManager models_;
     
     // Settings and translator:
@@ -39,8 +36,8 @@ private:
     inline QString &fetchData(QString &);
 
 public:
-    CommandLineIface(QCommandLineParser&, QObject * parent = nullptr);
-    int run();
+    explicit CommandLineIface(QObject * parent = nullptr);
+    int run(QCommandLineParser const &);
 
 private slots:
     void outputError(QString error);
