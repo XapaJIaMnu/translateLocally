@@ -22,6 +22,7 @@
 #include "logo/logo_svg.h"
 #include <iostream>
 #include <QScrollBar>
+#include <QMessageBox>
 
 namespace {
     void addDisabledItem(QComboBox *combobox, QString label) {
@@ -236,6 +237,24 @@ MainWindow::MainWindow(QWidget *parent)
     }, Qt::QueuedConnection);
 }
 
+void MainWindow::showEvent(QShowEvent *ev) {
+    // Once everything is connected, put in first run dialog here
+    QMainWindow::showEvent(ev);
+    QMetaObject::invokeMethod(this, &MainWindow::showFirstRunHelper, Qt::ConnectionType::QueuedConnection);
+}
+
+void MainWindow::showFirstRunHelper() {
+    if (models_.getInstalledModels().isEmpty()) {
+        QMessageBox firstRun(QMessageBox::NoIcon, tr("First run"),
+                               tr("It looks like this is the first time you run translateLocally and you have no translation models installed.\n\nWould you like to connect to the Internet to see a list of available translation models?"),
+                               QMessageBox::Ok | QMessageBox::Cancel, this);
+        int ret = firstRun.exec();
+        if (ret == QMessageBox::Ok) {
+            models_.fetchRemoteModels();
+        }
+    }
+}
+
 MainWindow::~MainWindow() {
     settings_.windowGeometry.setValue(saveGeometry());
     delete ui_;
@@ -391,9 +410,10 @@ void MainWindow::translate(QString const &text) {
     ui_->translateButton->setEnabled(false);
     if (translator_->model().isEmpty()) {
         if (models_.getInstalledModels().isEmpty()) {
-            popupError(tr("You need to download a translation model first. You can do that through the drop down menu on top."));
-        } else {
+            showFirstRunHelper();
+        } else { // TBH I am not sure how we can ever end up in the else branch but better to have it.
             popupError(tr("You need to pick a translation model first. You can do that through the drop down menu on top."));
+            ui_->localModels->showPopup(); // Makes it a bit more intuitive for the user to know what to do
         }
     } else {
         translator_->translate(text);
