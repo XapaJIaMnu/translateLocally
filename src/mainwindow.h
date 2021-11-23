@@ -70,7 +70,11 @@ private slots:
 
 protected: // We use this for first run dialog
     void showEvent(QShowEvent *ev);
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+    Q_INVOKABLE void showFirstRunHelper();
+#else
     void showFirstRunHelper();
+#endif
 
 private:
     Ui::MainWindow * ui_; // Sadly QTCreator can't do its job if Ui::MainWindow is wrapped inside a smart ptr, so raw pointer it is

@@ -240,7 +240,11 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::showEvent(QShowEvent *ev) {
     // Once everything is connected, put in first run dialog here
     QMainWindow::showEvent(ev);
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+    QMetaObject::invokeMethod(this, "showFirstRunHelper", Qt::ConnectionType::QueuedConnection);
+#else
     QMetaObject::invokeMethod(this, &MainWindow::showFirstRunHelper, Qt::ConnectionType::QueuedConnection);
+#endif
 }
 
 void MainWindow::showFirstRunHelper() {
