@@ -250,7 +250,9 @@ void MainWindow::showEvent(QShowEvent *ev) {
 void MainWindow::showFirstRunHelper() {
     if (models_.getInstalledModels().isEmpty()) {
         QMessageBox firstRun(QMessageBox::NoIcon, tr("First run"),
-                               tr("It looks like this is the first time you run translateLocally and you have no translation models installed.\n\nWould you like to connect to the Internet to see a list of available translation models?"),
+                               tr("Wellcome to translateLocally, our privacy focussed machine translation service!\n\n\
+It looks like you don't have any translation models currently installed.\n\n\
+Would you like to connect to the Internet to see a list of available translation models?"),
                                QMessageBox::Ok | QMessageBox::Cancel, this);
         int ret = firstRun.exec();
         if (ret == QMessageBox::Ok) {
