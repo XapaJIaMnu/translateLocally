@@ -175,7 +175,7 @@ MainWindow::MainWindow(QWidget *parent)
             highlighter_ = new AlignmentHighlighter(this);
             highlighter_->setColor(settings_.alignmentColor());
             on_inputBox_cursorPositionChanged(); // trigger first highlight pass
-        } else {
+        } else if (highlighter_) {
             highlighter_->deleteLater(); // Give it time to clean up old highlights
             highlighter_.clear(); // (note: deleteLater() would have done this as well, eventually)
         }
