@@ -196,7 +196,7 @@ void CommandLineIface::downloadRemoteModel(QString modelID) {
     // Download the new model. Use eventloop again to prevent premature exit before download is finished
     connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
-        std::cout << "\nModel downloaded succesffully! You can now invoke it with -m " << modelID.toStdString() << std::endl;
+        std::cout << "\nModel downloaded successfully! You can now invoke it with -m " << modelID.toStdString() << std::endl;
         models_.writeModel(file, filename);
         eventLoop_.exit();
     });
