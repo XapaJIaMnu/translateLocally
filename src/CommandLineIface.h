@@ -10,14 +10,16 @@
 #include "Settings.h"
 #include "MarianInterface.h"
 #include "Translation.h"
+#include "Network.h"
 
 class CommandLineIface : public QObject {
     Q_OBJECT
 private:
     ModelManager models_;
     
-    // Settings and translator:
+    // Settings, network and translator:
     Settings settings_;
+    Network network_;
     QPointer<MarianInterface> translator_;
 
     // Event loop that would wait until translation completes
@@ -34,6 +36,7 @@ private:
     // Functions
     void printLocalModels();
     void doTranslation();
+    void downloadRemoteModel(QString modelID);
     inline QString &fetchData(QString &);
 
 public:
@@ -43,6 +46,7 @@ public:
 private slots:
     void outputError(QString error);
     void outputTranslation(Translation output);
+    void printRemoteModels();
 };
 
 #endif // COMMANDLINEIFACE_H

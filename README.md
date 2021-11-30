@@ -20,18 +20,53 @@ Usage: ./translateLocally [options]
 A secure translation service that performs translations for you locally, on your own machine.
 
 Options:
-  -h, --help             Displays help on commandline options.
-  --help-all             Displays help including Qt specific options.
-  -v, --version          Displays version information.
-  -l, --list-models      List available models.
-  -m, --model <model>    Select model for translation.
-  -i, --input <input>    Source translation text (or just used stdin).
-  -o, --output <output>  Target translation output (or just used stdout).
+  -h, --help                     Displays help on commandline options.
+  --help-all                     Displays help including Qt specific options.
+  -v, --version                  Displays version information.
+  -l, --list-models              List locally installed models.
+  -a, --available-models         Connect to the Internet and list available
+                                 models. Only shows models that are NOT
+                                 installed locally or have a new version
+                                 available online.
+  -d, --download-model <output>  Connect to the Internet and download a model.
+  -r, --remove-model <output>    Remove a model from the local machine. Only
+                                 works for models managed with translateLocally.
+  -m, --model <model>            Select model for translation.
+  -i, --input <input>            Source translation text (or just used stdin).
+  -o, --output <output>          Target translation output (or just used
+                                 stdout).
+```
+
+### Downloading models from CLI
+Models can be downloaded from the GUI or the CLI. For the CLI model management you need to:
+```bash
+$ ./translateLocally -a
+Czech-English type: base version: 1; To download do -d cs-en-base
+German-English type: base version: 2; To download do -d de-en-base
+English-Czech type: base version: 1; To download do -d en-cs-base
+English-German type: base version: 2; To download do -d en-de-base
+English-Estonian type: tiny version: 1; To download do -d en-et-tiny
+Estonian-English type: tiny version: 1; To download do -d et-en-tiny
+Icelandic-English type: tiny version: 1; To download do -d is-en-tiny
+Norwegian (Bokmal)-English type: tiny version: 1; To download do -d nb-en-tiny
+Norwegian (Nynorsk)-English type: tiny version: 1; To download do -d nn-en-tiny
+
+$ ./translateLocally -d en-et-tiny
+Downloading English-Estonian type: tiny...
+100% [############################################################]
+Model downloaded succesffully! You can now invoke it with -m en-et-tiny
+```
+
+### Removing models from the CLI
+Models can be removed from the GUI or the CLI. For the CLI model removal, you need to:
+```bash
+./translateLocally -r en-et-tiny
+Model English-Estonian type tiny successfully removed.
 ```
 
 ### Listing available models
-The user needs to download the model and customise the translator settings from the GUI. Then, the avialble models can be listed with `-l`
-```
+The user needs to download the model and customise the translator settings from the GUI or from the command line. Then, the avialble models can be listed with `-l`
+```bash
 ./translateLocally -l
 Czech-English type: tiny version: 1; To invoke do -m cs-en-tiny
 German-English type: tiny version: 2; To invoke do -m de-en-tiny
@@ -42,21 +77,40 @@ Spanish-English type: tiny version: 1; To invoke do -m es-en-tiny
 ```
 
 ### Translating a single sentence
-```
+```bash
 echo "Me gustaria comprar la casa verde" | ./translateLocally -m es-en-tiny
 ```
 
 ### Translating a whole dataset
-```
+```bash
 sacrebleu -t wmt13 -l en-es --echo ref > /tmp/es.in
 ./translateLocally -m es-en-tiny -i /tmp/es.in -o /tmp/en.out
 ```
 
 ### Pivoting and piping
 The command line interface can be used to chain several translation models to achieve pivot translation, for example Spanish to German.
-```
+```bash
 sacrebleu -t wmt13 -l en-es --echo ref > /tmp/es.in
 cat /tmp/es.in | ./translateLocally -m es-en-tiny | ./translateLocally -m en-de-tiny -o /tmp/de.out
+```
+
+### Using in an environment without a running display server
+translateLocally is built on top of QT, with modules linked in such a way that a display server required in order for the program to start, even if we only use the command line interface, resulting in an error like:
+```bash
+$ ./translateLocally --version
+loaded library "/opt/conda/plugins/platforms/libqxcb.so"
+qt.qpa.xcb: could not connect to display
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: eglfs, minimal, minimalegl, offscreen, vnc, webgl, xcb.
+
+Aborted
+```
+To get around this, we can use `xvfb`
+```bash
+xvfb-run --auto-servernum ./translateLocally --version
+translateLocally v0.0.2+a603422
 ```
 
 
