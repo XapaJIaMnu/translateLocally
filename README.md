@@ -65,7 +65,7 @@ Model English-Estonian type tiny successfully removed.
 ```
 
 ### Listing available models
-The user needs to download the model and customise the translator settings from the GUI or from the command line. Then, the avialble models can be listed with `-l`
+The avialble models can be listed with `-l`
 ```bash
 ./translateLocally -l
 Czech-English type: tiny version: 1; To invoke do -m cs-en-tiny
@@ -77,6 +77,7 @@ Spanish-English type: tiny version: 1; To invoke do -m es-en-tiny
 ```
 
 ### Translating a single sentence
+Note that customising the translator settings can only be done via the GUI.
 ```bash
 echo "Me gustaria comprar la casa verde" | ./translateLocally -m es-en-tiny
 ```
