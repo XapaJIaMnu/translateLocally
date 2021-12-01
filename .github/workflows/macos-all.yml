@@ -75,6 +75,11 @@ jobs:
           mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
           ls *.dmg
 
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.dmg
+        path: translateLocally.*.dmg
+
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:
     #      repo_token: "${{ secrets.GITHUB_TOKEN }}"
