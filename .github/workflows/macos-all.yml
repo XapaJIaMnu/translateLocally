@@ -62,11 +62,11 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ${{ env.ccache_dir }}
-        key: ccache-${{ matrix.identifier }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
+        key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
         restore-keys: |-
-          ccache-${{ matrix.identifier }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
-          ccache-${{ matrix.identifier }}-${{ steps.ccache_vars.outputs.hash }}
-          ccache-${{ matrix.identifier }}
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
+          ccache-${{ matrix.os }}
     
     - name: ccache environment setup
       run: |-
