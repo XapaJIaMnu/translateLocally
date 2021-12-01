@@ -108,12 +108,17 @@ Available platform plugins are: eglfs, minimal, minimalegl, offscreen, vnc, webg
 
 Aborted
 ```
-To get around this, we can use `xvfb`
+To get around this, we can use set `QT_QPA_PLATFORM=offscreen` if we have the `offscreen` plugin:
+```bash
+QT_QPA_PLATFORM=offscreen ./translateLocally --version
+translateLocally v0.0.2+a603422
+```
+OR use `xvfb` to emulate a server.
 ```bash
 xvfb-run --auto-servernum ./translateLocally --version
 translateLocally v0.0.2+a603422
 ```
-
+Note that this issue only occurs on Linux, as Windows and Mac (at least to my knowledge) always have an active display even in remote sessions.
 
 # Acnowledgements
 <img src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" data-canonical-src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" width=10% />
