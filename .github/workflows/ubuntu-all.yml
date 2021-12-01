@@ -11,6 +11,13 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  ccache_basedir: ${{ github.workspace }}
+  ccache_dir: "${{ github.workspace }}/.ccache"
+  ccache_compilercheck: content
+  ccache_compress: 'true'
+  ccache_compresslevel: 9
+  ccache_maxsize: 200M
+  ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
 
 jobs:
   build-ubuntu:
