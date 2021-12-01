@@ -61,7 +61,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE -j3
+      run: cmake --build . --config $BUILD_TYPE -j3 --target translateLocally-bin translateLocally.dmg
 
     - name: Output test # @TODO some more complicated test, perhaps a unit test
       working-directory: ${{github.workspace}}/build
