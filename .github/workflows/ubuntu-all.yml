@@ -81,6 +81,11 @@ jobs:
         ls deb/*.deb
         dpkg -I deb/*.deb
 
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.deb
+        path: deb/*.deb
+
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:
     #      repo_token: "${{ secrets.GITHUB_TOKEN }}"
