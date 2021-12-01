@@ -125,7 +125,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: translateLocally.dmg
-        path: translateLocally.*.dmg
+        path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:

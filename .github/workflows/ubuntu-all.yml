@@ -84,7 +84,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: translateLocally.deb
-        path: deb/*.deb
+        path: ${{github.workspace}}/build/deb/*.deb
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:
