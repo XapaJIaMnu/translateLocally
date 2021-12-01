@@ -1,6 +1,12 @@
 name: macOS-{10.15-11.0}
 
-on: [pull_request]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - '**'
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
