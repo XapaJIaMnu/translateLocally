@@ -13,7 +13,7 @@ set(APPLE_DEVELOPER_ID "" CACHE STRING "Apple Developer ID used for notarization
 # Add commands that copy the required Qt files to the application bundle
 # represented by the target
 function(macdeployqt target)
-    if (DEFINED APPLE_DEVELOPER_ID)
+    if (APPLE_DEVELOPER_ID)
         add_custom_target(${target}.dmg
             DEPENDS ${target}
             BYPRODUCTS ${target}.app
