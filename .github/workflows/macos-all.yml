@@ -11,6 +11,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  qt_version: "6.2.1"
   ccache_basedir: ${{ github.workspace }}
   ccache_dir: "${{ github.workspace }}/.ccache"
   ccache_compilercheck: content
@@ -42,7 +43,21 @@ jobs:
     - name: Dependencies  # This qt6 build and we suppose apple accelerate was installed, but we can use openblas as a fallback until this is merged.
       run: | 
            brew update
-           brew install protobuf coreutils qt libarchive openblas ccache
+           brew install protobuf coreutils libarchive openblas ccache
+
+    - name: Cache Qt
+      id: cache-qt
+      uses: actions/cache@v2
+      with:
+        path: "${{ github.workspace }}/qt/"
+        key: qt-${{ runner.os }}-${{ env.qt_version }}
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v2
+      with:
+        cached: ${{ steps.cache-qt.outputs.cache-hit }}
+        version: ${{ env.qt_version }}
+        dir: "${{ github.workspace }}/qt/"
     
     # Openblas location is exported explicitly because openblas is keg-only,
     # which means it was not symlinked into /usr/local/.
@@ -87,10 +102,6 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: cmake -E make_directory ${{github.workspace}}/build
 
-    - name: "Fix for macdeployqt (see #69)"
-      shell: bash
-      run: ln -s $(brew --prefix qt)/lib ${{github.workspace}}/build/lib
-
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -124,7 +135,7 @@ jobs:
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.dmg
+        name: translateLocally.${{ matrix.os }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
