@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: "${{ github.workspace }}/qt/"
-        key: qt-${{ runner.os }}-${{ env.qt_version }}
+        key: qt-${{ matrix.os }}-${{ env.qt_version }}
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v2
