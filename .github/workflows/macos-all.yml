@@ -43,7 +43,7 @@ jobs:
     - name: Dependencies  # This qt6 build and we suppose apple accelerate was installed, but we can use openblas as a fallback until this is merged.
       run: | 
            brew update
-           brew install protobuf coreutils libarchive openblas ccache
+           brew install protobuf coreutils libarchive ccache
 
     - name: Cache Qt
       id: cache-qt
@@ -59,13 +59,6 @@ jobs:
         version: ${{ env.qt_version }}
         dir: "${{ github.workspace }}/qt/"
     
-    # Openblas location is exported explicitly because openblas is keg-only,
-    # which means it was not symlinked into /usr/local/.
-    - name: Set BLAS Environment variables
-      run: |
-          echo "LDFLAGS=-L/usr/local/opt/openblas/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/usr/local/opt/openblas/include" >> $GITHUB_ENV
-
     - name: Generate ccache_vars for ccache based on machine
       shell: bash
       id: ccache_vars
@@ -110,7 +103,9 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ env.ccache_cmake }}
+      run: |-
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
       working-directory: ${{github.workspace}}/build
