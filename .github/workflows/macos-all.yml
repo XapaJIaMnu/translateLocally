@@ -131,7 +131,7 @@ jobs:
           APPLE_PST: ${{ secrets.NOTARIZE_PST }}
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
       run: |
-            echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+            echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
             security create-keychain -p 1234asdf build.keychain security default-keychain -s build.keychain
             security unlock-keychain -p 1234asdf build.keychain
             security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
