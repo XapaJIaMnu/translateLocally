@@ -124,6 +124,12 @@ jobs:
     - name: Produce DMG and Sign # This overrides the previous dmg
       working-directory: ${{github.workspace}}/build
       shell: bash
+      env: 
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PST: ${{ secrets.NOTARIZE_PST }}
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
       run: ../dist/macdmg.sh ${{github.workspace}}/build
 
     - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
@@ -131,12 +137,12 @@ jobs:
       shell: bash
       run: |
           echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
-          mv translateLocally.dmg translateLocally."${{ env.arch }}".dmg
+          mv translateLocally.dmg translateLocally.${{ env.arch }}.dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.${{ matrix.os }}."${{ env.arch }}".dmg
+        name: translateLocally.${{ matrix.os }}.${{ env.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
