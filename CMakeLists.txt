@@ -263,7 +263,8 @@ if(APPLE) # Apple specific installation of the app
   # When on MacOS, we have a non-standard libarchive location because we get it via brew
   target_include_directories(translateLocally-bin PRIVATE ${LibArchive_INCLUDE_DIR})
   target_include_directories(translateLocally PRIVATE ${LibArchive_INCLUDE_DIR})
-  # produce .dmg
+  # produce .dmg This requires custom target due to https://gitlab.kitware.com/cmake/cmake/-/issues/16270
+  # use dist/macdmg.sh to sign and notarize
   include(macdeployqt)
   macdeployqt(translateLocally)
 endif(APPLE)
