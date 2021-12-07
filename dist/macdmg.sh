@@ -6,7 +6,7 @@ MY_APPLE_ID=""
 MY_APPLE_PST=""
 PATH_TO_BUILD_DIR=$1
 
-if [[ ! -f ${PATH_TO_BUILD_DIR}/translateLocally.app ]]
+if [[ ! -d ${PATH_TO_BUILD_DIR}/translateLocally.app ]]
 then
 	echo "translateLocally.app not found in the path provided: ${PATH_TO_BUILD_DIR} . Please provide the path to the build directory."
 	exit 1

@@ -124,9 +124,7 @@ jobs:
     - name: Produce DMG and Sign # This overrides the previous dmg
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: |
-           ls ${{github.workspace}}/build # Check what we have
-           ../dist/macdmg.sh ${{github.workspace}}/build
+      run: ../dist/macdmg.sh ${{github.workspace}}/build
 
     - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
       working-directory: ${{github.workspace}}/build
