@@ -130,12 +130,13 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
-          mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
+          echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
+          mv translateLocally.dmg translateLocally."${{ env.arch }}".dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.${{ matrix.os }}.dmg
+        name: translateLocally.${{ matrix.os }}."${{ env.arch }}".dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
