@@ -121,10 +121,11 @@ jobs:
         cpack
         ls deb/*.deb
         dpkg -I deb/*.deb
+        echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV # Record the arch for future use
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.deb
+        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
