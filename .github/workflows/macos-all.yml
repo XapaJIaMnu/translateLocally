@@ -134,7 +134,8 @@ jobs:
             security delete-keychain my.new.keychain # If it exists maybe delete it?
             echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
             echo `security list-keychains`
-            security create-keychain -p 1234asdf my.new.keychain security default-keychain -s my.new.keychain
+            security create-keychain -p 1234asdf my.new.keychain
+            security default-keychain -s my.new.keychain
             echo `security list-keychains`
             security unlock-keychain -p 1234asdf my.new.keychain
             security import certificate.p12 -k my.new.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
