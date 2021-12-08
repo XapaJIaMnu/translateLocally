@@ -132,14 +132,11 @@ jobs:
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
       run: |
             echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-            echo `security list-keychains`
             security create-keychain -p 1234asdf my.new.keychain
             security default-keychain -s my.new.keychain
-            echo `security list-keychains`
             security unlock-keychain -p 1234asdf my.new.keychain
             security import certificate.p12 -k my.new.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 1234asdf my.new.keychain
-            echo `security list-keychains`
             ../dist/macdmg.sh ${{github.workspace}}/build
 
     - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
@@ -147,12 +144,12 @@ jobs:
       shell: bash
       run: |
           echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
-          mv translateLocally.dmg translateLocally.${{ env.arch }}.dmg
+          mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.${{ matrix.os }}.${{ env.arch }}.dmg
+        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
