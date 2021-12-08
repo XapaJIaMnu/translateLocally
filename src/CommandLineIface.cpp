@@ -1,11 +1,36 @@
 #include "CommandLineIface.h"
 #include <QFile>
+#include <QProcessEnvironment>
 
 #include <array>
 
 // Progress bar taken from https://stackoverflow.com/questions/14539867/how-to-display-a-progress-indicator-in-pure-c-c-cout-printf
 #define PBSTR "############################################################"
 #define PBWIDTH 60
+
+namespace {
+    void checkAppleSandbox(QCommandLineParser const &parser) {
+        QProcessEnvironment env(QProcessEnvironment::systemEnvironment());
+        if (!env.contains("APP_SANDBOX_CONTAINER_ID"))
+            return;
+
+        QString command("translateLocally");
+
+        if (parser.isSet("m"))
+            command += QString(" -m %1").arg(parser.value("m"));
+
+        if (parser.isSet("i"))
+            command += QString(" < %1").arg(parser.value("i"));
+
+        if (parser.isSet("o"))
+            command += QString(" > %1").arg(parser.value("o"));
+
+        qCritical().noquote().nospace() << "Hint: "
+          << "Files might not be accessible by translateLocally because it is running inside Apple's sandbox. "
+          << "Try piping the file into translateLocally:\n"
+          << "\n  " << command << "\n";
+    }
+}
 
 CommandLineIface::CommandLineIface(QObject * parent)
 : QObject(parent)
@@ -65,6 +90,7 @@ int CommandLineIface::run(QCommandLineParser const &parser) {
             if (infile_.open(QIODevice::ReadOnly)) {
                 instream_.setDevice(&infile_);
             } else {
+                checkAppleSandbox(parser);
                 qCritical() << "Couldn't open input file:" + parser.value("i");
                 return 3;
             }
@@ -76,6 +102,7 @@ int CommandLineIface::run(QCommandLineParser const &parser) {
             if (outfile_.open(QIODevice::WriteOnly)) {
                 outstream_.setDevice(&outfile_);
             } else {
+                checkAppleSandbox(parser);
                 qCritical() << "Couldn't open output file:" + parser.value("o");
                 return 4;
             }
