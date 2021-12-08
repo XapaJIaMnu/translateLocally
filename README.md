@@ -88,6 +88,11 @@ sacrebleu -t wmt13 -l en-es --echo ref > /tmp/es.in
 ./translateLocally -m es-en-tiny -i /tmp/es.in -o /tmp/en.out
 ```
 
+Note that if you are using the macOS translateLocally.app version, the `-i` and `-o` options are not able to read most files. You can use pipes instead, e.g.
+```bash
+translateLocally.app/Contents/MacOS/translateLocally -m es-en-tiny < input.txt > output.txt
+```
+
 ### Pivoting and piping
 The command line interface can be used to chain several translation models to achieve pivot translation, for example Spanish to German.
 ```bash
@@ -120,7 +125,7 @@ translateLocally v0.0.2+a603422
 ```
 Note that this issue only occurs on Linux, as Windows and Mac (at least to my knowledge) always have an active display even in remote sessions.
 
-# Acnowledgements
+# Acknowledgements
 <img src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" data-canonical-src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" width=10% />
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 825303.
