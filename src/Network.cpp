@@ -35,7 +35,7 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
     auto hasher = QSharedPointer<QCryptographicHash>::create(algorithm);
     
     // While chunks come in, write them to the temp file
-    connect(reply, &QIODevice::readyRead, [=] {
+    connect(reply, &QIODevice::readyRead, this, [=] {
         QByteArray buffer = reply->readAll();
 
         if (dest->write(buffer) == -1) {
@@ -47,7 +47,7 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
     });
 
     // When finished, emit downloadComplete(QFile*,QString)
-    connect(reply, &QNetworkReply::finished, [=] {
+    connect(reply, &QNetworkReply::finished, this, [=] {
         switch (reply->error()) {
             case QNetworkReply::NoError: // Success
                 dest->flush(); // Flush the last downloaded data
