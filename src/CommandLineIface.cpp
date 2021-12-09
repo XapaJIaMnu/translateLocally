@@ -20,10 +20,10 @@ namespace {
             command += QString(" -m %1").arg(parser.value("m"));
 
         if (parser.isSet("i"))
-            command += QString(" < %1").arg(parser.value("i"));
+            command += QString(" < \"%1\"").arg(parser.value("i"));
 
         if (parser.isSet("o"))
-            command += QString(" > %1").arg(parser.value("o"));
+            command += QString(" > \"%1\"").arg(parser.value("o"));
 
         qCritical().noquote().nospace() << "Hint: "
           << "Files might not be accessible by translateLocally because it is running inside Apple's sandbox. "
