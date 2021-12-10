@@ -1,10 +1,24 @@
 name: macOS-{10.15-11.0}
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - '**'
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  qt_version: "6.2.1"
+  ccache_basedir: ${{ github.workspace }}
+  ccache_dir: "${{ github.workspace }}/.ccache"
+  ccache_compilercheck: content
+  ccache_compress: 'true'
+  ccache_compresslevel: 9
+  ccache_maxsize: 200M
+  ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
 
 jobs:
   build-macos:
@@ -29,19 +43,53 @@ jobs:
     - name: Dependencies  # This qt6 build and we suppose apple accelerate was installed, but we can use openblas as a fallback until this is merged.
       run: | 
            brew update
-           brew install protobuf coreutils qt libarchive openblas
-    
-    # Openblas location is exported explicitly because openblas is keg-only,
-    # which means it was not symlinked into /usr/local/.
-    - name: Set BLAS Environment variables
-      run: |
-          echo "LDFLAGS=-L/usr/local/opt/openblas/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/usr/local/opt/openblas/include" >> $GITHUB_ENV
-    
-    - name: Work aroudn qt6 bug # https://github.com/Homebrew/homebrew-core/issues/73019 https://bugreports.qt.io/browse/QTBUG-91644
-      run: sudo ln -s $(brew --prefix qt)/share/qt/plugins /usr/local/plugins
-      
+           brew install protobuf coreutils libarchive ccache
 
+    - name: Cache Qt
+      id: cache-qt
+      uses: actions/cache@v2
+      with:
+        path: "${{ github.workspace }}/qt/"
+        key: qt-${{ matrix.os }}-${{ env.qt_version }}
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v2
+      with:
+        cached: ${{ steps.cache-qt.outputs.cache-hit }}
+        version: ${{ env.qt_version }}
+        dir: "${{ github.workspace }}/qt/"
+    
+    - name: Generate ccache_vars for ccache based on machine
+      shell: bash
+      id: ccache_vars
+      run: |-
+        echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
+        echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
+    
+    - name: Cache-op for build-cache through ccache
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.ccache_dir }}
+        key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
+        restore-keys: |-
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
+          ccache-${{ matrix.os }}
+    
+    - name: ccache environment setup
+      run: |-
+        echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
+        echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
+        echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
+        echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
+        echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
+        echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
+    
+    - name: ccache prolog
+      run: |-
+        ccache -s # Print current cache stats
+        ccache -z # Zero cache entry
+    
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
@@ -55,25 +103,54 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: |-
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
       working-directory: ${{github.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE -j3
+      run: cmake --build . --config $BUILD_TYPE -j3 --target translateLocally-bin translateLocally.dmg
 
+    - name: ccache epilog
+      run: 'ccache -s # Print current cache stats'
+    
     - name: Output test # @TODO some more complicated test, perhaps a unit test
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: ./translateLocally --version
 
+    - name: Produce DMG and Sign # This overrides the previous dmg # We follow https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions
+      working-directory: ${{github.workspace}}/build               # it should be secure as those can't leak unless we accept a PR with a bad workflow.
+      shell: bash
+      env: 
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PST: ${{ secrets.NOTARIZE_PST }}
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+      run: |
+            echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+            security create-keychain -p 1234asdf my.new.keychain
+            security default-keychain -s my.new.keychain
+            security unlock-keychain -p 1234asdf my.new.keychain
+            security import certificate.p12 -k my.new.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 1234asdf my.new.keychain
+            ../dist/macdmg.sh ${{github.workspace}}/build
+
     - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
+          echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
           mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
           ls *.dmg
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
+        path: ${{github.workspace}}/build/translateLocally.*.dmg
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:
