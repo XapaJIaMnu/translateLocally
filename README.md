@@ -12,6 +12,27 @@ make -j5
 
 Requires `QT>=5 libarchive intel-mkl-static`. We make use of the `QT>=5 network`, `QT>=5 linguisticTool` and `QT>=5 svg` components. Depending on your distro, those may be split in separate package from your QT package (Eg `qt{6/7}-tools-dev`; `qt{5/6}-svg` or `libqt5svg5-dev`). QT6 is fully supported and its use is encouraged. `intel-mkl-static` may be part of `mkl` or `intel-mkl` packages.
 
+## MacOS Build
+On MacOS, translateLocally doesn't rely on MKL, but instead on Apple accelerate. To produce a `.dmg`do:
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build . -j3 --target translateLocally-bin translateLocally.dmg
+```
+Alternatively, if you wish to sign and notarize the `.dmg`for distribution, you may use [macdmg.sh](dist/macdmg.sh)
+```bash
+mkdir build
+cd build
+cmake ..
+make -j5
+../dist/macdmg.sh .
+```
+Check the script for the environment variables that you need to set if you want to take advantage of signing and notarization.
+
+## Windows Build
+On Windows, we recommend using [vcpkg](https://github.com/Microsoft/vcpkg) to install all necessary packages and Visual Studio to perform the build.
+
 ## Command line interface
 translateLocally supports using the command line to perform translations. Example usage:
 ```bash
