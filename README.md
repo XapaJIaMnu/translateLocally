@@ -13,7 +13,7 @@ make -j5
 Requires `QT>=5 libarchive intel-mkl-static`. We make use of the `QT>=5 network`, `QT>=5 linguisticTool` and `QT>=5 svg` components. Depending on your distro, those may be split in separate package from your QT package (Eg `qt{6/7}-tools-dev`; `qt{5/6}-svg` or `libqt5svg5-dev`). QT6 is fully supported and its use is encouraged. `intel-mkl-static` may be part of `mkl` or `intel-mkl` packages.
 
 ## MacOS Build
-On MacOS, translateLocally doesn't rely on MKL, but instead on Apple accelerate. To produce a `.dmg`do:
+On MacOS, translateLocally doesn't rely on MKL, but instead on Apple accelerate. If you want to build a portable executable that is able to run on multiple machines, we recommend using Qt's distribution of Qt, as opposed to homebrew's due to issues with [macdeployqt](https://github.com/XapaJIaMnu/translateLocally/issues/69). To produce a `.dmg`do:
 ```bash
 mkdir build
 cd build
