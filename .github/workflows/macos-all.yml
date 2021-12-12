@@ -151,6 +151,20 @@ jobs:
       with:
         name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
+        
+    # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+
+    - name: Update GitHub prerelease
+      if: ${{ github.ref == 'refs/heads/master' }}
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        automatic_release_tag: latest
+        prerelease: true
+        title: "Latest Build"
+        files: "*.dmg *.deb"
 
     #- uses: "marvinpinto/action-automatic-releases@latest"
     #  with:
