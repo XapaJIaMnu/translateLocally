@@ -151,20 +151,6 @@ jobs:
       with:
         name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
-        
-    # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
-    - name: Download artifacts
-      uses: actions/download-artifact@v2
-
-    - name: Update GitHub prerelease
-      if: ${{ github.ref == 'refs/heads/master' }}
-      uses: marvinpinto/action-automatic-releases@latest
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        automatic_release_tag: latest
-        prerelease: true
-        title: "Latest Build"
-        files: "*.dmg *.deb"
 
   build-ubuntu:
     strategy:
@@ -274,6 +260,7 @@ jobs:
         name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
 
+  # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
   release:
     name: Release build
     runs-on: ubuntu-latest
@@ -290,4 +277,4 @@ jobs:
          automatic_release_tag: latest
          prerelease: true
          title: "Latest Build"
-         files: "*.dmg *.deb"
+         files: "/home/runner/work/translateLocally/translateLocally/*.dmg /home/runner/work/translateLocally/translateLocally/*.deb"
