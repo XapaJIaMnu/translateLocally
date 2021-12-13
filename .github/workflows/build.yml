@@ -278,5 +278,5 @@ jobs:
          prerelease: true
          title: "Latest Build"
          files: |
-                /home/runner/work/translateLocally/translateLocally/*.dmg
-                /home/runner/work/translateLocally/translateLocally/*.deb
+                /home/runner/work/translateLocally/translateLocally/*.dmg/*.dmg
+                /home/runner/work/translateLocally/translateLocally/*.deb/*.deb
