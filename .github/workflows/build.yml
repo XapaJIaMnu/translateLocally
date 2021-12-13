@@ -277,4 +277,6 @@ jobs:
          automatic_release_tag: latest
          prerelease: true
          title: "Latest Build"
-         files: "/home/runner/work/translateLocally/translateLocally/*.dmg /home/runner/work/translateLocally/translateLocally/*.deb"
+         files: |
+                /home/runner/work/translateLocally/translateLocally/*.dmg
+                /home/runner/work/translateLocally/translateLocally/*.deb
