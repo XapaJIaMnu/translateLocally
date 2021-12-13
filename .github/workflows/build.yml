@@ -1,4 +1,4 @@
-name: macOS-{10.15-11.0}
+name: build
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  qt_version: "6.2.1"
+  qt_version: "6.2.1" # only used by build-macos
   ccache_basedir: ${{ github.workspace }}
   ccache_dir: "${{ github.workspace }}/.ccache"
   ccache_compilercheck: content
@@ -166,10 +166,126 @@ jobs:
         title: "Latest Build"
         files: "*.dmg *.deb"
 
-    #- uses: "marvinpinto/action-automatic-releases@latest"
-    #  with:
-    #      repo_token: "${{ secrets.GITHUB_TOKEN }}"
-    #      automatic_release_tag: "latest"
-    #      prerelease: true
-    #      title: "Development Build"
-    #      files: ${{github.workspace}}/build/*.dmg
+  build-ubuntu:
+    strategy:
+      matrix:
+        include:
+          # Ubuntu 18.04
+          - name: "Ubuntu 18.04"
+            os: ubuntu-18.04
+          # Ubuntu 20.04
+          - name: "Ubuntu 20.04"
+            os: ubuntu-20.04
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    
+    - name: Dependencies  # @TODO should also test qt6, but it's not present yet
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ccache
+      
+      # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
+    - name: Install MKL
+      run: |
+        wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB" | sudo apt-key add -
+        sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
+        sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
+        sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
+
+    - name: Generate ccache_vars for ccache based on machine
+      shell: bash
+      id: ccache_vars
+      run: |-
+        echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
+        echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
+    
+    - name: Cache-op for build-cache through ccache
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.ccache_dir }}
+        key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
+        restore-keys: |-
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
+          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
+          ccache-${{ matrix.os }}
+    
+    - name: ccache environment setup
+      run: |-
+        echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
+        echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
+        echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
+        echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
+        echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
+        echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
+    
+    - name: ccache prolog
+      run: |-
+        ccache -s # Print current cache stats
+        ccache -z # Zero cache entry
+    
+    - name: Create Build Environment
+      # Some projects don't allow in-source building, so create a separate build directory
+      # We'll use this as our working directory for all subsequent commands
+      run: cmake -E make_directory ${{github.workspace}}/build
+
+    - name: Configure CMake
+      # Use a bash shell so we can use the same syntax for environment variable
+      # access regardless of the host operating system
+      shell: bash
+      working-directory: ${{github.workspace}}/build
+      # Note the current convention is to use the -S and -B options here to specify source 
+      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --config $BUILD_TYPE -j2
+
+    - name: ccache epilog
+      run: 'ccache -s # Print current cache stats'
+    
+    - name: Output test # @TODO some more complicated test, perhaps a unit test
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: xvfb-run --auto-servernum ./translateLocally --version # Can't run normally due to not having X server set up
+
+    - name: Package # Produce a .deb file using cpack
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: |
+        cpack
+        ls deb/*.deb
+        dpkg -I deb/*.deb
+        echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV # Record the arch for future use
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.deb
+        path: ${{github.workspace}}/build/deb/*.deb
+
+  release:
+    needs: [build-macos, build-ubuntu]
+    if: github.ref == 'refs/heads/master'
+    steps:
+     - name: Download artifacts
+       uses: actions/download-artifact@v2
+
+     - name: Update GitHub prerelease
+       uses: marvinpinto/action-automatic-releases@latest
+       with:
+         repo_token: ${{ secrets.GITHUB_TOKEN }}
+         automatic_release_tag: latest
+         prerelease: true
+         title: "Latest Build"
+         files: "*.dmg *.deb"
