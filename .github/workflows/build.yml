@@ -144,7 +144,7 @@ jobs:
       shell: bash
       run: |
           echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
-          mv translateLocally.dmg translateLocally.`../dist/cpu_feature.sh`.dmg
+          mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ env.arch }}.dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
