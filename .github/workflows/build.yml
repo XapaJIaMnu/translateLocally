@@ -275,6 +275,8 @@ jobs:
         path: ${{github.workspace}}/build/deb/*.deb
 
   release:
+    name: Release build
+    runs-on: ubuntu-latest
     needs: [build-macos, build-ubuntu]
     if: github.ref == 'refs/heads/master'
     steps:
