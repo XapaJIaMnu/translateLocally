@@ -25,10 +25,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: "macOS Catalina 10.15"
+          - name: "macOS Catalina 10.15 avx"
             os: macos-10.15
-          - name: "macOS Big Sur 11.0"
+            arch: "core-avx-i"
+          - name: "macOS Big Sur 11.0 avx"
             os: macos-11.0
+            arch: "core-avx-i"
+          - name: "macOS Catalina 10.15 avx2"
+            os: macos-10.15
+            arch: "core-avx2"
+          - name: "macOS Big Sur 11.0 avx2"
+            os: macos-11.0
+            arch: "core-avx2"
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -104,7 +112,7 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |-
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
         cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
@@ -143,25 +151,30 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
-          echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
-          mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ env.arch }}.dmg
+          mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ matrix.arch }}.dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
   build-ubuntu:
     strategy:
       matrix:
         include:
-          # Ubuntu 18.04
-          - name: "Ubuntu 18.04"
+          - name: "Ubuntu 18.04 avx"
             os: ubuntu-18.04
-          # Ubuntu 20.04
-          - name: "Ubuntu 20.04"
+            arch: "core-avx-i"
+          - name: "Ubuntu 20.04 avx"
             os: ubuntu-20.04
+            arch: "core-avx-i"
+          - name: "Ubuntu 18.04 avx2"
+            os: ubuntu-18.04
+            arch: "core-avx2"
+          - name: "Ubuntu 20.04 avx2"
+            os: ubuntu-20.04
+            arch: "core-avx2"
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -230,7 +243,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -253,11 +266,10 @@ jobs:
         cpack
         ls deb/*.deb
         dpkg -I deb/*.deb
-        echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV # Record the arch for future use
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.deb
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
 
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
