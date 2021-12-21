@@ -335,16 +335,15 @@ jobs:
       env:
         cache-name: cache-vcpkg
       with:
-        path: ${{VCPKG_INSTALLATION_ROOT}} # included with the installation
+        path: C:\vcpkg # included with the installation
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/vcpkg.json') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-
           ${{ runner.os }}-build-
           ${{ runner.os }}-
     - name: Install dependencies with vcpkg
-      run: |
-        cd ${{VCPKG_INSTALLATION_ROOT}}
-        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
+      working-directory: C:\vcpkg
+      run: .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
       shell: cmd
       
     - name: Cache Qt
