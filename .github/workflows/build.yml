@@ -347,7 +347,7 @@ jobs:
         set(VCPKG_BUILD_TYPE release)
         set(VCPKG_DEFAULT_TRIPLET x64-windows-static)
         .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
-      shell: cmd
+      shell: powershell
       
     - name: Cache Qt
       id: cache-qt
@@ -367,10 +367,13 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: |
         mkdir build
+        ls
         cd build
+        ls
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
         cmake --build . --config $BUILD_TYPE -j3
         ls
+      shell: powershell
     
       
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
