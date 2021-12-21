@@ -21,6 +21,7 @@ env:
   ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
   MKL_URL: "https://romang.blob.core.windows.net/mariandev/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
   VCPKG_DEFAULT_TRIPLET: "x64-windows-static" # Used on Windows only
+  VCPKG_BUILD_TYPE: "release" # Used on windows
   
 
 jobs:
@@ -344,8 +345,8 @@ jobs:
     - name: Install dependencies with vcpkg
       working-directory: C:\vcpkg
       run: |
-        set(VCPKG_BUILD_TYPE release)
-        set(VCPKG_DEFAULT_TRIPLET x64-windows-static)
+        env:VCPKG_BUILD_TYPE='release'
+        env:VCPKG_DEFAULT_TRIPLET='x64-windows-static'
         .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
       shell: powershell
       
@@ -370,7 +371,7 @@ jobs:
         ls
         cd build
         ls
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
         cmake --build . --config $BUILD_TYPE -j3
         ls
       shell: powershell
