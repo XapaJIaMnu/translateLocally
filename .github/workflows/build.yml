@@ -125,6 +125,7 @@ jobs:
       run: 'ccache -s # Print current cache stats'
     
     - name: Output test # @TODO some more complicated test, perhaps a unit test
+      if: matrix.arch == "core-avx-i" #MacOS machines are avx so they can't run avx2 steps.
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: ./translateLocally --version
