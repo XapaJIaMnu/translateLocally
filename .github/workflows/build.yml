@@ -345,8 +345,8 @@ jobs:
     - name: Install dependencies with vcpkg
       working-directory: C:\vcpkg
       run: |
-        env:VCPKG_BUILD_TYPE='release'
-        env:VCPKG_DEFAULT_TRIPLET='x64-windows-static'
+        Env:VCPKG_BUILD_TYPE = 'release'
+        Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static'
         .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
       shell: powershell
       
