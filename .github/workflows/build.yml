@@ -343,7 +343,10 @@ jobs:
           ${{ runner.os }}-
     - name: Install dependencies with vcpkg
       working-directory: C:\vcpkg
-      run: .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
+      run: |
+        set(VCPKG_BUILD_TYPE release)
+        set(VCPKG_DEFAULT_TRIPLET x64-windows-static)
+        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
       shell: cmd
       
     - name: Cache Qt
@@ -363,6 +366,7 @@ jobs:
     - name: Build
       working-directory: ${{github.workspace}}/build
       run: |
+        mkdir build
         cd build
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
         cmake --build . --config $BUILD_TYPE -j3
