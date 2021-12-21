@@ -19,6 +19,9 @@ env:
   ccache_compresslevel: 9
   ccache_maxsize: 200M
   ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+  MKL_URL: "https://romang.blob.core.windows.net/mariandev/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
+  VCPKG_DEFAULT_TRIPLET: "x64-windows-static" # Used on Windows only
+  
 
 jobs:
   build-macos:
@@ -273,6 +276,100 @@ jobs:
         name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
 
+  build-windows:
+    strategy:
+      matrix:
+        include:
+          - name: "Windows 2019 avx"
+            os: windows-2019
+            arch: "core-avx-i"
+          - name: "Windows 2022 avx"
+            os: windows-2022
+            arch: "core-avx-i"
+          - name: "Windows 2019 avx2"
+            os: windows-2019
+            arch: "core-avx2"
+          - name: "Windows 2022 avx2"
+            os: windows-2022
+            arch: "core-avx2"
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        
+    - name: Download MKL
+      run: |
+        # Wget retries downloading files and is faster than Invoke-WebRequest
+        C:\msys64\usr\bin\wget.exe -nv ${{ env.MKL_URL }} -O mkl.zip
+        Expand-Archive -Force mkl.zip ${{ github.workspace }}\mkl
+        # Set MKLROOT environment variable so that CMake can find MKL
+        echo "MKLROOT=${{ github.workspace }}\mkl" | Out-File -FilePath $env:GITHUB_ENV  -Encoding utf8 -Append
+      shell: powershell
+      
+    #- name: Prepare vcpkg
+    #  uses: lukka/run-vcpkg@v10
+    #  with:
+        # vcpkgArguments: protobuf pcre2 zlib libarchive # outdated, we have to specify vcpkg.json. bleh
+   #     vcpkgGitCommitId: 0fd31b9dbb96e1ab86e0c9ee930790990a974bd3
+        
+    #- name: Prints output of run-vcpkg's action.
+    #  run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
+      
+    #- name: Build Release # @TODO this is actually a debug build until the ninja generator gets fixed
+    #  uses: lukka/run-cmake@latest
+    #  with:
+    #    buildDirectory: ${{ github.workspace }}/build
+    #    cmakeBuildType: Release
+    
+    # Try to do a pure vcpkg workflow
+    
+    
+    - name: Cache vcpkg
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-vcpkg
+      with:
+        path: ${{VCPKG_INSTALLATION_ROOT}} # included with the installation
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+    - name: Install dependencies with vcpkg
+      run: |
+        cd ${{VCPKG_INSTALLATION_ROOT}}
+        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
+      shell: cmd
+      
+    - name: Cache Qt
+      id: cache-qt
+      uses: actions/cache@v2
+      with:
+        path: "${{ github.workspace }}/qt/"
+        key: qt-${{ matrix.os }}-${{ env.qt_version }}
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v2
+      with:
+        cached: ${{ steps.cache-qt.outputs.cache-hit }}
+        version: ${{ env.qt_version }}
+        dir: "${{ github.workspace }}/qt/"
+    
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: |
+        cd build
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        cmake --build . --config $BUILD_TYPE -j3
+        ls
+    
+      
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
   release:
     name: Release build
