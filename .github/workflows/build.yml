@@ -345,22 +345,22 @@ jobs:
       run: |
         $Env:VCPKG_BUILD_TYPE = 'release'
         $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static'
-        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static 
+        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qtbase:x64-windows-static qttools:x64-windows-static
       shell: powershell
       
-    - name: Cache Qt
-      id: cache-qt
-      uses: actions/cache@v2
-      with:
-        path: "${{ github.workspace }}/qt/"
-        key: qt-${{ matrix.os }}-${{ env.qt_version }}
+    #- name: Cache Qt
+    #  id: cache-qt
+    #  uses: actions/cache@v2
+    #  with:
+    #    path: "${{ github.workspace }}/qt/"
+    #    key: qt-${{ matrix.os }}-${{ env.qt_version }}
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v2
-      with:
-        cached: ${{ steps.cache-qt.outputs.cache-hit }}
-        version: ${{ env.qt_version }}
-        dir: "${{ github.workspace }}/qt/"
+    #- name: Install Qt
+    #  uses: jurplel/install-qt-action@v2
+    #  with:
+    #    cached: ${{ steps.cache-qt.outputs.cache-hit }}
+    #    version: ${{ env.qt_version }}
+    #    dir: "${{ github.workspace }}/qt/"
         
     - name: Fix PCRE2 extensions # https://github.com/ugermann/ssplit-cpp/pull/29
       working-directory: C:\vcpkg
