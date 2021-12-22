@@ -373,6 +373,13 @@ jobs:
         dir
         dir pcre2*
         dir *pcre*
+        # the ssplit-cpp finds staticd libs only because i am dumb https://github.com/browsermt/ssplit-cpp/blob/master/cmake/FindPCRE2.cmake#L66
+        # or it could be a number of other reasons. Luckily we have the power of cp to rule the universe.
+        cp pcre2-8-static.lib pcre2-8.lib
+        cp pcre2-8-static.lib pcre2.lib
+        cp pcre2-16-static.lib pcre2-16.lib
+        cp pcre2-32-static.lib pcre2-32.lib
+        cp pcre2-posix-static.lib pcre2-8.lib
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
