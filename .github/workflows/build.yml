@@ -363,6 +363,16 @@ jobs:
         cached: ${{ steps.cache-qt.outputs.cache-hit }}
         version: ${{ env.qt_version }}
         dir: "${{ github.workspace }}/qt/"
+        
+    - name: List installed packages
+      working-directory: C:\vcpkg
+      run: |
+        cd installed/x64-windows-static
+        dir
+        cd lib
+        dir
+        dir pcre2*
+        dir *pcre*
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
