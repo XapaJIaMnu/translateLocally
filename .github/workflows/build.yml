@@ -364,16 +364,12 @@ jobs:
         version: ${{ env.qt_version }}
         dir: "${{ github.workspace }}/qt/"
         
-    - name: List installed packages
+    - name: Fix PCRE2 extensions # https://github.com/ugermann/ssplit-cpp/pull/29
       working-directory: C:\vcpkg
       run: |
-        cd installed/x64-windows-static
-        dir
-        cd lib
-        dir
-        dir pcre2*
-        dir *pcre*
-        # the ssplit-cpp finds staticd libs only because i am dumb https://github.com/browsermt/ssplit-cpp/blob/master/cmake/FindPCRE2.cmake#L66
+        cd installed/x64-windows-static/lib
+        # the ssplit-cpp finds staticd libs only because the extension is hardcoded to only find the debug
+        # version of the static lib: https://github.com/browsermt/ssplit-cpp/blob/master/cmake/FindPCRE2.cmake#L66
         # or it could be a number of other reasons. Luckily we have the power of cp to rule the universe.
         cp pcre2-8-static.lib pcre2-8.lib
         cp pcre2-8-static.lib pcre2.lib
@@ -385,16 +381,28 @@ jobs:
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
       run: cmake -E make_directory ${{github.workspace}}/build
-    
-    - name: Configure and Build
-      working-directory: ${{github.workspace}}/build
-      run: |
-        ls #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" --debug-find
-        # For some reason we can't detect the builtin one, might be an issue with debug library being compiled
-        cmake --build . --config Release -j3
-        ls
+      
+    - name: Configure
+      working-directory: ${{github.workspace}}/build #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
+      run: cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
       shell: powershell
+  
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build . --config Release -j3
+      shell: powershell
+      
+    - name: Test and add architecture information to the build
+      working-directory: ${{github.workspace}}/build/Release
+      run: |
+        ./translateLocally.exe --help
+        mv translateLocally.exe translateLocally.${{ matrix.os }}.${{ matrix.arch }}.exe
+      shell: powershell
+      
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.exe
+        path: ${{github.workspace}}/build/Release/*.exe
     
       
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
@@ -417,3 +425,4 @@ jobs:
          files: |
                 /home/runner/work/translateLocally/translateLocally/*.dmg/*.dmg
                 /home/runner/work/translateLocally/translateLocally/*.deb/*.deb
+                /home/runner/work/translateLocally/translateLocally/*.exe/*.exe
