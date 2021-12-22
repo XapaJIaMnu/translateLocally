@@ -372,9 +372,9 @@ jobs:
     - name: Configure and Build
       working-directory: ${{github.workspace}}/build
       run: |
-        ls
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
-        cmake --build . --config $BUILD_TYPE -j3
+        ls #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        cmake --build . --config Release -j3
         ls
       shell: powershell
     
