@@ -373,7 +373,9 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: |
         ls #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' \
+        -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+        -DSSPLIT_USE_INTERNAL_PCRE2=ON # For some reason we can't detect the builtin one, might be an issue with debug library being compiled
         cmake --build . --config Release -j3
         ls
       shell: powershell
