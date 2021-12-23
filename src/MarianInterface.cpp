@@ -4,13 +4,11 @@
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
-#include "translator/translation_model.h"
 #include <future>
 #include <memory>
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
-#include <QDebug>
 
 namespace  {
 
