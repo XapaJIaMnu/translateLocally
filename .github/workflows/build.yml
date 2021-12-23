@@ -318,9 +318,11 @@ jobs:
       env:
         cache-name: cache-vcpkg
       with:
-        path: C:\vcpkg # included with the installation
-        key: ${{ runner.os }}-build-${{ env.cache-name }}
-        restore-keys: ${{ runner.os }}-build-${{ env.cache-name }}
+        path: C:\vcpkg # included with the installation #@TODO get vcpkg git ID here?
+        key: ${{ matrix.os }}-build-${{ env.cache-name }}
+        restore-keys: |-
+            ${{ matrix.os }}-build-${{ env.cache-name }}
+            ${{ matrix.os }}-build
 
     - name: Install dependencies with vcpkg
       working-directory: C:\vcpkg
