@@ -107,18 +107,45 @@ QVector<WordAlignment> Translation::alignments(Direction direction, int sourcePo
     assert(sentenceIdxFirst != sentenceIdxLast || wordIdxFirst <= wordIdxLast);
     assert(sentenceIdxLast < response_->alignments.size());
 
+    // Format:
+    // response_->alignments[sentence:size_t][target token:size_t][source token:size_t] = probability:float
+
+    auto append = [&](marian::bergamot::ByteRange const &span, float prob) {
+        WordAlignment alignment;
+        alignment.begin = ::offsetToPosition(::_target(*response_, direction).text, span.begin);
+        alignment.end = ::offsetToPosition(::_target(*response_, direction).text, span.end);
+        alignment.prob = prob;
+        alignments.append(alignment);
+    };
+
     for (std::size_t sentenceIdx = sentenceIdxFirst; sentenceIdx <= sentenceIdxLast; ++sentenceIdx) {
         assert(sentenceIdx < response_->alignments.size());
         std::size_t firstWord = sentenceIdx == sentenceIdxFirst ? wordIdxFirst : 0;
         std::size_t lastWord = sentenceIdx == sentenceIdxLast ? wordIdxLast : ::_source(*response_, direction).numWords(sentenceIdx) - 1;
-        for (marian::bergamot::Point const &point : response_->alignments[sentenceIdx]) {
-            if (direction == source_to_translation ? (point.src >= firstWord && point.src <= lastWord) : (point.tgt >= firstWord && point.tgt <= lastWord)) {
-                auto span = ::_target(*response_, direction).wordAsByteRange(sentenceIdx, direction == source_to_translation ? point.tgt : point.src);
-                WordAlignment alignment;
-                alignment.begin = ::offsetToPosition(::_target(*response_, direction).text, span.begin);
-                alignment.end = ::offsetToPosition(::_target(*response_, direction).text, span.end);
-                alignment.prob = point.prob;
-                alignments.append(alignment);
+        
+        // If no alignments were provided by the model, this array will be empty
+        if (response_->alignments[sentenceIdx].empty())
+            continue;
+
+        if (direction == Translation::source_to_translation) {
+            assert(firstWord < response_->source.numWords(sentenceIdx));
+            assert(lastWord <= response_->source.numWords(sentenceIdx));
+
+            for (size_t t = 0; t < response_->target.numWords(sentenceIdx); ++t) {
+                for (size_t s = firstWord; s <= lastWord; ++s) {
+                    if (response_->alignments[sentenceIdx][t][s] >= 0.1f) // TODO top N or something?
+                        append(response_->target.wordAsByteRange(sentenceIdx, t), response_->alignments[sentenceIdx][t][s]);
+                }
+            }
+        } else {
+            assert(firstWord < response_->target.numWords(sentenceIdx));
+            assert(lastWord < response_->target.numWords(sentenceIdx));
+
+            for (size_t t = firstWord; t <= lastWord; ++t) {
+                for (size_t s = 0; s < response_->source.numWords(sentenceIdx); ++s) {
+                    if (response_->alignments[sentenceIdx][t][s] >= 0.1f) // TODO top N or something?
+                        append(response_->source.wordAsByteRange(sentenceIdx, s), response_->alignments[sentenceIdx][t][s]);
+                }
             }
         }
     }
