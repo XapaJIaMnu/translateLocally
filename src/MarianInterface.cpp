@@ -4,29 +4,21 @@
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
+#include <future>
 #include <memory>
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
 
 namespace  {
-marian::Ptr<marian::Options> MakeOptions(const std::string &path_to_model_dir, translateLocally::marianSettings& settings) {
-    std::string model_path = path_to_model_dir + "/config.intgemm8bitalpha.yml";
-    std::vector<std::string> args = {"marian-decoder", "-c", model_path,
-                                     "--cpu-threads", std::to_string(settings.cpu_threads),
-                                     "--workspace", std::to_string(settings.workspace),
-                                     "--mini-batch-words", "1000",
-                                     "--alignment", "0.1",
-                                     "--quiet"};
 
-    std::vector<char *> argv;
-    argv.reserve(args.size());
-
-    for (size_t i = 0; i < args.size(); ++i) {
-        argv.push_back(const_cast<char *>(args[i].c_str()));
-    }
-    auto cp = marian::bergamot::createConfigParser();
-    auto options = cp.parseOptions(argv.size(), &argv[0], true);
+std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_dir, const translateLocally::marianSettings &settings) {
+    std::shared_ptr<marian::Options> options(marian::bergamot::parseOptionsFromFilePath(path_to_model_dir + "/config.intgemm8bitalpha.yml"));
+    options->set("cpu-threads", settings.cpu_threads,
+                 "workspace", settings.workspace,
+                 "mini-batch-words", 1000,
+                 "alignment", "soft",
+                 "quiet", true);
     return options;
 }
 
@@ -73,10 +65,11 @@ MarianInterface::MarianInterface(QObject *parent)
     // is pending but both "queues" are empty, we'll treat that as a shutdown
     // request.
     worker_ = std::thread([&]() {
-        std::unique_ptr<marian::bergamot::Service> service;
+        std::unique_ptr<marian::bergamot::AsyncService> service;
+        std::shared_ptr<marian::bergamot::TranslationModel> model;
 
         while (true) {
-            std::unique_ptr<ModelDescription> model;
+            std::unique_ptr<ModelDescription> modelChange;
             std::unique_ptr<std::string> input;
 
             // Wait for work
@@ -88,7 +81,7 @@ MarianInterface::MarianInterface(QObject *parent)
 
                 // First check whether the command is loading a new model
                 if (pendingModel_)
-                    model = std::move(pendingModel_);
+                    modelChange = std::move(pendingModel_);
                 
                 // Second check whether command is translating something.
                 // Note: else if because we only process one command per
@@ -104,34 +97,48 @@ MarianInterface::MarianInterface(QObject *parent)
             emit pendingChanged(true);
 
             try {
-                if (model) {
-                    // Unload marian first (so we can delete loggers after that)
+                if (modelChange) {
+                    // Reconstruct the service because cpu_threads might have changed.
+                    // @TODO: don't recreate Service if cpu_threads didn't change?
+                    marian::bergamot::AsyncService::Config serviceConfig;
+                    serviceConfig.numWorkers = modelChange->settings.cpu_threads;
+                    
+                    // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
                     service.reset();
 
-                    // We need to manually destroy the loggers, as marian doesn't do
-                    // that but will complain when a new marian::Config tries to 
-                    // initialise loggers with the same name.
-                    spdlog::drop("general");
-                    spdlog::drop("valid");
+                    service = std::make_unique<marian::bergamot::AsyncService>(serviceConfig);
 
-                    service.reset(new marian::bergamot::Service(MakeOptions(model->config_file, model->settings)));
+                    // Initialise a new model. Old model will be released if
+                    // service is done with it, which it is since all translation
+                    // requests are effectively blocking in this thread.
+                    auto modelConfig = makeOptions(modelChange->config_file, modelChange->settings);
+                    model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, marian::bergamot::MemoryBundle{}, modelChange->settings.cpu_threads);
                 } else if (input) {
-                    if (service) {
-                        auto start = std::chrono::steady_clock::now(); // Time the translation
-                        std::future<int> num_words = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
+                    if (model) {
+                        std::future<int> wordCount = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
 
                         marian::bergamot::ResponseOptions options;
                         options.alignment = true;
-                        options.alignmentThreshold = 0.1f;
-
-                        std::future<marian::bergamot::Response> responseFuture = service->translate(std::move(*input), options);
-                        responseFuture.wait();
+                        
+                        // Using promise for a translation, and future for waiting
+                        // for that translation to turn the async service into
+                        // a blocking request.
+                        std::promise<marian::bergamot::Response> response;
+                        auto future = response.get_future();
+                        
+                        // Measure the time it takes to queue and respond to the
+                        // translation request
+                        auto start = std::chrono::steady_clock::now(); // Time the translation
+                        service->translate(model, std::move(*input), [&](auto &&val) { response.set_value(std::move(val)); }, options);
+                        future.wait();
                         auto end = std::chrono::steady_clock::now();
+                        
                         // Calculate translation speed in terms of words per second
-                        double words = num_words.get();
-                        std::chrono::duration<double> elapsed_seconds = end-start;
-                        int translationSpeed = std::ceil(words/elapsed_seconds.count()); // @TODO this could probably be done in the service in the future
-                        emit translationReady(Translation(std::move(responseFuture.get()), translationSpeed));
+                        double words = wordCount.get();
+                        std::chrono::duration<double> elapsedSeconds = end-start;
+                        int translationSpeed = std::ceil(words/elapsedSeconds.count()); // @TODO this could probably be done in the service in the future
+                        
+                        emit translationReady(Translation(std::move(future.get()), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }
