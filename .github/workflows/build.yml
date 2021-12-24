@@ -323,6 +323,13 @@ jobs:
         restore-keys: |-
             ${{ matrix.os }}-build-${{ env.cache-name }}
             ${{ matrix.os }}-build
+            
+    - name: Disable debug vcpkg build
+      shell: powershell
+      working-directory: C:\vcpkg\triplets
+      run: |
+         echo "VCPKG_BUILD_TYPE release" | Tee-Object -FilePath x64-windows-static.cmake -Append
+         cat x64-windows-static.cmake
 
     - name: Install dependencies with vcpkg
       working-directory: C:\vcpkg
