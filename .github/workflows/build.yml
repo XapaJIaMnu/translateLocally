@@ -340,7 +340,8 @@ jobs:
         $Env:VCPKG_BUILD_TYPE = 'release'
         $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static' # QT6 version, linguist tools not working yet: qtbase:x64-windows-static qttools:x64-windows-static qtsvg:x64-windows-static
         .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qt5-base:x64-windows-static qt5-tools:x64-windows-static qt5-svg:x64-windows-static
-        rm -rf downloads\*
+        rm -r -fo downloads
+        mkdir downloads
       shell: powershell
         
     - name: Fix PCRE2 extensions # https://github.com/ugermann/ssplit-cpp/pull/29
