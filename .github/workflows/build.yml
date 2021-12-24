@@ -313,16 +313,16 @@ jobs:
         echo "MKLROOT=${{ github.workspace }}\mkl" | Out-File -FilePath $env:GITHUB_ENV  -Encoding utf8 -Append
       shell: powershell
     
-    - name: Cache vcpkg
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-vcpkg
-      with:
-        path: C:\vcpkg # included with the installation #@TODO get vcpkg git ID here?
-        key: ${{ matrix.os }}-build-${{ env.cache-name }}
-        restore-keys: |-
-            ${{ matrix.os }}-build-${{ env.cache-name }}
-            ${{ matrix.os }}-build
+   # - name: Cache vcpkg
+   #   uses: actions/cache@v2
+   #   env:
+   #     cache-name: cache-vcpkg
+   #   with:
+   #     path: C:\vcpkg # included with the installation #@TODO get vcpkg git ID here?
+   #     key: ${{ matrix.os }}-build-${{ env.cache-name }}
+   #     restore-keys: |-
+   #         ${{ matrix.os }}-build-${{ env.cache-name }}
+   #         ${{ matrix.os }}-build
             
     - name: Disable debug vcpkg build
       shell: powershell
