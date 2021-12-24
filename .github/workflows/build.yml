@@ -328,6 +328,7 @@ jobs:
       shell: powershell
       working-directory: C:\vcpkg\triplets
       run: |
+         $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8' # Powershell murders me.
          echo "VCPKG_BUILD_TYPE release" | Tee-Object -FilePath x64-windows-static.cmake -Append
          cat x64-windows-static.cmake
 
