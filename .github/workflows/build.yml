@@ -321,7 +321,7 @@ jobs:
       env:
         cache-name: cache-vcpkg
       with:
-        path: C:\vcpkg # included with the installation #@TODO get vcpkg git ID here?
+        path: C:\vcpkg\installed # cache only the latest installed packages
         key: ${{ matrix.os }}-build-${{ env.cache-name }}
         restore-keys: |-
             ${{ matrix.os }}-build-${{ env.cache-name }}
@@ -343,6 +343,7 @@ jobs:
         $Env:VCPKG_BUILD_TYPE = 'release'
         $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static' # QT6 version, linguist tools not working yet: qtbase:x64-windows-static qttools:x64-windows-static qtsvg:x64-windows-static
         .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qt5-base:x64-windows-static qt5-tools:x64-windows-static qt5-svg:x64-windows-static
+        .\vcpkg upgrade --no-dry-run # In case there are new builds available after cache restoration
         rm -r -fo downloads
         mkdir downloads
       shell: powershell
