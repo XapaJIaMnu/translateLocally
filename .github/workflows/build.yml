@@ -19,16 +19,29 @@ env:
   ccache_compresslevel: 9
   ccache_maxsize: 200M
   ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+  MKL_URL: "https://romang.blob.core.windows.net/mariandev/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
+  VCPKG_DEFAULT_TRIPLET: "x64-windows-static" # Used on Windows only
+  VCPKG_BUILD_TYPE: "release" # Used on windows
+  
 
 jobs:
   build-macos:
     strategy:
       matrix:
         include:
-          - name: "macOS Catalina 10.15"
+          - name: "macOS Catalina 10.15 avx"
             os: macos-10.15
-          - name: "macOS Big Sur 11.0"
+            arch: "core-avx-i"
+          - name: "macOS Big Sur 11.0 avx"
             os: macos-11.0
+            arch: "core-avx-i"
+         # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
+         # - name: "macOS Catalina 10.15 avx2"
+         #   os: macos-10.15
+         #   arch: "core-avx2"
+         # - name: "macOS Big Sur 11.0 avx2"
+         #   os: macos-11.0
+         #   arch: "core-avx2"
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -104,7 +117,7 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |-
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
         cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
@@ -117,6 +130,7 @@ jobs:
       run: 'ccache -s # Print current cache stats'
     
     - name: Output test # @TODO some more complicated test, perhaps a unit test
+      if: ${{matrix.arch == 'core-avx-i'}} #MacOS machines are avx so they can't run avx2 steps.
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: ./translateLocally --version
@@ -143,25 +157,31 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
-          echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV
-          mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ env.arch }}.dmg
+          mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ matrix.arch }}.dmg
           ls *.dmg
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.dmg
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
 
   build-ubuntu:
     strategy:
       matrix:
         include:
-          # Ubuntu 18.04
-          - name: "Ubuntu 18.04"
+          - name: "Ubuntu 18.04 avx"
             os: ubuntu-18.04
-          # Ubuntu 20.04
-          - name: "Ubuntu 20.04"
+            arch: "core-avx-i"
+          - name: "Ubuntu 20.04 avx"
             os: ubuntu-20.04
+            arch: "core-avx-i"
+          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
+          # - name: "Ubuntu 18.04 avx2"
+          #   os: ubuntu-18.04
+          #   arch: "core-avx2"
+          # - name: "Ubuntu 20.04 avx2"
+          #   os: ubuntu-20.04
+          #   arch: "core-avx2"
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -230,7 +250,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -253,13 +273,120 @@ jobs:
         cpack
         ls deb/*.deb
         dpkg -I deb/*.deb
-        echo "arch=`../dist/cpu_feature.sh`" >> $GITHUB_ENV # Record the arch for future use
 
     - uses: actions/upload-artifact@v2
       with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ env.arch }}.deb
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
 
+  build-windows:
+    strategy:
+      matrix:
+        include:
+          - name: "Windows 2019 avx"
+            os: windows-2019
+            arch: "core-avx-i"
+          - name: "Windows 2022 avx"
+            os: windows-2022
+            arch: "core-avx-i"
+          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
+          # - name: "Windows 2019 avx2"
+          #   os: windows-2019
+          #   arch: "core-avx2"
+          # - name: "Windows 2022 avx2"
+          #   os: windows-2022
+          #   arch: "core-avx2"
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        
+    - name: Download MKL
+      run: |
+        # Wget retries downloading files and is faster than Invoke-WebRequest
+        C:\msys64\usr\bin\wget.exe -nv ${{ env.MKL_URL }} -O mkl.zip
+        Expand-Archive -Force mkl.zip ${{ github.workspace }}\mkl
+        # Set MKLROOT environment variable so that CMake can find MKL
+        echo "MKLROOT=${{ github.workspace }}\mkl" | Out-File -FilePath $env:GITHUB_ENV  -Encoding utf8 -Append
+      shell: powershell
+    
+    - name: Cache vcpkg
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-vcpkg
+      with:
+        path: C:\vcpkg\installed # cache only the latest installed packages
+        key: ${{ matrix.os }}-build-${{ env.cache-name }}
+        restore-keys: |-
+            ${{ matrix.os }}-build-${{ env.cache-name }}
+            ${{ matrix.os }}-build
+            
+    - name: Disable debug vcpkg build
+      shell: powershell
+      working-directory: C:\vcpkg\triplets
+      run: |
+         $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8' # Powershell murders me.
+         echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows-static.cmake -Append
+         echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows.cmake -Append
+         cat x64-windows-static.cmake
+         cat x64-windows.cmake
+
+    - name: Install dependencies with vcpkg
+      working-directory: C:\vcpkg
+      run: |
+        $Env:VCPKG_BUILD_TYPE = 'release'
+        $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static' # QT6 version, linguist tools not working yet: qtbase:x64-windows-static qttools:x64-windows-static qtsvg:x64-windows-static
+        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qt5-base:x64-windows-static qt5-tools:x64-windows-static qt5-svg:x64-windows-static
+        .\vcpkg upgrade --no-dry-run # In case there are new builds available after cache restoration
+      shell: powershell
+        
+    - name: Fix PCRE2 extensions # https://github.com/ugermann/ssplit-cpp/pull/29
+      working-directory: C:\vcpkg
+      run: |
+        cd installed/x64-windows-static/lib
+        # the ssplit-cpp finds staticd libs only because the extension is hardcoded to only find the debug
+        # version of the static lib: https://github.com/browsermt/ssplit-cpp/blob/master/cmake/FindPCRE2.cmake#L66
+        # or it could be a number of other reasons. Luckily we have the power of cp to rule the universe.
+        cp pcre2-8-static.lib pcre2-8.lib
+        cp pcre2-8-static.lib pcre2.lib
+        cp pcre2-16-static.lib pcre2-16.lib
+        cp pcre2-32-static.lib pcre2-32.lib
+        cp pcre2-posix-static.lib pcre2-8.lib
+
+    - name: Create Build Environment
+      # Some projects don't allow in-source building, so create a separate build directory
+      # We'll use this as our working directory for all subsequent commands
+      run: cmake -E make_directory ${{github.workspace}}/build
+      
+    - name: Configure
+      working-directory: ${{github.workspace}}/build #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
+      run: cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_STATIC_LIBS=ON -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      shell: powershell
+  
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build . --config Release -j3
+      shell: powershell
+      
+    - name: Test and add architecture information to the build
+      working-directory: ${{github.workspace}}/build/Release
+      run: |
+        ./translateLocally.exe --help
+        mv translateLocally.exe translateLocally.${{ matrix.os }}.${{ matrix.arch }}.exe
+      shell: powershell
+      
+    - uses: actions/upload-artifact@v2
+      with:
+        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.exe
+        path: ${{github.workspace}}/build/Release/*.exe
+    
+      
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
   release:
     name: Release build
@@ -280,3 +407,4 @@ jobs:
          files: |
                 /home/runner/work/translateLocally/translateLocally/*.dmg/*.dmg
                 /home/runner/work/translateLocally/translateLocally/*.deb/*.deb
+                /home/runner/work/translateLocally/translateLocally/*.exe/*.exe
