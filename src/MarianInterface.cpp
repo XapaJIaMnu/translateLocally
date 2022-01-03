@@ -141,11 +141,6 @@ MarianInterface::MarianInterface(QObject *parent)
                         double words = wordCount.get();
                         std::chrono::duration<double> elapsedSeconds = end-start;
                         int translationSpeed = std::ceil(words/elapsedSeconds.count()); // @TODO this could probably be done in the service in the future
-
-                        qDebug() << "Cache stats:"
-                                 << "\n  hits =" << service->cacheStats().hits
-                                 << "\n  misses =" << service->cacheStats().misses;
-                        
                         emit translationReady(Translation(std::move(future.get()), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
