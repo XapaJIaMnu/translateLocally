@@ -54,9 +54,9 @@ MarianInterface::MarianInterface(QObject *parent)
 
     // This worker is the only thread that can interact with Marian. Right now
     // it basically uses marian::bergamot::Service's non-blocking interface
-    // in a blocking way because std::future is not compatible with Qt's event
-    // loop, and QtConcurrent::run would not work as calls to
-    // Service::translate() are not thread-safe.
+    // in a blocking way to have an easy way to control how what the next
+    // task will be, and to not start queueing up already irrelevant
+    // translation operations.
     // This worker basically processes a command queue, except that there are
     // only two possible commands: load model & translate input. And there are
     // no actual queues because we always want the last command: we don't care
@@ -119,26 +119,37 @@ MarianInterface::MarianInterface(QObject *parent)
 
                         marian::bergamot::ResponseOptions options;
                         options.alignment = true;
-                        
-                        // Using promise for a translation, and future for waiting
-                        // for that translation to turn the async service into
-                        // a blocking request.
-                        std::promise<marian::bergamot::Response> response;
-                        auto future = response.get_future();
+
+                        // Prepare our translation promise. We use this to wait on
+                        // either the translation to finish, or be cancelled. Hence
+                        // using member variable pendingTranslation_ to make it
+                        // accessible from outside the worker.
+                        {
+                            QMutexLocker locker(&lock_); // brief lock because changing member variable
+                            pendingTranslation_ = std::make_shared<Promise<Translation>>();
+                        }
                         
                         // Measure the time it takes to queue and respond to the
                         // translation request
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        service->translate(model, std::move(*input), [&](auto &&val) { response.set_value(std::move(val)); }, options);
-                        future.wait();
-                        auto end = std::chrono::steady_clock::now();
+                        service->translate(model, std::move(*input), [pending=pendingTranslation_, start, count=wordCount.share()] (auto &&val) {
+                            auto end = std::chrono::steady_clock::now();
                         
-                        // Calculate translation speed in terms of words per second
-                        double words = wordCount.get();
-                        std::chrono::duration<double> elapsedSeconds = end-start;
-                        int translationSpeed = std::ceil(words/elapsedSeconds.count()); // @TODO this could probably be done in the service in the future
-                        
-                        emit translationReady(Translation(std::move(future.get()), translationSpeed));
+                            // Calculate translation speed in terms of words per second
+                            // (Yes word counting is also counted towards translation speed...)
+                            double words = count.get();
+                            std::chrono::duration<double> elapsedSeconds = end - start;
+                            int translationSpeed = std::ceil(words / elapsedSeconds.count());
+
+                            pending->fulfill(Translation(std::move(val), translationSpeed));
+                        }, options);
+                            
+                        // Wait for either translate lambda to call back, or cancellation
+                        if (pendingTranslation_->wait()) {
+                            emit translationReady(pendingTranslation_->value);
+                        } else {
+                            service->terminate();
+                        }
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }
@@ -172,6 +183,10 @@ void MarianInterface::setModel(QString path_to_model_dir, const translateLocally
     // notify worker if there wasn't already a pending model
     if (!model)
         commandIssued_.release();
+
+    // notify worker to stop any in flight translations
+    if (pendingTranslation_)
+        pendingTranslation_->cancel();
 }
 
 void MarianInterface::translate(QString in) {
@@ -197,6 +212,10 @@ MarianInterface::~MarianInterface() {
 
         if (!input && !model)
             commandIssued_.release();
+
+        // Tell worker that they should interrupt their in-flight translations
+        if (pendingTranslation_)
+            pendingTranslation_->cancel();
     }
     
     // Wait for worker to join as it depends on resources we still own.

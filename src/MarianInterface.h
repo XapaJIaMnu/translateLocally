@@ -7,6 +7,7 @@
 #include <QSemaphore>
 #include "types.h"
 #include "Translation.h"
+#include "Promise.h"
 #include <thread>
 #include <memory>
 
@@ -30,6 +31,7 @@ private:
 
     std::thread worker_;
     QString model_;
+    std::shared_ptr<Promise<Translation>> pendingTranslation_;
 public:
     MarianInterface(QObject * parent);
     ~MarianInterface();
