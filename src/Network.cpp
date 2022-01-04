@@ -55,7 +55,9 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
 
                 // If we're checking the hash, now is the time as all data is downloaded.
                 if (!hash.isEmpty() && hasher->result() != hash) {
-                    emit error(tr("The cryptographic hash of %1 does not match the provided hash.").arg(url.toString()));
+                    emit error(tr("The cryptographic hash of %1 does not match the provided hash.\nExpected: %2\nActual: %3").arg(url.toString(),
+                                                                                                                                  QString(hash),
+                                                                                                                                  QString(hasher->result())));
                     break;
                 }
                 
