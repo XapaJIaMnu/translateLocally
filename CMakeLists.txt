@@ -147,7 +147,6 @@ set(PROJECT_SOURCES
         src/ModelManager.h
         src/Network.cpp
         src/Network.h
-        src/Promise.h
         src/Settings.cpp
         src/Settings.h
         src/Translation.h

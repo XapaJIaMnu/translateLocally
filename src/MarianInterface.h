@@ -7,7 +7,8 @@
 #include <QSemaphore>
 #include "types.h"
 #include "Translation.h"
-#include "Promise.h"
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <memory>
 
@@ -26,12 +27,13 @@ private:
 
     std::unique_ptr<std::string> pendingInput_;
     std::unique_ptr<ModelDescription> pendingModel_;
-    QSemaphore commandIssued_;
-    QMutex lock_;
+    bool pendingShutdown_;
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
 
     std::thread worker_;
     QString model_;
-    std::shared_ptr<Promise<Translation>> pendingTranslation_;
 public:
     MarianInterface(QObject * parent);
     ~MarianInterface();
