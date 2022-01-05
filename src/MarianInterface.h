@@ -3,8 +3,6 @@
 #include <QString>
 #include <QList>
 #include <QObject>
-#include <QMutex>
-#include <QSemaphore>
 #include "types.h"
 #include "Translation.h"
 #include <condition_variable>
