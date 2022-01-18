@@ -44,6 +44,7 @@ CommandLineIface::CommandLineIface(QObject * parent)
     // Take care of slots and signals
     connect(translator_, &MarianInterface::error, this, &CommandLineIface::outputError);
     connect(translator_, &MarianInterface::translationReady, this, &CommandLineIface::outputTranslation);
+    connect(&network_, &Network::error, this, &CommandLineIface::outputError);
 }
 
 int CommandLineIface::run(QCommandLineParser const &parser) {
