@@ -50,7 +50,7 @@
          <property name="childrenCollapsible">
           <bool>false</bool>
          </property>
-         <widget class="QPlainTextEdit" name="inputBox">
+         <widget class="QTextEdit" name="inputBox">
           <property name="minimumSize">
            <size>
             <width>0</width>

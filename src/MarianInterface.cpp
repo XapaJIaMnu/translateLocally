@@ -117,9 +117,14 @@ MarianInterface::MarianInterface(QObject *parent)
                     model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, std::move(bundle), modelChange->settings.cpu_threads);
                 } else if (input) {
                     if (model) {
+                        // Remove the "<!DOCTYPE html>" bit
+                        auto begin = input->find("<html");
+                        input->erase(0, begin);
+
                         std::future<int> wordCount = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
 
                         marian::bergamot::ResponseOptions options;
+                        options.HTML = true;
                         options.alignment = true;
                         
                         // Using promise for a translation, and future for waiting

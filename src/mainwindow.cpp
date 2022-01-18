@@ -121,7 +121,7 @@ MainWindow::MainWindow(QWidget *parent)
             // can't reach it with cursor keys, but it does show up when you use
             // the scrollbar. So to match the line count better, also add it to
             // the output.
-            ui_->outputBox->setPlainText(translation_.translation() + QString("\n"));
+            ui_->outputBox->setHtml(translation_.translation() + QString("\n"));
         }
 
         // Restore scroll position after it jumped to 0 due to setPlainText.
@@ -231,7 +231,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Note: Using Qt::QueuedConnection seems to make it less jumpy when you enter
     // newlines at the end in the input box. Maybe it gives the input
     // box more time to update its height and its scrollbar to update?
-    connect(ui_->inputBox, &QPlainTextEdit::cursorPositionChanged, this, [&]() {
+    connect(ui_->inputBox, &QTextEdit::cursorPositionChanged, this, [&]() {
         if (settings_.syncScrolling())
             ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     }, Qt::QueuedConnection);
@@ -408,7 +408,7 @@ void MainWindow::updateSelectedModel() {
 
 
 void MainWindow::translate() {
-    translate(ui_->inputBox->toPlainText());
+    translate(ui_->inputBox->toHtml());
 }
 
 void MainWindow::translate(QString const &text) {

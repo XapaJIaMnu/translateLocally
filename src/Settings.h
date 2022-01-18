@@ -93,4 +93,14 @@ public:
     SettingImpl<QColor> alignmentColor;
     SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
+
+    enum TextFormat {
+        PlainText,
+        RichText,
+        AutoDetect // plainText unless it switches to RichText
+    };
+
+    SettingImpl<TextFormat> textFormat;
 };
+
+Q_DECLARE_METATYPE(Settings::TextFormat);

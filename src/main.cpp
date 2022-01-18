@@ -2,6 +2,7 @@
 #include "version.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/marian.h"
 #include "Translation.h"
+#include "Settings.h"
 
 #include <QApplication>
 #include "CLIParsing.h"
@@ -16,6 +17,7 @@ int main(int argc, char *argv[])
     qRegisterMetaType<Translation>("Translation");
     qRegisterMetaType<QVector<WordAlignment>>("QVector<WordAlignment>");
     qRegisterMetaType<Translation::Direction>("Translation::Direction");
+    qRegisterMetaType<Settings::TextFormat>("Settings::TextFormat");
 
     QApplication translateLocally(argc, argv);
     QCoreApplication::setApplicationName("translateLocally");
