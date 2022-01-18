@@ -102,8 +102,8 @@ MarianInterface::MarianInterface(QObject *parent)
                     // @TODO: don't recreate Service if cpu_threads didn't change?
                     marian::bergamot::AsyncService::Config serviceConfig;
                     serviceConfig.numWorkers = modelChange->settings.cpu_threads;
-                    serviceConfig.cacheEnabled = true;
-                    serviceConfig.cacheSize = 1 << 24;
+                    serviceConfig.cacheEnabled = modelChange->settings.translation_cache;
+                    serviceConfig.cacheSize = kTranslationCacheSize;
                     serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)

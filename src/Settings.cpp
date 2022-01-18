@@ -16,13 +16,15 @@ Settings::Settings(QObject *parent)
 , showAlignment(backing_, "show_alignment", false)
 , alignmentColor(backing_, "alignment_color", QColor("#EDD400"))
 , syncScrolling(backing_, "sync_scrolling", true)
-, windowGeometry(backing_, "window_geometry") {
+, windowGeometry(backing_, "window_geometry")
+, cacheTranslations(backing_, "cache_translations", true) {
     //
 }
 
 translateLocally::marianSettings Settings::marianSettings() const {
     return {
         cores.value(),
-        workspace.value()
+        workspace.value(),
+        cacheTranslations.value()
     };
 }
