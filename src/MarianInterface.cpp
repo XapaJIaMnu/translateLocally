@@ -9,7 +9,6 @@
 #include <thread>
 #include <chrono>
 #include <QMutexLocker>
-#include <QDebug>
 
 namespace  {
 
