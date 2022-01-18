@@ -102,3 +102,5 @@ public:
 
     SettingImpl<TextFormat> textFormat;
 };
+
+Q_DECLARE_METATYPE(Settings::TextFormat);
