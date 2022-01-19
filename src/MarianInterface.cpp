@@ -116,8 +116,7 @@ MarianInterface::MarianInterface(QObject *parent)
                     // service is done with it, which it is since all translation
                     // requests are effectively blocking in this thread.
                     auto modelConfig = makeOptions(modelChange->config_file, modelChange->settings);
-                    auto bundle = marian::bergamot::getMemoryBundleFromConfig(modelConfig);
-                    model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, std::move(bundle), modelChange->settings.cpu_threads);
+                    model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, modelChange->settings.cpu_threads);
                 } else if (input) {
                     if (model) {
                         std::future<int> wordCount = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
