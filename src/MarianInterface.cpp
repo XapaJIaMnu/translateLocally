@@ -103,6 +103,9 @@ MarianInterface::MarianInterface(QObject *parent)
                     // @TODO: don't recreate Service if cpu_threads didn't change?
                     marian::bergamot::AsyncService::Config serviceConfig;
                     serviceConfig.numWorkers = modelChange->settings.cpu_threads;
+                    serviceConfig.cacheEnabled = modelChange->settings.translation_cache;
+                    serviceConfig.cacheSize = kTranslationCacheSize;
+                    serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
                     service.reset();
@@ -139,7 +142,6 @@ MarianInterface::MarianInterface(QObject *parent)
                         double words = wordCount.get();
                         std::chrono::duration<double> elapsedSeconds = end-start;
                         int translationSpeed = std::ceil(words/elapsedSeconds.count()); // @TODO this could probably be done in the service in the future
-                        
                         emit translationReady(Translation(std::move(future.get()), translationSpeed));
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?

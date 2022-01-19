@@ -19,6 +19,8 @@ namespace marian {
 
 struct ModelDescription;
 
+constexpr const size_t kTranslationCacheSize = 1 << 16;
+
 class MarianInterface : public QObject {
     Q_OBJECT
 private:
