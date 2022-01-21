@@ -28,10 +28,10 @@ struct Model {
     QString trg;
     QString type; // Base or tiny
     QByteArray checksum;
-    float localversion  = -1.0f;
-    float localAPI = -1.0f;
-    float remoteversion = -1.0f;
-    float remoteAPI = -1.0f;
+    int localversion  = -1;
+    int localAPI = -1;
+    int remoteversion = -1;
+    int remoteAPI = -1;
 
     inline void set(QString key, QString val) {
         if (key == "shortName") {
@@ -54,7 +54,7 @@ struct Model {
             std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
         }
     }
-    inline void set(QString key, float val) {
+    inline void set(QString key, int val) {
         if (key == "localversion") {
             localversion = val;
         } else if (key == "localAPI") {

@@ -246,7 +246,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"trg"},
                                     QString{"type"},
                                     QString{"checksum"}};
-    std::vector<QString> keysFLT{QString("version"), QString("API")};
+    std::vector<QString> keysINT{QString("version"), QString("API")};
     QString criticalKey = type==Local ? QString("path") : QString("url");
 
     Model model = {};
@@ -260,13 +260,13 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         }
     }
 
-    // Float Keys depend on whether we have a local or a remote model
-    // Non critical if missing due to older file name
-    for (auto&& key : keysFLT) {
+    // Int Keys depend on whether we have a local or a remote model
+    // Non critical if missing due to older model version.
+    for (auto&& key : keysINT) {
         QString keyname = type==Local ? "local" + key : "remote" + key;
         auto iter = obj.find(key);
         if (iter != obj.end()) {
-            model.set(keyname, (float)iter.value().toDouble());
+            model.set(keyname, iter.value().toInt());
         } else {
             model.set(keyname, "");
         }
@@ -588,7 +588,7 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     // @TODO figure out how to compile combined flag as below. 
                     // Error is "can't convert the result to QVariant."
                     // return Qt::AlignRight | Qt::AlignBaseline;
-                    return Qt::AlignRight;
+                    return Qt::AlignCenter;
                 default:
                     return QVariant();
             }
