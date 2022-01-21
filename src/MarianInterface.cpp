@@ -3,7 +3,6 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
-#include "3rd_party/bergamot-translator/src/translator/byte_array_util.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 #include <future>
 #include <memory>
@@ -109,6 +108,8 @@ MarianInterface::MarianInterface(QObject *parent)
                     serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
+                    // Calling clear to remove any pending translations so we
+                    // do not have to wait for those when AsyncService is destroyed.
                     service.reset();
 
                     service = std::make_unique<marian::bergamot::AsyncService>(serviceConfig);
@@ -137,6 +138,7 @@ MarianInterface::MarianInterface(QObject *parent)
                             std::chrono::duration<double> elapsedSeconds = end - start;
                             int translationSpeed = std::ceil(words / elapsedSeconds.count());
                             
+                            std::unique_lock<std::mutex> lock(internal_mutex);
                             translation = Translation(std::move(val), translationSpeed);
                             cv_.notify_one();
                         }, options);
@@ -146,11 +148,12 @@ MarianInterface::MarianInterface(QObject *parent)
                         std::unique_lock<std::mutex> lock(internal_mutex);
                         cv_.wait(lock, [&] { return translation || pendingShutdown_ || pendingModel_; });
                         
-                        if (translation) {
+                        if (translation)
                             emit translationReady(translation);
-                        } else {
-                            service->terminate();
-                        }
+                        else
+                            service->clear(); // translation was interrupted. Clear pending batches 
+                                              // now to free any references to things that will go
+                                              // out of scope.
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }
@@ -202,10 +205,10 @@ MarianInterface::~MarianInterface() {
     // Remove all pending changes and unlock worker (which will then break.)
     {
         std::unique_lock<std::mutex> lock(mutex_);
-
+        
         pendingShutdown_ = true;
-        auto model = std::move(pendingModel_);
-        auto input = std::move(pendingInput_);
+        pendingModel_.reset();
+        pendingInput_.reset();
 
         cv_.notify_one();
     }
