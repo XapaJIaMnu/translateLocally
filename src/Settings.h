@@ -93,4 +93,5 @@ public:
     SettingImpl<QColor> alignmentColor;
     SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
+    SettingImpl<bool> cacheTranslations;
 };

@@ -3,6 +3,7 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
+#include "3rd_party/bergamot-translator/src/translator/byte_array_util.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 #include <future>
 #include <memory>
@@ -103,6 +104,9 @@ MarianInterface::MarianInterface(QObject *parent)
                     // @TODO: don't recreate Service if cpu_threads didn't change?
                     marian::bergamot::AsyncService::Config serviceConfig;
                     serviceConfig.numWorkers = modelChange->settings.cpu_threads;
+                    serviceConfig.cacheEnabled = modelChange->settings.translation_cache;
+                    serviceConfig.cacheSize = kTranslationCacheSize;
+                    serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
                     service.reset();
@@ -113,7 +117,7 @@ MarianInterface::MarianInterface(QObject *parent)
                     // service is done with it, which it is since all translation
                     // requests are effectively blocking in this thread.
                     auto modelConfig = makeOptions(modelChange->config_file, modelChange->settings);
-                    model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, marian::bergamot::MemoryBundle{}, modelChange->settings.cpu_threads);
+                    model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, modelChange->settings.cpu_threads);
                 } else if (input) {
                     if (model) {
                         std::future<int> wordCount = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
