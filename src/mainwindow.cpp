@@ -336,7 +336,9 @@ void MainWindow::on_localModels_activated(int index) {
     } else if (data == Action::FetchRemoteModels) {
         models_.fetchRemoteModels();
     } else if (data == Action::FetchCustomRepo) {
+        this->setEnabled(false);
         QString url = QInputDialog::getText(this,tr("External repo"),tr("Enter url to the external repository's json"));
+        this->setEnabled(true);
         if (!url.isEmpty()) {
             models_.fetchRemoteModels(url.toStdString().c_str());
         }
