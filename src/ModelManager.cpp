@@ -245,6 +245,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"src"},
                                     QString{"trg"},
                                     QString{"type"},
+                                    QString("repository"),
                                     QString{"checksum"}};
     std::vector<QString> keysINT{QString("version"), QString("API")};
     QString criticalKey = type==Local ? QString("path") : QString("url");
@@ -255,8 +256,6 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         auto iter = obj.find(key);
         if (iter != obj.end()) {
             model.set(key, iter.value().toString());
-        } else {
-            model.set(key, "");
         }
     }
 
@@ -267,8 +266,6 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         auto iter = obj.find(key);
         if (iter != obj.end()) {
             model.set(keyname, iter.value().toInt());
-        } else {
-            model.set(keyname, "");
         }
     }
 
@@ -440,14 +437,14 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     return true;
 }
 
-void ModelManager::fetchRemoteModels() {
+void ModelManager::fetchRemoteModels(const char * modelListUrl) {
     if (isFetchingRemoteModels())
         return;
 
     isFetchingRemoteModels_ = true;
     emit fetchingRemoteModels();
 
-    QUrl url(kModelListUrl);
+    QUrl url(modelListUrl);
     QNetworkRequest request(url);
     QNetworkReply *reply = network_->get(request);
     connect(reply, &QNetworkReply::finished, this, [=] {
@@ -542,7 +539,7 @@ int ModelManager::rowCount(const QModelIndex &parent) const {
 int ModelManager::columnCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return 2;
+    return 3;
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -555,6 +552,8 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
     switch (section) {
         case Column::Name:
             return tr("Name", "translation model name");
+        case Column::Repository:
+            return tr("Repository", "repository from which the translation model originated");
         case Column::Version:
             return tr("Version", "translation model version");
         default:
@@ -576,6 +575,14 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
             switch (role) {
                 case Qt::DisplayRole:
                     return model.modelName;
+                default:
+                    return QVariant();
+            }
+
+        case Column::Repository:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.repository;
                 default:
                     return QVariant();
             }

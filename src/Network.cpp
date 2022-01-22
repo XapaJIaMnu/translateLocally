@@ -14,9 +14,7 @@ Network::Network(QObject *parent)
 
 QNetworkReply* Network::get(QNetworkRequest request) {
     request.setRawHeader("User-Agent", QString("%1/%2")
-        .arg(QCoreApplication::applicationName())
-        .arg(QCoreApplication::applicationVersion())
-        .toUtf8());
+        .arg(QCoreApplication::applicationName(), QCoreApplication::applicationVersion()).toUtf8());
     return nam_->get(request);
 }
 

@@ -27,6 +27,7 @@ struct Model {
     QString src;
     QString trg;
     QString type; // Base or tiny
+    QString repository = "local"; // Repository that the model belongs to. If we don't have that information, default to local.
     QByteArray checksum;
     int localversion  = -1;
     int localAPI = -1;
@@ -48,6 +49,8 @@ struct Model {
             trg = val;
         } else if (key == "type") {
             type = val;
+        } else if (key == "repository") {
+            repository = val;
         } else if (key == "checksum") {
             checksum = QByteArray::fromHex(val.toUtf8());
         } else {
@@ -78,7 +81,7 @@ struct Model {
 
     inline bool isSameModel(Model const &model) const {
         // TODO: matching by name might not be very robust
-        return shortName == model.shortName;
+        return shortName == model.shortName && repository == model.repository;
     }
 
     inline bool operator<(const Model& other) const {
@@ -86,7 +89,7 @@ struct Model {
     }
 
     inline bool outdated() const {
-        return localversion<remoteversion || localAPI < remoteAPI;
+        return localversion < remoteversion || localAPI < remoteAPI;
     }
 
     // Is-equal operator for removing models from list
@@ -175,6 +178,7 @@ public:
 
     enum Column {
         Name,
+        Repository,
         Version
     };
 
@@ -192,8 +196,10 @@ public slots:
      * finished (either successfully or not) fetchedRemoteModels is emitted.
      * On success localModelsChanged() will also be emitted as fetching remote
      * models causes updates on the outdated() status of local models.
+     * By default, it fetches models from the official translateLocally repo, but can also fetch
+     * models from a 3rd party repository.
      */
-    void fetchRemoteModels();
+    void fetchRemoteModels(const char * modelListUrl = kModelListUrl);
     
 private:
     void startupLoad();

@@ -30,7 +30,8 @@ public:
     void updateModelSettings(size_t memory, size_t cores);
 
     enum Action {
-        FetchRemoteModels
+        FetchRemoteModels,
+        FetchCustomRepo
     };
     Q_ENUM(Action);
 
