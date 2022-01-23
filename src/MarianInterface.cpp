@@ -151,7 +151,7 @@ MarianInterface::MarianInterface(QObject *parent)
                         if (translation)
                             emit translationReady(translation);
                         else
-                            service->clear(); // translation was interrupted. Clear pending batches 
+                            service->clear(); // translation was interrupted. Clear pending batches
                                               // now to free any references to things that will go
                                               // out of scope.
                     } else {
@@ -205,7 +205,7 @@ MarianInterface::~MarianInterface() {
     // Remove all pending changes and unlock worker (which will then break.)
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        
+
         pendingShutdown_ = true;
         pendingModel_.reset();
         pendingInput_.reset();
