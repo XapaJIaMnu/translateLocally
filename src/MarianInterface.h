@@ -3,10 +3,10 @@
 #include <QString>
 #include <QList>
 #include <QObject>
-#include <QMutex>
-#include <QSemaphore>
 #include "types.h"
 #include "Translation.h"
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <memory>
 
@@ -27,8 +27,10 @@ private:
 
     std::unique_ptr<std::string> pendingInput_;
     std::unique_ptr<ModelDescription> pendingModel_;
-    QSemaphore commandIssued_;
-    QMutex lock_;
+    bool pendingShutdown_;
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
 
     std::thread worker_;
     QString model_;
@@ -40,7 +42,7 @@ public:
     void translate(QString in);
 signals:
     void translationReady(Translation translation);
-    void pendingChanged(bool isBusy);
+    void pendingChanged(bool isBusy); // Disables issuing another translation while we are busy.
     void error(QString message);
 };
 

@@ -3,13 +3,12 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
-#include "3rd_party/bergamot-translator/src/translator/byte_array_util.h"
 #include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 #include <future>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <chrono>
-#include <QMutexLocker>
 
 namespace  {
 
@@ -51,13 +50,14 @@ struct ModelDescription {
 MarianInterface::MarianInterface(QObject *parent)
     : QObject(parent)
     , pendingInput_(nullptr)
-    , pendingModel_(nullptr) {
+    , pendingModel_(nullptr)
+    , pendingShutdown_(false) {
 
     // This worker is the only thread that can interact with Marian. Right now
     // it basically uses marian::bergamot::Service's non-blocking interface
-    // in a blocking way because std::future is not compatible with Qt's event
-    // loop, and QtConcurrent::run would not work as calls to
-    // Service::translate() are not thread-safe.
+    // in a blocking way to have an easy way to control how what the next
+    // task will be, and to not start queueing up already irrelevant
+    // translation operations.
     // This worker basically processes a command queue, except that there are
     // only two possible commands: load model & translate input. And there are
     // no actual queues because we always want the last command: we don't care
@@ -69,16 +69,16 @@ MarianInterface::MarianInterface(QObject *parent)
         std::unique_ptr<marian::bergamot::AsyncService> service;
         std::shared_ptr<marian::bergamot::TranslationModel> model;
 
+        std::mutex internal_mutex;
+
         while (true) {
             std::unique_ptr<ModelDescription> modelChange;
             std::unique_ptr<std::string> input;
 
-            // Wait for work
-            commandIssued_.acquire();
-
             {
-                // Lock while working with the pointers
-                QMutexLocker locker(&lock_);
+                // Wait for work
+                std::unique_lock<std::mutex> lock(mutex_);
+                cv_.wait(lock, [&]{ return pendingModel_ || pendingInput_ || pendingShutdown_; });
 
                 // First check whether the command is loading a new model
                 if (pendingModel_)
@@ -108,6 +108,8 @@ MarianInterface::MarianInterface(QObject *parent)
                     serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
+                    // Calling clear to remove any pending translations so we
+                    // do not have to wait for those when AsyncService is destroyed.
                     service.reset();
 
                     service = std::make_unique<marian::bergamot::AsyncService>(serviceConfig);
@@ -123,25 +125,35 @@ MarianInterface::MarianInterface(QObject *parent)
 
                         marian::bergamot::ResponseOptions options;
                         options.alignment = true;
-                        
-                        // Using promise for a translation, and future for waiting
-                        // for that translation to turn the async service into
-                        // a blocking request.
-                        std::promise<marian::bergamot::Response> response;
-                        auto future = response.get_future();
-                        
+
+                        Translation translation;
+
                         // Measure the time it takes to queue and respond to the
                         // translation request
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        service->translate(model, std::move(*input), [&](auto &&val) { response.set_value(std::move(val)); }, options);
-                        future.wait();
-                        auto end = std::chrono::steady_clock::now();
+                        service->translate(model, std::move(*input), [&] (auto &&val) {
+                            auto end = std::chrono::steady_clock::now();
+                            // Calculate translation speed in terms of words per second
+                            double words = wordCount.get();
+                            std::chrono::duration<double> elapsedSeconds = end - start;
+                            int translationSpeed = std::ceil(words / elapsedSeconds.count());
+                            
+                            std::unique_lock<std::mutex> lock(internal_mutex);
+                            translation = Translation(std::move(val), translationSpeed);
+                            cv_.notify_one();
+                        }, options);
                         
-                        // Calculate translation speed in terms of words per second
-                        double words = wordCount.get();
-                        std::chrono::duration<double> elapsedSeconds = end-start;
-                        int translationSpeed = std::ceil(words/elapsedSeconds.count()); // @TODO this could probably be done in the service in the future
-                        emit translationReady(Translation(std::move(future.get()), translationSpeed));
+                        
+                        // Wait for either translate lambda to call back, or a reason to cancel
+                        std::unique_lock<std::mutex> lock(internal_mutex);
+                        cv_.wait(lock, [&] { return translation || pendingShutdown_ || pendingModel_; });
+                        
+                        if (translation)
+                            emit translationReady(translation);
+                        else
+                            service->clear(); // translation was interrupted. Clear pending batches
+                                              // now to free any references to things that will go
+                                              // out of scope.
                     } else {
                         // TODO: What? Raise error? Set model_ to ""?
                     }
@@ -168,13 +180,12 @@ void MarianInterface::setModel(QString path_to_model_dir, const translateLocally
         return;
 
     // move my shared_ptr from stack to heap
-    QMutexLocker locker(&lock_);
+    std::unique_lock<std::mutex> lock(mutex_);
     std::unique_ptr<ModelDescription> model(new ModelDescription{model_.toStdString(), settings});
     std::swap(pendingModel_, model);
 
     // notify worker if there wasn't already a pending model
-    if (!model)
-        commandIssued_.release();
+    cv_.notify_one();
 }
 
 void MarianInterface::translate(QString in) {
@@ -183,23 +194,23 @@ void MarianInterface::translate(QString in) {
     if (model_.isEmpty())
         return;
 
-    QMutexLocker locker(&lock_);
+    std::unique_lock<std::mutex> lock(mutex_);
     std::unique_ptr<std::string> input(new std::string(in.toStdString()));
     std::swap(pendingInput_, input);
     
-    if (!input)
-        commandIssued_.release();
+    cv_.notify_one();
 }
 
 MarianInterface::~MarianInterface() {
     // Remove all pending changes and unlock worker (which will then break.)
     {
-        QMutexLocker locker(&lock_);
-        auto model = std::move(pendingModel_);
-        auto input = std::move(pendingInput_);
+        std::unique_lock<std::mutex> lock(mutex_);
 
-        if (!input && !model)
-            commandIssued_.release();
+        pendingShutdown_ = true;
+        pendingModel_.reset();
+        pendingInput_.reset();
+
+        cv_.notify_one();
     }
     
     // Wait for worker to join as it depends on resources we still own.
