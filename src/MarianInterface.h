@@ -42,7 +42,7 @@ public:
     void translate(QString in);
 signals:
     void translationReady(Translation translation);
-    void pendingChanged(bool isBusy);
+    void pendingChanged(bool isBusy); // Disables issuing another translation while we are busy.
     void error(QString message);
 };
 
