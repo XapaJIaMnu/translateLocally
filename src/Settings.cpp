@@ -17,7 +17,8 @@ Settings::Settings(QObject *parent)
 , alignmentColor(backing_, "alignment_color", QColor("#EDD400"))
 , syncScrolling(backing_, "sync_scrolling", true)
 , windowGeometry(backing_, "window_geometry")
-, cacheTranslations(backing_, "cache_translations", true) {
+, cacheTranslations(backing_, "cache_translations", true)
+, externalRepos(backing_, "external_repos", QList<QStringList>()) {
     //
 }
 

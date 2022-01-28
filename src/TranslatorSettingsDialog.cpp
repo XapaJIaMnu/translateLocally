@@ -5,6 +5,7 @@
 #include <QUrl>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QInputDialog>
 
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
@@ -35,6 +36,10 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->setModel(modelManager_);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
+
+    ui_->repoTable->setModel(&modelManager_->repositories_);
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::RepoName, QHeaderView::ResizeToContents);
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::URL, QHeaderView::Stretch);
 
     connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelActions);
     connect(ui_->buttonBox, &QDialogButtonBox::accepted, this, &TranslatorSettingsDialog::applySettings);
@@ -139,3 +144,17 @@ void TranslatorSettingsDialog::updateModelActions()
     ui_->actionDeleteModel->setEnabled(containsDeletableModel);
     ui_->deleteModelButton->setEnabled(containsDeletableModel);
 }
+
+void TranslatorSettingsDialog::on_importRepo_clicked()
+{
+    QString url = QInputDialog::getText(this,tr("External repo"),tr("Enter url to the external repository's json"));
+    this->setEnabled(true);
+    if (!url.isEmpty()) {
+        QList<QStringList> new_repos = settings_->externalRepos.value();
+        QStringList new_entry({"test", url});
+        new_repos.append(new_entry);
+        settings_->externalRepos.setValue(new_repos);
+        modelManager_->repositories_.insert(new_entry);
+    }
+}
+

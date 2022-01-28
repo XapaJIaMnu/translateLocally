@@ -7,6 +7,7 @@
 #include <iostream>
 #include "Network.h"
 #include "types.h"
+#include "Settings.h"
 
 constexpr const char* kModelListUrl = "https://translatelocally.com/models.json";
 
@@ -110,15 +111,39 @@ struct Model {
 
 Q_DECLARE_METATYPE(Model)
 
+class RepoManager : public QAbstractTableModel {
+    Q_OBJECT
+public:
+    RepoManager(QObject * parent, Settings *);
+    void insert(QStringList new_model);
+    QList<QStringList> repositories_{{"Bergamot", QString(kModelListUrl)}};
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
+
+    enum RepoColumn {
+        RepoName,
+        URL
+    };
+
+    Q_ENUM(RepoColumn);
+private:
+    Settings * settings_;
+
+};
+
 class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
-    ModelManager(QObject *parent);
+    ModelManager(QObject *parent, Settings *settings);
+    RepoManager repositories_; //@TODO make it work with getter and setters
 
     /**
      * @Brief extract a model into the directory of models managed by this
      * program. The optional filename argument is used to make up a folder name
-     * for the model. If none provided, the basename of file is used. On success
+     * for the model. If none provided, the basenSettings_ame of file is used. On success
      * the model is added to the local list of models (i.e. getInstalledModel())
      * and the function will return the filled in model instance. On failure, an
      * empty Model object is returned (i.e. model.isLocal() returns false).

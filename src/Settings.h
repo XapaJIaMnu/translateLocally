@@ -1,8 +1,12 @@
 #pragma once
 #include <QObject>
+#include <QStringList>
 #include <QSettings>
 #include <QColor>
 #include "types.h"
+#include <type_traits>
+
+Q_DECLARE_METATYPE(QList<QStringList>);
 
 /**
  * Settings:
@@ -10,7 +14,6 @@
  * for providing the QSettings instance used by individidual settings.
  */
 class Settings;
-
 
 /**
  * Setting:
@@ -48,8 +51,12 @@ private:
 
 public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
-    : name_(name)
-    , value_(backing.value(name, defaultValue).template value<T>()) {
+    : name_(name) {
+        if constexpr (std::is_same_v<QList<QStringList>, T>) {
+            value_ = backing.value(name, QVariant::fromValue<QList<QStringList>>(QList<QStringList>())).value<QList<QStringList>>();
+        } else {
+            value_ = backing.value(name, defaultValue).template value<T>();
+        }
         // When the value changes, also store it in QSettings
         connect(this, &Setting::valueChanged, &backing, &QSettings::setValue);
     }
@@ -59,12 +66,21 @@ public:
     }
 
     void setValue(T value, Behavior behavior = EmitWhenChanged) {
-        // Don't emit when the value doesn't change
-        if (behavior == EmitWhenChanged && value == value_)
-            return;
+        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
+            // Don't emit when the value doesn't change
+            if (behavior == EmitWhenChanged && value == value_)
+                return;
 
-        value_ = value;
-        emitValueChanged(name_, value_);
+            value_ = value;
+            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
+        } else {
+            // Don't emit when the value doesn't change
+            if (behavior == EmitWhenChanged && value == value_)
+                return;
+
+            value_ = value;
+            emitValueChanged(name_, value_);
+        }
     }
 
     // Alias for value() to make Settings make look more like a normal Qt class.
@@ -72,6 +88,7 @@ public:
         return value();
     }
 };
+
 
 
 class Settings : public QObject  {
@@ -94,4 +111,5 @@ public:
     SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
+    SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
 };

@@ -48,10 +48,11 @@ namespace {
 }
 
 
-ModelManager::ModelManager(QObject *parent)
+ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
     , isFetchingRemoteModels_(false)
+    , repositories_(this, settings)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -599,6 +600,79 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                 default:
                     return QVariant();
             }
+    }
+
+    return QVariant();
+}
+
+RepoManager::RepoManager(QObject * parent, Settings * settings) : QAbstractTableModel(parent)
+    , settings_(settings) {
+    for (auto&& repo : settings->externalRepos.value()) {
+        insert(repo);
+    }
+}
+
+void RepoManager::insert(QStringList new_repo) {
+    int position = repositories_.size();
+    beginInsertRows(QModelIndex(),position, position);
+    repositories_.append(new_repo);
+    endInsertRows();
+}
+
+int RepoManager::rowCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+    return repositories_.size();
+}
+
+int RepoManager::columnCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent);
+
+    return 2;
+}
+
+QVariant RepoManager::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (role != Qt::DisplayRole)
+        return QVariant();
+
+    if (orientation != Qt::Horizontal)
+        return QVariant();
+
+    switch (section) {
+        case RepoColumn::RepoName:
+            return tr("Name", "name of the repository");
+        case RepoColumn::URL:
+            return tr("Repository", "url to the repository's model.json");
+        default:
+            return QVariant();
+    }
+}
+
+QVariant RepoManager::data(const QModelIndex &index, int role) const {
+    if (index.row() >= repositories_.size())
+        return QVariant();
+
+    QStringList repo = repositories_[index.row()];
+
+    if (role == Qt::UserRole) // ??
+        return repo;
+
+    switch (index.column()) {
+        case RepoColumn::RepoName:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return repo.front();
+                default:
+                    return QVariant();
+            }
+
+        case RepoColumn::URL:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return repo.back();
+                default:
+                    return QVariant();
+            }
+
     }
 
     return QVariant();

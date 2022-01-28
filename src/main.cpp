@@ -16,6 +16,8 @@ int main(int argc, char *argv[])
     qRegisterMetaType<Translation>("Translation");
     qRegisterMetaType<QVector<WordAlignment>>("QVector<WordAlignment>");
     qRegisterMetaType<Translation::Direction>("Translation::Direction");
+    qRegisterMetaType<QList<QStringList>>("QList<QStringList>");
+    qRegisterMetaTypeStreamOperators<QList<QStringList>>("QList<QStringList>");
 
     QApplication translateLocally(argc, argv);
     QCoreApplication::setApplicationName("translateLocally");

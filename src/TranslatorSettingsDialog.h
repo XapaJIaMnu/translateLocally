@@ -29,6 +29,8 @@ private slots:
     void importModels();
     void updateModelActions();
 
+    void on_importRepo_clicked();
+
 private:
     Ui::TranslatorSettingsDialog *ui_;
     Settings *settings_;
