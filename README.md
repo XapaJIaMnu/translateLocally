@@ -1,6 +1,12 @@
 # translateLocally
 Fast and secure translation on your local machine with a GUI, powered by marian and Bergamot.
 
+## Downloads
+
+You can download the latest automatic build for Windows, Linux and Mac from the [releases](https://github.com/XapaJIaMnu/translateLocally/releases) github tab or from the [official website](https://translatelocally.com).
+
+
+## Compile from source
 Bringing fast and secure machine translation to the masses! To build and run
 ```bash
 mkdir build
