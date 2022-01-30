@@ -438,7 +438,7 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     return true;
 }
 
-void ModelManager::fetchRemoteModels(const char * modelListUrl) {
+void ModelManager::fetchRemoteModels() {
     if (isFetchingRemoteModels())
         return;
 

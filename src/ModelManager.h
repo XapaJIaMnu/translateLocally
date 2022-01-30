@@ -230,7 +230,7 @@ public slots:
      * By default, it fetches models from the official translateLocally repo, but can also fetch
      * models from a 3rd party repository.
      */
-    void fetchRemoteModels(const char * modelListUrl = kModelListUrl);
+    void fetchRemoteModels();
     
 private:
     void startupLoad();
