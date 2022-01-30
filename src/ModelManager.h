@@ -147,7 +147,7 @@ public:
     /**
      * @Brief extract a model into the directory of models managed by this
      * program. The optional filename argument is used to make up a folder name
-     * for the model. If none provided, the basenSettings_ame of file is used. On success
+     * for the model. If none provided, the basename of file is used. On success
      * the model is added to the local list of models (i.e. getInstalledModel())
      * and the function will return the filled in model instance. On failure, an
      * empty Model object is returned (i.e. model.isLocal() returns false).
