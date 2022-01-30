@@ -1,10 +1,11 @@
 #pragma once
+#include <type_traits>
 #include <QObject>
 #include <QStringList>
 #include <QSettings>
 #include <QColor>
+#include <QMessageBox>
 #include "types.h"
-#include <type_traits>
 
 Q_DECLARE_METATYPE(QList<QStringList>);
 
@@ -48,6 +49,12 @@ class SettingImpl : public Setting {
 private:
     QString name_;
     T value_;
+    // Plumbing to the mainwindow for proper error management is a lot of work since this class is
+    // quite down the rabbit hole. This error is only meant to be seen by a developer anyways, not
+    // by the end user and it is a sanity check to whether the API is used correctly.
+    inline void error(QString err) {
+        QMessageBox::critical(this, tr("An error occurred"), err);
+    }
 
 public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
@@ -80,6 +87,24 @@ public:
 
             value_ = value;
             emitValueChanged(name_, value_);
+        }
+    }
+
+    void appendToValue(QStringList entry, Behavior behavior = EmitWhenChanged) {
+        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
+            value_.append(entry);
+            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
+        } else {
+            error(QString(tr("Attempted to append a setting entry to a non-appendable type: ")) + QString(typeid(T).name()));
+        }
+    }
+
+    void removeFromValue(int index, Behavior behavior = EmitWhenChanged) {
+        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
+            value_.removeAt(index);
+            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
+        } else {
+            error(QString(tr("Attempted to remove a setting entry to a non-removable type: ")) + QString(typeid(T).name()));
         }
     }
 

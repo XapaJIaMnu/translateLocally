@@ -28,7 +28,7 @@ struct Model {
     QString src;
     QString trg;
     QString type; // Base or tiny
-    QString repository = "local"; // Repository that the model belongs to. If we don't have that information, default to local.
+    QString repository = "unknown"; // Repository that the model belongs to. If we don't have that information, default to unknown.
     QByteArray checksum;
     int localversion  = -1;
     int localAPI = -1;
@@ -115,8 +115,13 @@ class RepoManager : public QAbstractTableModel {
     Q_OBJECT
 public:
     RepoManager(QObject * parent, Settings *);
+    /**
+     * @brief getRepos getsAll currently available repos
+     * @return QStringList of URLs
+     */
+    QStringList getRepos();
     void insert(QStringList new_model);
-    QList<QStringList> repositories_{{"Bergamot", QString(kModelListUrl)}};
+    void remove(const QModelIndex &index);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -138,7 +143,6 @@ class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent, Settings *settings);
-    RepoManager repositories_; //@TODO make it work with getter and setters
 
     /**
      * @Brief extract a model into the directory of models managed by this
@@ -193,6 +197,8 @@ public:
      */
 
     const QList<Model>& getNewModels() const;
+
+    RepoManager * getRepoManager();
     
     /**
      * @brief whether or not fetchRemoteModels is in progress
@@ -266,6 +272,7 @@ private:
     QList<Model> updatedModels_;
 
     Network *network_;
+    RepoManager repositories_;
     bool isFetchingRemoteModels_;
 
 signals:

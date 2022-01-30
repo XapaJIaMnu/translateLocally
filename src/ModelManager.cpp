@@ -442,36 +442,41 @@ void ModelManager::fetchRemoteModels(const char * modelListUrl) {
     if (isFetchingRemoteModels())
         return;
 
-    isFetchingRemoteModels_ = true;
-    emit fetchingRemoteModels();
+    QStringList repos = repositories_.getRepos();
+    for (auto&& urlString : repos) {
+        isFetchingRemoteModels_ = true;
+        emit fetchingRemoteModels();
 
-    QUrl url(modelListUrl);
-    QNetworkRequest request(url);
-    QNetworkReply *reply = network_->get(request);
-    connect(reply, &QNetworkReply::finished, this, [=] {
-        switch (reply->error()) {
-            case QNetworkReply::NoError:
-                parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
-                break;
-            default:
-                emit error(reply->errorString());
-                break;
-        }
+        QUrl url(urlString);
+        QNetworkRequest request(url);
+        QNetworkReply *reply = network_->get(request);
+        connect(reply, &QNetworkReply::finished, this, [=] {
+            switch (reply->error()) {
+                case QNetworkReply::NoError:
+                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
+                    break;
+                default:
+                    emit error(reply->errorString());
+                    break;
+            }
 
-        isFetchingRemoteModels_ = false;
-        emit fetchedRemoteModels();
+            isFetchingRemoteModels_ = false;
+            emit fetchedRemoteModels();
 
-        reply->deleteLater();
-    });
+            reply->deleteLater();
+        });
+    }
 }
 
 void ModelManager::parseRemoteModels(QJsonObject obj) {
     using namespace translateLocally::models;
-    remoteModels_.clear();
     
     for (auto&& arrobj : obj["models"].toArray()) {
         QJsonObject obj = arrobj.toObject();
-        remoteModels_.append(parseModelInfo(obj, Remote));
+        Model remoteModel = parseModelInfo(obj, Remote);
+        if (!remoteModels_.contains(remoteModel)) { // This costs O(n). Not happy, is there a better way?
+            remoteModels_.append(std::move(remoteModel));
+        }
     }
 
     std::sort(remoteModels_.begin(), remoteModels_.end());
@@ -529,6 +534,10 @@ void ModelManager::updateAvailableModels() {
     }
 
     emit localModelsChanged();
+}
+
+RepoManager * ModelManager::getRepoManager() {
+    return &repositories_;
 }
 
 int ModelManager::rowCount(const QModelIndex &parent) const {
@@ -606,22 +615,36 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
 }
 
 RepoManager::RepoManager(QObject * parent, Settings * settings) : QAbstractTableModel(parent)
-    , settings_(settings) {
-    for (auto&& repo : settings->externalRepos.value()) {
-        insert(repo);
+    , settings_(settings) {}
+
+QStringList RepoManager::getRepos() {
+    QStringList urls({kModelListUrl});
+    for (auto&& nameAndUrl : settings_->externalRepos.value()) {
+        urls.append(nameAndUrl.back());
     }
+    return urls;
 }
 
 void RepoManager::insert(QStringList new_repo) {
-    int position = repositories_.size();
+    int position = settings_->externalRepos.value().size() + 1;
     beginInsertRows(QModelIndex(),position, position);
-    repositories_.append(new_repo);
+    settings_->externalRepos.appendToValue(new_repo);
     endInsertRows();
+}
+
+void RepoManager::remove(const QModelIndex &index) {
+    if (index.row() == 0) {
+        emit qobject_cast<ModelManager *>(parent())->error("Unable to remove builtin repository.");
+        return;
+    }
+    beginRemoveRows(QModelIndex(),index.row(), index.row());
+    settings_->externalRepos.removeFromValue(index.row() - 1); // Account for the builtin repo
+    endRemoveRows();
 }
 
 int RepoManager::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
-    return repositories_.size();
+    return settings_->externalRepos.value().size() + 1; // The first item is hardcoded
 }
 
 int RepoManager::columnCount(const QModelIndex &parent) const {
@@ -648,10 +671,15 @@ QVariant RepoManager::headerData(int section, Qt::Orientation orientation, int r
 }
 
 QVariant RepoManager::data(const QModelIndex &index, int role) const {
-    if (index.row() >= repositories_.size())
+    if (index.row() >= settings_->externalRepos.value().size() + 1)
         return QVariant();
 
-    QStringList repo = repositories_[index.row()];
+    QStringList repo;
+    if (index.row() == 0) {
+        repo = QStringList{"Bergamot", kModelListUrl}; // Hardcoded default repo
+    } else {
+        repo = settings_->externalRepos.value().at(index.row() - 1);
+    }
 
     if (role == Qt::UserRole) // ??
         return repo;

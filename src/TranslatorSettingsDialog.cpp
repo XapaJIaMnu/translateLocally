@@ -37,7 +37,7 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
 
-    ui_->repoTable->setModel(&modelManager_->repositories_);
+    ui_->repoTable->setModel(modelManager_->getRepoManager());
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::RepoName, QHeaderView::ResizeToContents);
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::URL, QHeaderView::Stretch);
 
@@ -47,9 +47,13 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     connect(ui_->actionDeleteModel, &QAction::triggered, this, &TranslatorSettingsDialog::deleteSelectedModels);
     connect(ui_->deleteModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::deleteSelectedModels);
     connect(ui_->importModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::importModels);
+    // Repository actions
+    connect(ui_->actionDeleteRepo, &QAction::triggered, this, &TranslatorSettingsDialog::on_deleteRepo_clicked);
+    connect(ui_->repoTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateRepoActions);
 
     // Update context menu state on start-up
     updateModelActions();
+    updateRepoActions();
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()
@@ -145,16 +149,71 @@ void TranslatorSettingsDialog::updateModelActions()
     ui_->deleteModelButton->setEnabled(containsDeletableModel);
 }
 
+void TranslatorSettingsDialog::updateRepoActions()
+{
+    bool containsDeletableRepo = false;
+
+    for (auto&& index : ui_->repoTable->selectionModel()->selectedIndexes()) {
+        if (index.row() !=0) { // The first repo is the Bergmaot repo, never deleted
+            containsDeletableRepo = true;
+            break;
+        }
+    }
+
+    ui_->actionDeleteRepo->setEnabled(containsDeletableRepo);
+    ui_->deleteRepo->setEnabled(containsDeletableRepo);
+}
+
 void TranslatorSettingsDialog::on_importRepo_clicked()
 {
-    QString url = QInputDialog::getText(this,tr("External repo"),tr("Enter url to the external repository's json"));
-    this->setEnabled(true);
-    if (!url.isEmpty()) {
-        QList<QStringList> new_repos = settings_->externalRepos.value();
-        QStringList new_entry({"test", url});
-        new_repos.append(new_entry);
-        settings_->externalRepos.setValue(new_repos);
-        modelManager_->repositories_.insert(new_entry);
+    // Dialog button with two text boxes, because QInputDialog only has one : (
+    QDialog dialog(this);
+    dialog.setWindowTitle("Add new model");
+    // Use a layout allowing to have a label next to each field
+    QFormLayout form(&dialog);
+
+    // Add some text above the fields
+    form.addRow(new QLabel(tr("Enter the name and URL to the external repository's models.json.")));
+
+    // Add the lineEdits with their respective labels
+    QLineEdit name(&dialog);
+    name.setToolTip("Enter the name of the new repository here.");
+    QString nameLbl("Name:");
+    form.addRow(nameLbl, &name);
+
+    QLineEdit url(&dialog);
+    url.setToolTip("Enter url to translateLocally like json repository. Eg https://example.com/models.json");
+    QString urlLbl("URL:");
+    form.addRow(urlLbl, &url);
+
+    // Add some standard buttons (Cancel/Ok) at the bottom of the dialog
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                               Qt::Horizontal, &dialog);
+    form.addRow(&buttonBox);
+    QObject::connect(&buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
+    QObject::connect(&buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
+
+    // Show the dialog as modal
+    if (dialog.exec() == QDialog::Accepted) {
+        if (!url.text().isEmpty()) {
+            QStringList new_entry({name.text(), url.text()});
+            modelManager_->getRepoManager()->insert(new_entry);
+        }
     }
+}
+
+
+void TranslatorSettingsDialog::on_deleteRepo_clicked()
+{
+    auto selection = ui_->repoTable->selectionModel()->selectedRows(0);
+
+    if (QMessageBox::question(this,
+            tr("Remove repo"),
+            tr("Are you sure you remove %n selected repo(s)?", "", selection.size())
+        ) != QMessageBox::Yes)
+        return;
+
+    for (auto &&index : selection)
+        modelManager_->getRepoManager()->remove(index);
 }
 

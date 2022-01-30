@@ -17,7 +17,6 @@
 #include <QFontDialog>
 #include <QSignalBlocker>
 #include <QStandardItem>
-#include <QInputDialog>
 #include <QWindow>
 #include "Translation.h"
 #include "logo/logo_svg.h"
@@ -335,13 +334,6 @@ void MainWindow::on_localModels_activated(int index) {
         downloadModel(data.value<Model>());
     } else if (data == Action::FetchRemoteModels) {
         models_.fetchRemoteModels();
-    } else if (data == Action::FetchCustomRepo) {
-        this->setEnabled(false);
-        QString url = QInputDialog::getText(this,tr("External repo"),tr("Enter url to the external repository's json"));
-        this->setEnabled(true);
-        if (!url.isEmpty()) {
-            models_.fetchRemoteModels(url.toStdString().c_str());
-        }
     } else {
         qDebug() << "Unknown option: " << data;
     }
@@ -368,18 +360,18 @@ void MainWindow::updateLocalModels() {
     ui_->localModels->insertSeparator(ui_->localModels->count());
     if (models_.getRemoteModels().empty()) {
         if (models_.isFetchingRemoteModels()) {
-            addDisabledItem(ui_->localModels, tr("Download models from upstream repo…"));
+            addDisabledItem(ui_->localModels, tr("Downloading model list…"));
         } else {
-            ui_->localModels->addItem(tr("Download models from upstream repo…"), Action::FetchRemoteModels);
+            ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
         }
     } else if (models_.getNewModels().empty()) {
         ui_->localModels->addItem(tr("No other models available online"));
     } else {
         for (auto &&model : models_.getNewModels())
-            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
+            ui_->localModels->addItem(model.modelName + " (" + model.repository + ")", QVariant::fromValue(model));
+        ui_->localModels->insertSeparator(ui_->localModels->count()); //@TODO some indication when no new models were fetched.
+        ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     }
-    ui_->localModels->insertSeparator(ui_->localModels->count());
-    ui_->localModels->addItem(tr("Download models from external repo…"), Action::FetchCustomRepo);
 
     // Finally, add models that are existing but a new version is available online.
     // Note that you can still select the (outdated) model at the top.

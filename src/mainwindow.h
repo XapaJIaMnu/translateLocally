@@ -31,7 +31,6 @@ public:
 
     enum Action {
         FetchRemoteModels,
-        FetchCustomRepo
     };
     Q_ENUM(Action);
 

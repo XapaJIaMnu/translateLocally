@@ -253,7 +253,15 @@ of memory.</string>
         <number>8</number>
        </property>
        <item>
-        <widget class="QTableView" name="repoTable"/>
+        <widget class="QTableView" name="repoTable">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <addaction name="actionDeleteRepo"/>
+        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -315,6 +323,17 @@ of memory.</string>
    </property>
    <property name="shortcutContext">
     <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
+  <action name="actionDeleteRepo">
+   <property name="text">
+    <string>Delete</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete the selected Repo</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
    </property>
   </action>
  </widget>
