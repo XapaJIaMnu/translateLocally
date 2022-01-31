@@ -173,7 +173,8 @@ void TranslatorSettingsDialog::on_importRepo_clicked()
     QFormLayout form(&dialog);
 
     // Add some text above the fields
-    form.addRow(new QLabel(tr("Enter the name and URL to the external repository's models.json.")));
+    form.addRow(new QLabel(tr(
+         "Enter the name and URL to the external repository's models.json.\nThe new models will appear in the language selection drop-down.")));
 
     // Add the lineEdits with their respective labels
     QLineEdit name(&dialog);
@@ -193,7 +194,7 @@ void TranslatorSettingsDialog::on_importRepo_clicked()
     QObject::connect(&buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
     QObject::connect(&buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
 
-    // Show the dialog as modal
+    // Show the dialog
     if (dialog.exec() == QDialog::Accepted) {
         if (!url.text().isEmpty()) {
             QStringList new_entry({name.text(), url.text()});
@@ -209,7 +210,7 @@ void TranslatorSettingsDialog::on_deleteRepo_clicked()
 
     if (QMessageBox::question(this,
             tr("Remove repo"),
-            tr("Are you sure you remove %n selected repo(s)?", "", selection.size())
+            tr("Are you sure you want to remove %n selected repo(s)?", "", selection.size())
         ) != QMessageBox::Yes)
         return;
 

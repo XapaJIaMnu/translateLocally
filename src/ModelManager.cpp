@@ -456,7 +456,10 @@ void ModelManager::fetchRemoteModels() {
                     parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
                     break;
                 default:
-                    emit error(reply->errorString());
+                    QString errstr = QString("Error fetching remote repository: ") + urlString +
+                            QString("\nError code: ") + reply->errorString() +
+                            QString("\nPlease double check that the address is reachable.");
+                    emit error(errstr);
                     break;
             }
 
@@ -471,12 +474,17 @@ void ModelManager::fetchRemoteModels() {
 void ModelManager::parseRemoteModels(QJsonObject obj) {
     using namespace translateLocally::models;
     
+    bool empty = true;
     for (auto&& arrobj : obj["models"].toArray()) {
+        empty = false;
         QJsonObject obj = arrobj.toObject();
         Model remoteModel = parseModelInfo(obj, Remote);
         if (!remoteModels_.contains(remoteModel)) { // This costs O(n). Not happy, is there a better way?
             remoteModels_.append(std::move(remoteModel));
         }
+    }
+    if (empty) {
+        emit error("No models found in the repository. Please double check that the repository address is correct.");
     }
 
     std::sort(remoteModels_.begin(), remoteModels_.end());
@@ -630,6 +638,7 @@ void RepoManager::insert(QStringList new_repo) {
     beginInsertRows(QModelIndex(),position, position);
     settings_->externalRepos.appendToValue(new_repo);
     endInsertRows();
+    qobject_cast<ModelManager *>(this->parent())->fetchRemoteModels(); // Fetch remote models after new a new entry was added.
 }
 
 void RepoManager::remove(const QModelIndex &index) {

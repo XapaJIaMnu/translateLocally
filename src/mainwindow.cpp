@@ -154,8 +154,10 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Pop open the model list again when remote model list is available
+    // Do that only if the settings window is not open as we want to avoid having the popup
+    // override a potential error
     connect(&models_, &ModelManager::fetchedRemoteModels, this, [&] {
-        if (!models_.getNewModels().empty())
+        if (!models_.getNewModels().empty() && !translatorSettingsDialog_.isVisible())
             ui_->localModels->showPopup();
     });
 
