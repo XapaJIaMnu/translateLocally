@@ -127,31 +127,6 @@ sacrebleu -t wmt13 -l en-es --echo ref > /tmp/es.in
 cat /tmp/es.in | ./translateLocally -m es-en-tiny | ./translateLocally -m en-de-tiny -o /tmp/de.out
 ```
 
-## Using in an environment without a running display server
-translateLocally is built on top of QT, with modules linked in such a way that a display server required in order for the program to start, even if we only use the command line interface, resulting in an error like:
-```bash
-$ ./translateLocally --version
-loaded library "/opt/conda/plugins/platforms/libqxcb.so"
-qt.qpa.xcb: could not connect to display
-qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
-This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
-
-Available platform plugins are: eglfs, minimal, minimalegl, offscreen, vnc, webgl, xcb.
-
-Aborted
-```
-To get around this, we can use set `QT_QPA_PLATFORM=offscreen` if we have the `offscreen` plugin:
-```bash
-QT_QPA_PLATFORM=offscreen ./translateLocally --version
-translateLocally v0.0.2+a603422
-```
-OR use `xvfb` to emulate a server.
-```bash
-xvfb-run --auto-servernum ./translateLocally --version
-translateLocally v0.0.2+a603422
-```
-Note that this issue only occurs on Linux, as Windows and Mac (at least to my knowledge) always have an active display even in remote sessions.
-
 # Importing custom models
 translateLocally supports importing custom models. translateLocally uses the [Bergamot](https://github.com/browsermt/marian-dev) fork of [marian](https://github.com/marian-nmt/marian-dev). As such, it supports the vast majority marian models out of the box. You can just train your marian model and place it a directory. 
 ## Basic model import

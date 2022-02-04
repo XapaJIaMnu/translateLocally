@@ -10,7 +10,8 @@ namespace translateLocally {
  * @param parser The command line parser.
  */
 
-static void CLIArgumentInit(QApplication& translateLocallyApp, QCommandLineParser& parser) {
+template<class QAppType>
+static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& parser) {
     parser.setApplicationDescription("A secure translation service that performs translations for you locally, on your own machine.");
     parser.addHelpOption();
     parser.addVersionOption();

@@ -196,7 +196,7 @@ jobs:
     - name: Dependencies  # @TODO should also test qt6, but it's not present yet
       run: |
        sudo apt-get update
-       sudo apt-get install -y xvfb libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ccache
+       sudo apt-get install -y libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ccache
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
@@ -264,7 +264,7 @@ jobs:
     - name: Output test # @TODO some more complicated test, perhaps a unit test
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: xvfb-run --auto-servernum ./translateLocally --version # Can't run normally due to not having X server set up
+      run: ./translateLocally --version
 
     - name: Package # Produce a .deb file using cpack
       working-directory: ${{github.workspace}}/build
