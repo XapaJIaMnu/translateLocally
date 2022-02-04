@@ -264,7 +264,7 @@ jobs:
     - name: Output test # @TODO some more complicated test, perhaps a unit test
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: ./translateLocally --version # Can't run normally due to not having X server set up
+      run: ./translateLocally --version
 
     - name: Package # Produce a .deb file using cpack
       working-directory: ${{github.workspace}}/build
