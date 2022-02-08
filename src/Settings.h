@@ -49,12 +49,6 @@ class SettingImpl : public Setting {
 private:
     QString name_;
     T value_;
-    // Plumbing to the mainwindow for proper error management is a lot of work since this class is
-    // quite down the rabbit hole. This error is only meant to be seen by a developer anyways, not
-    // by the end user and it is a sanity check to whether the API is used correctly.
-    inline void error(QString err) {
-        QMessageBox::critical(this, tr("An error occurred"), err);
-    }
 
 public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
@@ -95,7 +89,7 @@ public:
             value_.append(entry);
             emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
         } else {
-            error(QString(tr("Attempted to append a setting entry to a non-appendable type: ")) + QString(typeid(T).name()));
+            Q_ASSERT_X(true, "appendToValue", (std::string("Developer error: Attempted to append a setting entry to a non-appendable type: ") + std::string(typeid(T).name())).c_str());
         }
     }
 
@@ -104,7 +98,7 @@ public:
             value_.removeAt(index);
             emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
         } else {
-            error(QString(tr("Attempted to remove a setting entry to a non-removable type: ")) + QString(typeid(T).name()));
+            Q_ASSERT_X(true, "removeFromValue", (std::string("Developer error: Attempted to remove a setting entry to a non-removable type") + std::string(typeid(T).name())).c_str());
         }
     }
 

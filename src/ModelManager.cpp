@@ -443,6 +443,7 @@ void ModelManager::fetchRemoteModels() {
         return;
 
     QStringList repos = repositories_.getRepos();
+    QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
     for (auto&& urlString : repos) {
         isFetchingRemoteModels_ = true;
         emit fetchingRemoteModels();
@@ -462,9 +463,10 @@ void ModelManager::fetchRemoteModels() {
                     emit error(errstr);
                     break;
             }
-
-            isFetchingRemoteModels_ = false;
-            emit fetchedRemoteModels();
+            if (--(*num_repos) == 0) { // Once we have fetched all repositories, re-enable fetch.
+                isFetchingRemoteModels_ = false;
+                emit fetchedRemoteModels();
+            }
 
             reply->deleteLater();
         });
