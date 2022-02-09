@@ -1,6 +1,6 @@
 #pragma once
 #include <QAbstractTableModel>
-#include "Settings.h"
+#include "settings/Settings.h"
 
 constexpr const char* kModelListUrl = "https://translatelocally.com/models.json";
 

@@ -7,7 +7,7 @@
 #include <iostream>
 #include "Network.h"
 #include "types.h"
-#include "Settings.h"
+#include "settings/Settings.h"
 #include "RepoManager.h"
 
 namespace translateLocally {

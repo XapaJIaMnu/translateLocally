@@ -6,8 +6,8 @@
 #include <QTextStream>
 #include <QCommandLineParser>
 #include <QEventLoop>
-#include "ModelManager.h"
-#include "Settings.h"
+#include "inventory/ModelManager.h"
+#include "settings/Settings.h"
 #include "MarianInterface.h"
 #include "Translation.h"
 #include "Network.h"

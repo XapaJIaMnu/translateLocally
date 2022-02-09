@@ -1,5 +1,6 @@
 #include "TranslatorSettingsDialog.h"
 #include "ui_TranslatorSettingsDialog.h"
+#include "NewRepoDialog.h"
 #include <thread>
 #include <QDesktopServices>
 #include <QUrl>
@@ -166,38 +167,10 @@ void TranslatorSettingsDialog::updateRepoActions()
 
 void TranslatorSettingsDialog::on_importRepo_clicked()
 {
-    // Dialog button with two text boxes, because QInputDialog only has one : (
-    QDialog dialog(this);
-    dialog.setWindowTitle("Add new model");
-    // Use a layout allowing to have a label next to each field
-    QFormLayout form(&dialog);
-
-    // Add some text above the fields
-    form.addRow(new QLabel(tr(
-         "Enter the name and URL to the external repository's models.json.\nThe new models will appear in the language selection drop-down.")));
-
-    // Add the lineEdits with their respective labels
-    QLineEdit name(&dialog);
-    name.setToolTip("Enter the name of the new repository here.");
-    QString nameLbl("Name:");
-    form.addRow(nameLbl, &name);
-
-    QLineEdit url(&dialog);
-    url.setToolTip("Enter url to translateLocally like json repository. Eg https://example.com/models.json");
-    QString urlLbl("URL:");
-    form.addRow(urlLbl, &url);
-
-    // Add some standard buttons (Cancel/Ok) at the bottom of the dialog
-    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
-                               Qt::Horizontal, &dialog);
-    form.addRow(&buttonBox);
-    QObject::connect(&buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
-    QObject::connect(&buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
-
-    // Show the dialog
-    if (dialog.exec() == QDialog::Accepted) {
-        if (!url.text().isEmpty()) {
-            QStringList new_entry({name.text(), url.text()});
+    AddNewRepoDialog prompt(this);
+    if (prompt.exec() == QDialog::Accepted) {
+        if (!prompt.getURL().isEmpty()) {
+            QStringList new_entry({prompt.getName(), prompt.getURL()});
             modelManager_->getRepoManager()->insert(new_entry);
         }
     }

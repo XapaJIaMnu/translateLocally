@@ -4,7 +4,7 @@
 #include <QDialog>
 #include <QItemSelection>
 #include "Settings.h"
-#include "ModelManager.h"
+#include "inventory/ModelManager.h"
 
 namespace Ui {
 class TranslatorSettingsDialog;
