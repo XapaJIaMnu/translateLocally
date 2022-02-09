@@ -121,7 +121,7 @@ public:
      */
     QStringList getRepos();
     void insert(QStringList new_model);
-    void remove(const QModelIndex &index);
+    void remove(int index);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;

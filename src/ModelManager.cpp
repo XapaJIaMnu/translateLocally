@@ -643,13 +643,9 @@ void RepoManager::insert(QStringList new_repo) {
     qobject_cast<ModelManager *>(this->parent())->fetchRemoteModels(); // Fetch remote models after new a new entry was added.
 }
 
-void RepoManager::remove(const QModelIndex &index) {
-    if (index.row() == 0) {
-        emit qobject_cast<ModelManager *>(parent())->error("Unable to remove builtin repository.");
-        return;
-    }
-    beginRemoveRows(QModelIndex(),index.row(), index.row());
-    settings_->externalRepos.removeFromValue(index.row() - 1); // Account for the builtin repo
+void RepoManager::remove(int index) {
+    beginRemoveRows(QModelIndex(), index + 1, index + 1); // Account for the builtin repo
+    settings_->externalRepos.removeFromValue(index);
     endRemoveRows();
 }
 
