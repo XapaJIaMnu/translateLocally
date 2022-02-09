@@ -155,6 +155,8 @@ set(PROJECT_SOURCES
         src/CommandLineIface.h
         src/CommandLineIface.cpp
         src/CLIParsing.h
+        src/RepoManager.h
+        src/RepoManager.cpp
         logo/logo_svg.h
         ${TS_FILES}
 )
