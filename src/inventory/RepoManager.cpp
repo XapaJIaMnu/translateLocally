@@ -4,7 +4,7 @@ RepoManager::RepoManager(QObject * parent, Settings * settings) : QAbstractTable
     , settings_(settings) {}
 
 QStringList RepoManager::getRepos() {
-    QStringList urls({kModelListUrl});
+    QStringList urls({kDefaultRepositoryURL});
     for (auto&& nameAndUrl : settings_->externalRepos.value()) {
         urls.append(nameAndUrl.back());
     }
@@ -85,7 +85,7 @@ QVariant RepoManager::data(const QModelIndex &index, int role) const {
 
     QStringList repo;
     if (index.row() == 0) {
-        repo = QStringList{"Bergamot", kModelListUrl}; // Hardcoded default repo
+        repo = QStringList{kDefaultRepositoryName, kDefaultRepositoryURL}; // Hardcoded default repo
     } else {
         repo = settings_->externalRepos.value().at(index.row() - 1);
     }
