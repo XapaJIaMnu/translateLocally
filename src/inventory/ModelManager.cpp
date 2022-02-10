@@ -48,10 +48,11 @@ namespace {
 }
 
 
-ModelManager::ModelManager(QObject *parent)
+ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
     , isFetchingRemoteModels_(false)
+    , repositories_(this, settings)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -64,6 +65,8 @@ ModelManager::ModelManager(QObject *parent)
         }
     }
     startupLoad();
+    // Fetch remote models after new a new entry was added. Lambda wrapped to use the new syntax without explicit slot.
+    connect(&repositories_, &RepoManager::rowsInserted, this, [&](){fetchRemoteModels();});
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
@@ -245,8 +248,9 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"src"},
                                     QString{"trg"},
                                     QString{"type"},
+                                    QString("repository"),
                                     QString{"checksum"}};
-    std::vector<QString> keysFLT{QString("version"), QString("API")};
+    std::vector<QString> keysINT{QString("version"), QString("API")};
     QString criticalKey = type==Local ? QString("path") : QString("url");
 
     Model model = {};
@@ -255,20 +259,16 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         auto iter = obj.find(key);
         if (iter != obj.end()) {
             model.set(key, iter.value().toString());
-        } else {
-            model.set(key, "");
         }
     }
 
-    // Float Keys depend on whether we have a local or a remote model
-    // Non critical if missing due to older file name
-    for (auto&& key : keysFLT) {
+    // Int Keys depend on whether we have a local or a remote model
+    // Non critical if missing due to older model version.
+    for (auto&& key : keysINT) {
         QString keyname = type==Local ? "local" + key : "remote" + key;
         auto iter = obj.find(key);
         if (iter != obj.end()) {
-            model.set(keyname, (float)iter.value().toDouble());
-        } else {
-            model.set(keyname, "");
+            model.set(keyname, iter.value().toInt());
         }
     }
 
@@ -444,36 +444,51 @@ void ModelManager::fetchRemoteModels() {
     if (isFetchingRemoteModels())
         return;
 
-    isFetchingRemoteModels_ = true;
-    emit fetchingRemoteModels();
+    QStringList repos = repositories_.getRepos();
+    QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
+    for (auto&& urlString : repos) {
+        isFetchingRemoteModels_ = true;
+        emit fetchingRemoteModels();
 
-    QUrl url(kModelListUrl);
-    QNetworkRequest request(url);
-    QNetworkReply *reply = network_->get(request);
-    connect(reply, &QNetworkReply::finished, this, [=] {
-        switch (reply->error()) {
-            case QNetworkReply::NoError:
-                parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
-                break;
-            default:
-                emit error(reply->errorString());
-                break;
-        }
+        QUrl url(urlString);
+        QNetworkRequest request(url);
+        QNetworkReply *reply = network_->get(request);
+        connect(reply, &QNetworkReply::finished, this, [=] {
+            switch (reply->error()) {
+                case QNetworkReply::NoError:
+                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
+                    break;
+                default:
+                    QString errstr = QString("Error fetching remote repository: ") + urlString +
+                            QString("\nError code: ") + reply->errorString() +
+                            QString("\nPlease double check that the address is reachable.");
+                    emit error(errstr);
+                    break;
+            }
+            if (--(*num_repos) == 0) { // Once we have fetched all repositories, re-enable fetch.
+                isFetchingRemoteModels_ = false;
+                emit fetchedRemoteModels();
+            }
 
-        isFetchingRemoteModels_ = false;
-        emit fetchedRemoteModels();
-
-        reply->deleteLater();
-    });
+            reply->deleteLater();
+        });
+    }
 }
 
 void ModelManager::parseRemoteModels(QJsonObject obj) {
     using namespace translateLocally::models;
-    remoteModels_.clear();
     
+    bool empty = true;
     for (auto&& arrobj : obj["models"].toArray()) {
+        empty = false;
         QJsonObject obj = arrobj.toObject();
-        remoteModels_.append(parseModelInfo(obj, Remote));
+        Model remoteModel = parseModelInfo(obj, Remote);
+        if (!remoteModels_.contains(remoteModel)) { // This costs O(n). Not happy, is there a better way?
+            remoteModels_.append(std::move(remoteModel));
+        }
+    }
+    if (empty) {
+        emit error("No models found in the repository. Please double check that the repository address is correct.");
     }
 
     std::sort(remoteModels_.begin(), remoteModels_.end());
@@ -533,6 +548,10 @@ void ModelManager::updateAvailableModels() {
     emit localModelsChanged();
 }
 
+RepoManager * ModelManager::getRepoManager() {
+    return &repositories_;
+}
+
 int ModelManager::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
@@ -542,7 +561,7 @@ int ModelManager::rowCount(const QModelIndex &parent) const {
 int ModelManager::columnCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return 2;
+    return 3;
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -555,6 +574,8 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
     switch (section) {
         case Column::Name:
             return tr("Name", "translation model name");
+        case Column::Repository:
+            return tr("Repository", "repository from which the translation model originated");
         case Column::Version:
             return tr("Version", "translation model version");
         default:
@@ -580,6 +601,14 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     return QVariant();
             }
 
+        case Column::Repository:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.repository;
+                default:
+                    return QVariant();
+            }
+
         case Column::Version:
             switch (role) {
                 case Qt::DisplayRole:
@@ -588,7 +617,7 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     // @TODO figure out how to compile combined flag as below. 
                     // Error is "can't convert the result to QVariant."
                     // return Qt::AlignRight | Qt::AlignBaseline;
-                    return Qt::AlignRight;
+                    return Qt::AlignCenter;
                 default:
                     return QVariant();
             }

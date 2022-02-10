@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>450</width>
-    <height>400</height>
+    <width>622</width>
+    <height>647</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -235,6 +235,73 @@ of memory.</string>
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="reposTab">
+      <attribute name="title">
+       <string>Repositories</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>8</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>8</number>
+       </property>
+       <item>
+        <widget class="QTableView" name="repoTable">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <property name="showGrid">
+          <bool>false</bool>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <addaction name="actionDeleteRepo"/>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QPushButton" name="importRepo">
+           <property name="text">
+            <string>Import repository…</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="deleteRepo">
+           <property name="text">
+            <string>Delete</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>
@@ -264,6 +331,17 @@ of memory.</string>
     <enum>Qt::WidgetShortcut</enum>
    </property>
   </action>
+  <action name="actionDeleteRepo">
+   <property name="text">
+    <string>Delete</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete the selected Repo</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -281,8 +359,8 @@ of memory.</string>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>32</x>
-     <y>354</y>
+     <x>47</x>
+     <y>631</y>
     </hint>
     <hint type="destinationlabel">
      <x>20</x>
@@ -297,8 +375,8 @@ of memory.</string>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>32</x>
-     <y>354</y>
+     <x>47</x>
+     <y>631</y>
     </hint>
     <hint type="destinationlabel">
      <x>20</x>

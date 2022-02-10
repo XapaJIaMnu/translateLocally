@@ -138,23 +138,28 @@ set(PROJECT_SOURCES
         src/AlignmentWorker.h
         src/ColorWell.cpp
         src/ColorWell.h
-        src/TranslatorSettingsDialog.ui
-        src/TranslatorSettingsDialog.cpp
-        src/TranslatorSettingsDialog.h
         src/MarianInterface.cpp
         src/MarianInterface.h
-        src/ModelManager.cpp
-        src/ModelManager.h
         src/Network.cpp
         src/Network.h
-        src/Settings.cpp
-        src/Settings.h
         src/Translation.h
         src/Translation.cpp
         src/types.h
         src/CommandLineIface.h
         src/CommandLineIface.cpp
         src/CLIParsing.h
+        src/inventory/ModelManager.cpp
+        src/inventory/ModelManager.h
+        src/inventory/RepoManager.cpp
+        src/inventory/RepoManager.h
+        src/settings/NewRepoDialog.cpp
+        src/settings/NewRepoDialog.h
+        src/settings/NewRepoDialog.ui
+        src/settings/Settings.cpp
+        src/settings/Settings.h
+        src/settings/TranslatorSettingsDialog.cpp
+        src/settings/TranslatorSettingsDialog.h
+        src/settings/TranslatorSettingsDialog.ui
         logo/logo_svg.h
         ${TS_FILES}
 )

@@ -6,9 +6,9 @@
 #include "AlignmentHighlighter.h"
 #include "AlignmentWorker.h"
 #include "Network.h"
-#include "ModelManager.h"
-#include "TranslatorSettingsDialog.h"
-#include "Settings.h"
+#include "inventory/ModelManager.h"
+#include "settings/TranslatorSettingsDialog.h"
+#include "settings/Settings.h"
 
 class MarianInterface;
 
@@ -59,6 +59,8 @@ private slots:
     void on_actionSplit_Vertically_triggered();
 
     void popupError(QString error);
+
+    void popupWarning(QString warning);
 
     void translate();
 

@@ -4,7 +4,7 @@
 #include <QDialog>
 #include <QItemSelection>
 #include "Settings.h"
-#include "ModelManager.h"
+#include "inventory/ModelManager.h"
 
 namespace Ui {
 class TranslatorSettingsDialog;
@@ -28,8 +28,13 @@ private slots:
     void deleteSelectedModels();
     void importModels();
     void updateModelActions();
+    void updateRepoActions();
+
+    void on_importRepo_clicked();
+    void on_deleteRepo_clicked();
 
 private:
+
     Ui::TranslatorSettingsDialog *ui_;
     Settings *settings_;
     ModelManager *modelManager_;

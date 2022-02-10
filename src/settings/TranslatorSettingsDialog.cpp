@@ -1,10 +1,12 @@
 #include "TranslatorSettingsDialog.h"
 #include "ui_TranslatorSettingsDialog.h"
+#include "NewRepoDialog.h"
 #include <thread>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QInputDialog>
 
 
 TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *settings, ModelManager *modelManager)
@@ -36,15 +38,23 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
 
+    ui_->repoTable->setModel(modelManager_->getRepoManager());
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::RepoName, QHeaderView::ResizeToContents);
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::URL, QHeaderView::Stretch);
+
     connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelActions);
     connect(ui_->buttonBox, &QDialogButtonBox::accepted, this, &TranslatorSettingsDialog::applySettings);
     connect(ui_->actionRevealModel, &QAction::triggered, this, &TranslatorSettingsDialog::revealSelectedModels);
     connect(ui_->actionDeleteModel, &QAction::triggered, this, &TranslatorSettingsDialog::deleteSelectedModels);
     connect(ui_->deleteModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::deleteSelectedModels);
     connect(ui_->importModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::importModels);
+    // Repository actions
+    connect(ui_->actionDeleteRepo, &QAction::triggered, this, &TranslatorSettingsDialog::on_deleteRepo_clicked);
+    connect(ui_->repoTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateRepoActions);
 
     // Update context menu state on start-up
     updateModelActions();
+    updateRepoActions();
 }
 
 TranslatorSettingsDialog::~TranslatorSettingsDialog()
@@ -139,3 +149,44 @@ void TranslatorSettingsDialog::updateModelActions()
     ui_->actionDeleteModel->setEnabled(containsDeletableModel);
     ui_->deleteModelButton->setEnabled(containsDeletableModel);
 }
+
+void TranslatorSettingsDialog::updateRepoActions()
+{
+    bool containsDeletableRepo = false;
+
+    for (auto&& index : ui_->repoTable->selectionModel()->selectedIndexes()) {
+        if (modelManager_->getRepoManager()->canRemove(index)) {
+            containsDeletableRepo = true;
+            break;
+        }
+    }
+
+    ui_->actionDeleteRepo->setEnabled(containsDeletableRepo);
+    ui_->deleteRepo->setEnabled(containsDeletableRepo);
+}
+
+void TranslatorSettingsDialog::on_importRepo_clicked()
+{
+    AddNewRepoDialog prompt(this);
+    if (prompt.exec() == QDialog::Accepted) {
+        if (!prompt.getURL().isEmpty()) {
+            QStringList new_entry({prompt.getName(), prompt.getURL()});
+            modelManager_->getRepoManager()->insert(new_entry);
+        }
+    }
+}
+
+
+void TranslatorSettingsDialog::on_deleteRepo_clicked()
+{
+    auto selection = ui_->repoTable->selectionModel()->selectedRows(0);
+
+    if (QMessageBox::question(this,
+            tr("Remove repo"),
+            tr("Are you sure you want to remove %n selected repo(s)?", "", selection.size())
+        ) != QMessageBox::Yes)
+        return;
+
+    modelManager_->getRepoManager()->removeRows(selection);
+}
+

@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui_(new Ui::MainWindow)
     , settings_(this)
-    , models_(this)
+    , models_(this, &settings_)
     , translatorSettingsDialog_(this, &settings_, &models_)
     , network_(this)
     , translator_(new MarianInterface(this))
@@ -97,6 +97,7 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
+    connect(models_.getRepoManager(), &RepoManager::warning, this, &MainWindow::popupWarning);
 
     // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
@@ -154,8 +155,10 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Pop open the model list again when remote model list is available
+    // Do that only if the settings window is not open as we want to avoid having the popup
+    // override a potential error
     connect(&models_, &ModelManager::fetchedRemoteModels, this, [&] {
-        if (!models_.getNewModels().empty())
+        if (!models_.getNewModels().empty() && !translatorSettingsDialog_.isVisible())
             ui_->localModels->showPopup();
     });
 
@@ -368,7 +371,9 @@ void MainWindow::updateLocalModels() {
         ui_->localModels->addItem(tr("No other models available online"));
     } else {
         for (auto &&model : models_.getNewModels())
-            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
+            ui_->localModels->addItem(model.modelName + " (" + model.repository + ")", QVariant::fromValue(model));
+        ui_->localModels->insertSeparator(ui_->localModels->count()); //@TODO some indication when no new models were fetched.
+        ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     }
 
     // Finally, add models that are existing but a new version is available online.
@@ -444,6 +449,10 @@ void MainWindow::resetTranslator() {
 
 void MainWindow::popupError(QString error) {
     QMessageBox::critical(this, tr("An error occurred"), error);
+}
+
+void MainWindow::popupWarning(QString warning) {
+    QMessageBox::warning(this, tr("Warning"), warning);
 }
 
 void MainWindow::on_fontAction_triggered() {

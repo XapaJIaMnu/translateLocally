@@ -35,9 +35,9 @@ namespace {
 CommandLineIface::CommandLineIface(QObject * parent)
 : QObject(parent)
 , eventLoop_(this)
-, models_(this)
 , network_(this)
 , settings_(this)
+, models_(this, &settings_)
 , translator_(new MarianInterface(this))
 , instream_(stdin)
 , outstream_(stdout) {
