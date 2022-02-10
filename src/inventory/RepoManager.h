@@ -13,8 +13,10 @@ public:
      * @return QStringList of URLs
      */
     QStringList getRepos();
+    bool canRemove(QModelIndex index) const;
     void insert(QStringList new_model);
-    void remove(int index);
+    void removeRow(int index, QModelIndex const &parent = QModelIndex());
+    void removeRows(QList<QModelIndex> rows);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;

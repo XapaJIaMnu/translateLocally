@@ -11,6 +11,10 @@ QStringList RepoManager::getRepos() {
     return urls;
 }
 
+bool RepoManager::canRemove(QModelIndex index) const {
+    return index.row() != 0; // First row is hardcoded
+}
+
 void RepoManager::insert(QStringList new_repo) {
     int position = settings_->externalRepos.value().size() + 1;
     beginInsertRows(QModelIndex(),position, position);
@@ -18,9 +22,32 @@ void RepoManager::insert(QStringList new_repo) {
     endInsertRows();
 }
 
-void RepoManager::remove(int index) {
-    beginRemoveRows(QModelIndex(), index + 1, index + 1); // Account for the builtin repo
-    settings_->externalRepos.removeFromValue(index);
+void RepoManager::removeRow(int index, QModelIndex const &parent) {
+    Q_UNUSED(parent);
+    beginRemoveRows(QModelIndex(), index, index);
+    settings_->externalRepos.removeFromValue(index - 1); // Account for the builtin repo
+    endRemoveRows();
+}
+
+void RepoManager::removeRows(QList<QModelIndex> rows) {
+    // If we delete multiple repositories, indexes will change during deletion.
+    // Instead make a list of items to be deleted and the remove them one by
+    // one, every time recalculating the index.
+    QList<QStringList> toDelete;
+    int first = rowCount(), last = 0;
+
+    for (auto &&index : rows) {
+        if (!canRemove(index))
+            continue;
+
+        if (index.row() < first) first = index.row();
+        if (index.row() > last) last = index.row();
+        toDelete.append(settings_->externalRepos.value().at(index.row() - 1)); // Account for builtIn hardcoded repo that lives outside the settings.
+    }
+
+    beginRemoveRows(QModelIndex(), first, last);
+    for (auto &&repo : toDelete)
+        settings_->externalRepos.removeFromValue(settings_->externalRepos.value().indexOf(repo));
     endRemoveRows();
 }
 
@@ -63,7 +90,7 @@ QVariant RepoManager::data(const QModelIndex &index, int role) const {
         repo = settings_->externalRepos.value().at(index.row() - 1);
     }
 
-    if (role == Qt::UserRole) // ??
+    if (role == Qt::UserRole) // Allow access to the underlying data through the UserRole role.
         return repo;
 
     switch (index.column()) {

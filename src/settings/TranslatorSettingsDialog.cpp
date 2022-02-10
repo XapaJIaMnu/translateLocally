@@ -155,7 +155,7 @@ void TranslatorSettingsDialog::updateRepoActions()
     bool containsDeletableRepo = false;
 
     for (auto&& index : ui_->repoTable->selectionModel()->selectedIndexes()) {
-        if (index.row() !=0) { // The first repo is the Bergmaot repo, never deleted
+        if (modelManager_->getRepoManager()->canRemove(index)) {
             containsDeletableRepo = true;
             break;
         }
@@ -187,18 +187,6 @@ void TranslatorSettingsDialog::on_deleteRepo_clicked()
         ) != QMessageBox::Yes)
         return;
 
-    // If we delete multiple repositories, indexis will change during deleteion. Instead make a list of items to be deleted
-    // And the remove them one by one, every time recalculating the index.
-    QList<QStringList> toDelete;
-    for (auto &&index : selection) {
-        if (index.row() == 0) {
-            QMessageBox::warning(this, tr("Warning"), tr("Unable to remove the built-in model repository."));
-            continue;
-        }
-        toDelete.append(settings_->externalRepos.value().at(index.row() - 1)); // Account for builtIn hardcoded repo that lives outside the settings.
-    }
-
-    for (auto &&repo : toDelete)
-        modelManager_->getRepoManager()->remove(settings_->externalRepos.value().indexOf(repo));
+    modelManager_->getRepoManager()->removeRows(selection);
 }
 
