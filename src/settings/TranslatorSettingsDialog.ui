@@ -260,6 +260,12 @@ of memory.</string>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>
          </property>
+         <property name="showGrid">
+          <bool>false</bool>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
          <addaction name="actionDeleteRepo"/>
         </widget>
        </item>
@@ -268,7 +274,7 @@ of memory.</string>
          <item>
           <widget class="QPushButton" name="importRepo">
            <property name="text">
-            <string>Import repository</string>
+            <string>Import repository…</string>
            </property>
           </widget>
          </item>
