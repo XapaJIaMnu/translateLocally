@@ -37,8 +37,10 @@ void RepoManager::removeRows(QList<QModelIndex> rows) {
     int first = rowCount(), last = 0;
 
     for (auto &&index : rows) {
-        if (!canRemove(index))
+        if (!canRemove(index)) {
+            emit warning("Unable to remove the builtin repository.");
             continue;
+        }
 
         if (index.row() < first) first = index.row();
         if (index.row() > last) last = index.row();

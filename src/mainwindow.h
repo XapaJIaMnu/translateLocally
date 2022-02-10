@@ -60,6 +60,8 @@ private slots:
 
     void popupError(QString error);
 
+    void popupWarning(QString warning);
+
     void translate();
 
     void translate(QString const &input);

@@ -31,6 +31,9 @@ public:
     };
 
     Q_ENUM(RepoColumn);
+
+signals:
+    void warning(QString warn);
 private:
     Settings * settings_;
 
