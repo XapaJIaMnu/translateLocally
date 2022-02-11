@@ -21,6 +21,12 @@ int NativeMsgIface::run() {
     die_ = false; // Do not die immediately
     std::cerr << "Native msg interface accepting messages..." << std::endl;
     do {
+        if ((std::cin.peek() == std::char_traits<char>::eof())) {
+            QThread::msleep(1000);
+            std::cerr << "Reached EOF CIN" << std::endl;
+            continue;
+        }
+        QThread::msleep(700);
         // First part of the message: Size of the input
         char len[4];
         std::cin.read(len, 4);
