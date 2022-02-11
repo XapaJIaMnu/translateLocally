@@ -145,9 +145,11 @@ set(PROJECT_SOURCES
         src/Translation.h
         src/Translation.cpp
         src/types.h
-        src/CommandLineIface.h
-        src/CommandLineIface.cpp
-        src/CLIParsing.h
+        src/cli/CLIParsing.h
+        src/cli/CommandLineIface.cpp
+        src/cli/CommandLineIface.h
+        src/cli/NativeMsgIface.cpp
+        src/cli/NativeMsgIface.h
         src/inventory/ModelManager.cpp
         src/inventory/ModelManager.h
         src/inventory/RepoManager.cpp

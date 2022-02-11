@@ -4,8 +4,9 @@
 #include "Translation.h"
 
 #include <QApplication>
-#include "CLIParsing.h"
-#include "CommandLineIface.h"
+#include "cli/CLIParsing.h"
+#include "cli/CommandLineIface.h"
+#include "cli/NativeMsgIface.h"
 
 int main(int argc, char *argv[])
 {
@@ -31,8 +32,14 @@ int main(int argc, char *argv[])
         translateLocally::CLIArgumentInit(translateLocally, parser);
 
         // Launch application unless we're supposed to be in CLI mode
-        if (translateLocally::isCLIOnly(parser)) {
-            return CommandLineIface().run(parser); // Also takes care of exit codes
+        translateLocally::AppType runtime = translateLocally::runType(parser);
+        switch (runtime) {
+            case translateLocally::AppType::CLI:
+                return CommandLineIface().run(parser);
+            case translateLocally::AppType::NativeMsg:
+                return NativeMsgIface().run();
+            case translateLocally::AppType::GUI:
+                break; //Handled later outside this scope.
         }
     }
 

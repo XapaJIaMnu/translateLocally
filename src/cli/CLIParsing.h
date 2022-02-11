@@ -4,6 +4,12 @@
 
 namespace translateLocally {
 
+enum AppType {
+    CLI,
+    GUI,
+    NativeMsg
+};
+
 /**
  * @brief CLIArgumentInit Inits the command line argument parsing.
  * @param translateLocallyApp The translateLocally QApplicaiton
@@ -22,25 +28,32 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
     parser.addOption({{"m", "model"}, QObject::tr("Select model for translation."), "model", ""});
     parser.addOption({{"i", "input"}, QObject::tr("Source translation file (or just used stdin)."), "input", ""});
     parser.addOption({{"o", "output"}, QObject::tr("Target translation file (or just used stdout)."), "output", ""});
+    parser.addOption({{"p", "plugin"}, QObject::tr("Start native message server to use for a browser plugin).")});
     parser.process(translateLocallyApp);
 }
 
 /**
- * @brief isCLIOnly Checks if the application should run in cliONLY mode or launch the GUI
+ * @brief runType Checks whether to run in CLI, GUI or native message interface server
  * @param parser The command line parser.
- * @return
+ * @return the launched main type
  */
 
-static bool isCLIOnly(QCommandLineParser& parser) {
+static AppType runType(QCommandLineParser& parser) {
     QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o"};
-    bool cliONLY = false;
-    for (auto&& flag : cmdonlyflags) {
+    QList<QString> nativemsgflags = {"p"};
+    for (auto&& flag : nativemsgflags) {
         if (parser.isSet(flag)) {
-            cliONLY = true;
-            break;
+            return NativeMsg;
         }
     }
-    return cliONLY;
+
+    for (auto&& flag : cmdonlyflags) {
+        if (parser.isSet(flag)) {
+            return CLI;
+        }
+    }
+
+    return GUI;
 }
 
 } // namespace translateLocally
