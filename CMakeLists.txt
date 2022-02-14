@@ -150,6 +150,7 @@ set(PROJECT_SOURCES
         src/cli/CommandLineIface.h
         src/cli/NativeMsgIface.cpp
         src/cli/NativeMsgIface.h
+        src/cli/SafeQueue.h
         src/inventory/ModelManager.cpp
         src/inventory/ModelManager.h
         src/inventory/RepoManager.cpp

@@ -5,17 +5,19 @@ import os
 import ctypes
 import subprocess
 import time
+import json
 from pathlib import Path
 
 def encode_msg(message: str) -> bytearray:
-    msglen = len(message.encode('utf-8'))
+    myjson = json.dumps({"text": message, "die": False})
+    msglen = len(myjson.encode('utf-8'))
     len_in_bytes = bytes(ctypes.c_int(msglen))
-    msg_in_bytes = bytes(message.encode('utf-8'))
+    msg_in_bytes = bytes(myjson.encode('utf-8'))
     return len_in_bytes + msg_in_bytes
 
 def get_translateLocally() -> subprocess.Popen:
     a = open('/tmp/testa', 'w')
-    return subprocess.Popen([str(Path(__file__).resolve().parent) + "/../build/translateLocally", "-p"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE) # subprocess.PIPE
+    return subprocess.Popen([str(Path(__file__).resolve().parent) + "/../build/translateLocally", "-p"], stdout=a, stderr=subprocess.STDOUT, stdin=subprocess.PIPE) # subprocess.PIPE
 
 if __name__ == '__main__':
     p = get_translateLocally()
