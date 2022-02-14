@@ -1,32 +1,57 @@
 #include "NativeMsgIface.h"
-#include <memory>
 #include <QThread>
+
+// bergamot-translator
+#include "3rd_party/bergamot-translator/src/translator/service.h"
+#include "3rd_party/bergamot-translator/src/translator/parser.h"
+#include "3rd_party/bergamot-translator/src/translator/response.h"
+
+namespace  {
+
+std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_dir, const translateLocally::marianSettings &settings) {
+    std::shared_ptr<marian::Options> options(marian::bergamot::parseOptionsFromFilePath(path_to_model_dir + "/config.intgemm8bitalpha.yml"));
+    options->set("cpu-threads", settings.cpu_threads,
+                 "workspace", settings.workspace,
+                 "mini-batch-words", 1000,
+                 "alignment", "soft",
+                 "quiet", true);
+    return options;
+}
+
+}
 
 NativeMsgIface::NativeMsgIface(QObject * parent) :
       QObject(parent)
-      , eventLoop_(this)
       , network_(this)
       , settings_(this)
       , models_(this, &settings_)
-      , translator_(new MarianInterface(this))
       , die_(false) {
-    connect(translator_, &MarianInterface::error, this, &NativeMsgIface::outputError);
-    connect(translator_, &MarianInterface::translationReady, this, &NativeMsgIface::outputTranslation);
+    // Create service
+    marian::bergamot::AsyncService::Config serviceConfig;
+    serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
+    serviceConfig.cacheEnabled = settings_.marianSettings().translation_cache;
+    serviceConfig.cacheSize = kTranslationCacheSize;
+    serviceConfig.cacheMutexBuckets = settings_.marianSettings().cpu_threads;
+
+    // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
+    // Calling clear to remove any pending translations so we
+    // do not have to wait for those when AsyncService is destroyed.
+    service_.reset();
+
+    service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
+    // Need to make sure that no translations are in flight while changing the model.
+    auto modelConfig = makeOptions(models_.getInstalledModels().first().path.toStdString(), settings_.marianSettings());
+    model_ = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, settings_.marianSettings().cpu_threads);
 
     // For testing purposes load the first available model on the system. In the future we will have json communication that instructs what models to load
     std::cerr << "Loading model: " << models_.getInstalledModels().first().modelName.toStdString() << std::endl;
-    translator_->setModel(models_.getInstalledModels().first().path, settings_.marianSettings());
 
     inputWorker_ = std::thread([&](){
         do {
             if ((std::cin.peek() == std::char_traits<char>::eof())) {
                 std::cerr << "Reached EOF CIN" << std::endl;
                 // Send a final package telling the consumer to die
-                die_ = true;
-                TranslationRequest poison;
-                poison.die = true;
-                translationQueue_.enqueue(poison);
-                break;
+                QThread::sleep(1);
             }
             // First part of the message: Size of the input
             char len[4];
@@ -38,9 +63,14 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 std::unique_ptr<char[]> input(new char[ilen]);
                 std::cin.read(input.get(), ilen);
                 TranslationRequest myJsonInput = parseJsonInput(input.get(), ilen);
-                //std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
-                die_ = myJsonInput.die;
-                translationQueue_.enqueue(myJsonInput);
+                int myID = myJsonInput.id;
+                std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
+                //die_ = myJsonInput.die;
+                service_->translate(model_, std::move(myJsonInput.text.toStdString()), [&, myID] (marian::bergamot::Response&& val) {
+                   QByteArray outputBytesJson = toJsonBytes(std::move(val), myID);
+                   std::lock_guard<std::mutex> lock(coutmutex_);
+                   std::cout << outputBytesJson.data() << std::endl;
+                });
             } else {
               // @TODO Consume any invalid input here
               std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
@@ -49,71 +79,14 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
         } while (!die_);
     });
 
-    outputWorker_ = std::thread([&](){
-       do {
-            TranslationRequest request = translationQueue_.dequeue();
-            std::cerr << "Consumed some " << request.text.toStdString() << " should I die " << std::boolalpha << request.die << std::endl;
-            if (request.die) { // Die condition
-                std::cerr << "Dying" << std::endl;
-                break;
-            }
-            translator_->translate(request.text); // Does not work. We need a blocking API here
-        } while (true);
-    });
 }
 
-int NativeMsgIface::run() {/*
-    die_ = false; // Do not die immediately
-    std::cerr << "Native msg interface accepting messages..." << std::endl;
-    do {
-        if ((std::cin.peek() == std::char_traits<char>::eof())) {
-            QThread::msleep(1000);
-            std::cerr << "Reached EOF CIN" << std::endl;
-            continue;
-        }
-        QThread::msleep(700);
-        // First part of the message: Size of the input
-        char len[4];
-        std::cin.read(len, 4);
-        unsigned int ilen = *reinterpret_cast<unsigned int *>(len);
-        if (ilen < kMaxInputLength && ilen>1) {
-            std::cerr << "Received message size of: " << ilen << std::endl;
-            // This will be a json which is parsed and decoded, but for now just translate
-            std::unique_ptr<char[]> input(new char[ilen]);
-            std::cin.read(input.get(), ilen);
-            TranslationRequest myJsonInput = parseJsonInput(input.get(), ilen);
-            std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
-            translator_->translate(myJsonInput.text);
-            eventLoop_.exec(); // Do not read any input before this translation is done
-        } else {
-          // @TODO Consume any invalid input here
-          QThread::msleep(1000); // don't busy wait. @TODO those should be be done with Qevent
-        }
-    } while (!die_);
-    std::cerr << "Native msg interface no longer accepting messages..." << std::endl;*/
-    //QThread::sleep(4);
-    while (!die_) {
-        QThread::sleep(1);
-    }
+int NativeMsgIface::run() {
+    //while (!die_) {
+        QThread::sleep(4);
+    //}
     inputWorker_.join();
-    outputWorker_.join();
     return 0;
-}
-
-void NativeMsgIface::die() {
-    die_ = true;
-}
-
-void NativeMsgIface::outputError(QString err) {
-    std::cout << err.toStdString() << std::endl;
-    if (eventLoop_.isRunning()) {
-        eventLoop_.exit();
-    }
-}
-
-void NativeMsgIface::outputTranslation(Translation output) {
-    std::cout << output.translation().toStdString() << std::endl;
-    eventLoop_.exit();
 }
 
 TranslationRequest NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
@@ -124,4 +97,12 @@ TranslationRequest NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
     ret.text = jsonObj[QString("text")].toString();
     ret.die = jsonObj[QString("die")].toBool();
     return ret;
+}
+
+inline QByteArray NativeMsgIface::toJsonBytes(marian::bergamot::Response&& response, int myID) {
+    QJsonObject jsonObj;
+    jsonObj.insert(QString("id"), myID);
+    jsonObj.insert(QString("text"), QString::fromStdString(response.target.text));
+    QByteArray bytes = QJsonDocument(jsonObj).toJson();
+    return bytes;
 }
