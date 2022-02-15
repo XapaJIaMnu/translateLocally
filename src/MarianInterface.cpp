@@ -105,7 +105,6 @@ MarianInterface::MarianInterface(QObject *parent)
                     serviceConfig.numWorkers = modelChange->settings.cpu_threads;
                     serviceConfig.cacheEnabled = modelChange->settings.translation_cache;
                     serviceConfig.cacheSize = kTranslationCacheSize;
-                    serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
                     // Calling clear to remove any pending translations so we
