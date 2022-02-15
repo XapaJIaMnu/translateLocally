@@ -9,10 +9,12 @@ import json
 from pathlib import Path
 
 def encode_msg(message: str) -> bytearray:
-    myjson = json.dumps({"text": message, "die": False})
+    global counter
+    myjson = json.dumps({"text": message, "id": counter, "die": False})
     msglen = len(myjson.encode('utf-8'))
     len_in_bytes = bytes(ctypes.c_int(msglen))
     msg_in_bytes = bytes(myjson.encode('utf-8'))
+    counter = counter + 1
     return len_in_bytes + msg_in_bytes
 
 def get_translateLocally() -> subprocess.Popen:
@@ -20,6 +22,7 @@ def get_translateLocally() -> subprocess.Popen:
     return subprocess.Popen([str(Path(__file__).resolve().parent) + "/../build/translateLocally", "-p"], stdout=a, stderr=subprocess.STDOUT, stdin=subprocess.PIPE) # subprocess.PIPE
 
 if __name__ == '__main__':
+    counter = 0
     p = get_translateLocally()
     msg = encode_msg("Hello world!")
     msg2 = encode_msg("Sticks and stones may break my bones but words WILL NEVER HURT ME!")
@@ -30,6 +33,6 @@ if __name__ == '__main__':
     except subprocess.TimeoutExpired:
         pass
     print(mgsgs)
-    time.sleep(4)
-    p.terminate()
-    print(p.stdout.read().decode('utf-8',errors='ignore'))
+    with open('/tmp/testa', 'r') as a:
+        for line in a:
+            print(line.strip())

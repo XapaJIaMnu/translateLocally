@@ -54,8 +54,6 @@ private:
     ModelManager models_;
 
     // Shared ptrs because unique pointers can't be used incomplete types and including marian breaks qt compilation
-
-    std::shared_ptr<marian::bergamot::AsyncService> service_;
     std::shared_ptr<marian::bergamot::TranslationModel> model_;
 
     bool die_;
