@@ -61,6 +61,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 std::cin.read(input.get(), ilen);
                 TranslationRequest myJsonInput = parseJsonInput(input.get(), ilen);
                 marian::bergamot::ResponseOptions options;
+                options.HTML = myJsonInput.html;
                 int myID = myJsonInput.id;
                 //std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
                 //die_ = myJsonInput.die;
@@ -98,6 +99,7 @@ TranslationRequest NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
     ret.text = jsonObj[QString("text")].toString();
     ret.die = jsonObj[QString("die")].toBool();
     ret.id = jsonObj[QString("id")].toInt();
+    ret.html = jsonObj[QString("html")].toBool();
     return ret;
 }
 
