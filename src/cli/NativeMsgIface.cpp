@@ -60,14 +60,20 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 std::unique_ptr<char[]> input(new char[ilen]);
                 std::cin.read(input.get(), ilen);
                 TranslationRequest myJsonInput = parseJsonInput(input.get(), ilen);
+                marian::bergamot::ResponseOptions options;
                 int myID = myJsonInput.id;
                 //std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
                 //die_ = myJsonInput.die;
                 service->translate(model_, std::move(myJsonInput.text.toStdString()), [&, myID] (marian::bergamot::Response&& val) {
-                   QByteArray outputBytesJson = toJsonBytes(std::move(val), myID);
-                   std::lock_guard<std::mutex> lock(coutmutex_);
-                   std::cout << outputBytesJson.data() << std::endl;
-                });
+                    QByteArray outputBytesJson = toJsonBytes(std::move(val), myID);
+                    std::lock_guard<std::mutex> lock(coutmutex_);
+
+                    size_t outputSize = outputBytesJson.size();
+                    std::cerr << "Writing response: " << outputSize << " " << outputBytesJson.data() << std::endl;
+                    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
+                    std::cout.write(outputBytesJson.data(), outputSize);
+                    std::cout.flush();
+                }, options);
             } else {
               // @TODO Consume any invalid input here
               std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
