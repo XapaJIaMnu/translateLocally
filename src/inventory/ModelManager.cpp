@@ -247,6 +247,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"modelName"},
                                     QString{"src"},
                                     QString{"trg"},
+                                    QString("trgTag"),
                                     QString{"type"},
                                     QString("repository"),
                                     QString{"checksum"}};
@@ -272,6 +273,14 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         }
     }
 
+    { // srcTags keys. It's a json object. Non-critical.
+        auto iter = obj.find(QString("srcTags"));
+        if (iter != obj.end()) {
+            model.set("srcTags", iter.value().toObject());
+        }
+    }
+
+
     // Critical key. If this key is missing the json is completely invalid and needs to be discarded
     // it's either the path to the model or the url to its download location
     auto iter = obj.find(criticalKey);
@@ -282,7 +291,6 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                       "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
         return Model{};
     }
-
     return model;
 }
 
