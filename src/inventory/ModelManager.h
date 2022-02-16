@@ -1,10 +1,14 @@
 #ifndef MODELMANAGER_H
 #define MODELMANAGER_H
 #include <QDir>
+#include <QMap>
 #include <QList>
+#include <QJsonObject>
 #include <QFuture>
 #include <QAbstractTableModel>
 #include <iostream>
+#include <type_traits>
+
 #include "Network.h"
 #include "types.h"
 #include "settings/Settings.h"
@@ -26,47 +30,65 @@ struct Model {
     QString path; // This is full path to the directory. Only available if the model is local
     QString src;
     QString trg;
+    QMap<QString, QString> srcTags;
+    QString trgTag;
     QString type; // Base or tiny
-    QString repository = "unknown"; // Repository that the model belongs to. If we don't have that information, default to unknown.
+    QString repository = QObject::tr("unknown"); // Repository that the model belongs to. If we don't have that information, default to unknown.
     QByteArray checksum;
     int localversion  = -1;
     int localAPI = -1;
     int remoteversion = -1;
     int remoteAPI = -1;
 
-    inline void set(QString key, QString val) {
-        if (key == "shortName") {
-            shortName = val;
-        } else if (key == "modelName") {
-            modelName = val;
-        } else if (key == "url") {
-            url = val;
-        } else if (key == "path") {
-            path = val;
-        } else if (key == "src") {
-            src = val;
-        } else if (key == "trg") {
-            trg = val;
-        } else if (key == "type") {
-            type = val;
-        } else if (key == "repository") {
-            repository = val;
-        } else if (key == "checksum") {
-            checksum = QByteArray::fromHex(val.toUtf8());
-        } else {
-            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+    template<class T>
+    inline void set(QString key, T val) {
+        bool parseError = false;
+        if constexpr (std::is_same_v<QString, T>) {
+            if (key == "shortName") {
+                shortName = val;
+            } else if (key == "modelName") {
+                modelName = val;
+            } else if (key == "url") {
+                url = val;
+            } else if (key == "path") {
+                path = val;
+            } else if (key == "src") {
+                src = val;
+            } else if (key == "trg") {
+                trg = val;
+            } else if (key == "trgTag") {
+                trgTag = val;
+            } else if (key == "type") {
+                type = val;
+            } else if (key == "repository") {
+                repository = val;
+            } else if (key == "checksum") {
+                checksum = QByteArray::fromHex(val.toUtf8());
+            } else {
+                parseError = true;
+            }
+        } else if constexpr (std::is_same_v<int, T>) {
+            if (key == "localversion") {
+                localversion = val;
+            } else if (key == "localAPI") {
+                localAPI = val;
+            } else if (key == "remoteversion") {
+                remoteversion = val;
+            } else if (key == "remoteAPI") {
+                remoteAPI = val;
+            } else {
+                parseError = true;
+            }
+        } else if constexpr (std::is_same_v<QJsonObject, T>) {
+            if (key == "srcTags") {
+                for (auto&& key : val.keys()) {
+                    srcTags.insert(key, val[key].toString());
+                }
+            } else {
+               parseError = true;
+            }
         }
-    }
-    inline void set(QString key, int val) {
-        if (key == "localversion") {
-            localversion = val;
-        } else if (key == "localAPI") {
-            localAPI = val;
-        } else if (key == "remoteversion") {
-            remoteversion = val;
-        } else if (key == "remoteAPI") {
-            remoteAPI = val;
-        } else {
+        if (parseError) {
             std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
         }
     }

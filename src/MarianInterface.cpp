@@ -1,9 +1,7 @@
 #include "MarianInterface.h"
 #include "3rd_party/bergamot-translator/src/translator/service.h"
-#include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
-#include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 #include <future>
 #include <memory>
 #include <mutex>
@@ -105,7 +103,6 @@ MarianInterface::MarianInterface(QObject *parent)
                     serviceConfig.numWorkers = modelChange->settings.cpu_threads;
                     serviceConfig.cacheEnabled = modelChange->settings.translation_cache;
                     serviceConfig.cacheSize = kTranslationCacheSize;
-                    serviceConfig.cacheMutexBuckets = modelChange->settings.cpu_threads;
                     
                     // Free up old service first (see https://github.com/browsermt/bergamot-translator/issues/290)
                     // Calling clear to remove any pending translations so we
