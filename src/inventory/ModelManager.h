@@ -132,7 +132,7 @@ struct Model {
      *               should be handled by the backend.
      * @return Json representation of a model
      */
-    QJsonObject toJson() {
+     QJsonObject toJson() const {
         QJsonObject ret;
         ret["shortname"] = shortName;
         ret["modelName"] = modelName;

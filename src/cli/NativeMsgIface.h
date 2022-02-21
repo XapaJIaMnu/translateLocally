@@ -96,6 +96,7 @@ private:
     // Threading
     std::thread inputWorker_;
     std::mutex coutmutex_;
+    QEventLoop eventLoop_;
 
     bool fetched_ = false;
     std::mutex fetchModelsMutex;

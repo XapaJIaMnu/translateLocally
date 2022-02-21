@@ -26,6 +26,14 @@ def encode_list_msg(fetchremote: bool=True) -> bytearray:
     counter = counter + 1
     return len_in_bytes + msg_in_bytes
 
+def encode_dwn_msg(modelname: str) -> bytearray:
+    global counter
+    myjson = json.dumps({"command": "DownloadModel", "id": counter, "data": {"modelID": modelname}})
+    msglen = len(myjson.encode('utf-8'))
+    len_in_bytes = bytes(ctypes.c_int(msglen))
+    msg_in_bytes = bytes(myjson.encode('utf-8'))
+    counter = counter + 1
+    return len_in_bytes + msg_in_bytes
 
 def get_translateLocally() -> subprocess.Popen:
     a = open('/tmp/testa', 'w')
@@ -38,11 +46,14 @@ if __name__ == '__main__':
     msg2 = encode_msg("Sticks and stones may break my bones but words WILL NEVER HURT ME!", "en", "es")
     msg3 = encode_msg("¿Por qué no funciona bien?", "es", "de")
     msg4 = encode_list_msg();
-    mgsgs = msg + msg2 + msg3 + msg4
+    msg5 = encode_dwn_msg("en-cs-tiny")
+    mgsgs = msg + msg2 + msg3 + msg4 + msg5
     try:
         print(p.communicate(input=mgsgs, timeout=1))
     except subprocess.TimeoutExpired:
         pass
+    print("Waiting for translateLocally to finish...")
+    p.wait()
     print(mgsgs)
     with open('/tmp/testa', 'r', encoding='utf-8', errors='ignore') as a:
         for line in a:

@@ -1,5 +1,6 @@
 #include "NativeMsgIface.h"
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QSet>
 
 // bergamot-translator
@@ -26,6 +27,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , network_(this)
       , settings_(this)
       , models_(this, &settings_)
+      , eventLoop_(this)
       , die_(false)
     {
     modelMapInit(models_.getInstalledModels());
@@ -33,49 +35,58 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
-    inputWorker_ = std::thread([&](){
+    // Connections
+    connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){eventLoop_.exit();});
+    connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
+        // We use cout here, as QTextStream out gives a warning about being lamda captured.
+        std::cerr << "Model downloaded successfully!" << std::endl;
+        models_.writeModel(file, filename);
+        eventLoop_.exit();
+        // @TODO inform the local model map that this model is now downloaded, as this doesn't happen automatically
+    });
+
+    //inputWorker_ = std::thread([&](){
         // Connections
-        connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){fetched_ = true;});
         //connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
         //    models_.writeModel(file, filename);
         //    downloaded_ = true;
         //});
         // Create service
-        marian::bergamot::AsyncService::Config serviceConfig;
-        serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
-        serviceConfig.cacheEnabled = settings_.marianSettings().translation_cache;
-        serviceConfig.cacheSize = kTranslationCacheSize;
-        std::unique_ptr<marian::bergamot::AsyncService> service = std::make_unique<marian::bergamot::AsyncService>(serviceConfig);
-        do {
-            if ((std::cin.peek() == std::char_traits<char>::eof())) {
-                // Send a final package telling other stuff to die
-                die_ = true;
-                break;
-            }
-            // First part of the message: Find how long the input is
-            char len[4];
-            std::cin.read(len, 4);
-            unsigned int ilen = *reinterpret_cast<unsigned int *>(len);
-            if (ilen < kMaxInputLength && ilen>1) {
-                //  Read in the message into Json
-                std::unique_ptr<char[]> input(new char[ilen]);
-                std::cin.read(input.get(), ilen);
-                // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
-                // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
-                auto myJsonInputVariant = parseJsonInput(input.get(), ilen);
-                std::visit([&](auto&& req){handleRequest(req, service.get());}, myJsonInputVariant);
-            } else {
-              // @TODO Consume any invalid input here
-              std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
-              std::abort();
-            }
-        } while (!die_);
-    });
+
+    //});
 
 }
 
 int NativeMsgIface::run() {
-    inputWorker_.join();
+    marian::bergamot::AsyncService::Config serviceConfig;
+    serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
+    serviceConfig.cacheEnabled = settings_.marianSettings().translation_cache;
+    serviceConfig.cacheSize = kTranslationCacheSize;
+    std::unique_ptr<marian::bergamot::AsyncService> service = std::make_unique<marian::bergamot::AsyncService>(serviceConfig);
+    do {
+        if ((std::cin.peek() == std::char_traits<char>::eof())) {
+            // Send a final package telling other stuff to die
+            die_ = true;
+            break;
+        }
+        // First part of the message: Find how long the input is
+        char len[4];
+        std::cin.read(len, 4);
+        unsigned int ilen = *reinterpret_cast<unsigned int *>(len);
+        if (ilen < kMaxInputLength && ilen>1) {
+            //  Read in the message into Json
+            std::unique_ptr<char[]> input(new char[ilen]);
+            std::cin.read(input.get(), ilen);
+            // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
+            // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
+            auto myJsonInputVariant = parseJsonInput(input.get(), ilen);
+            std::visit([&](auto&& req){handleRequest(req, service.get());}, myJsonInputVariant);
+        } else {
+          // @TODO Consume any invalid input here
+          std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
+          std::abort();
+        }
+    } while (!die_);
     return 0;
 }
 
@@ -119,27 +130,68 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput, marian
 inline void NativeMsgIface::handleRequest(ListRequest myJsonInput, marian::bergamot::AsyncService *)  {
     QJsonObject jsonObj;
     jsonObj.insert(QString("id"), myJsonInput.id);
-    std::cerr << "Not implemented yet" << std::endl;
+
+    QJsonArray modelsJson;
     for (auto&& model : models_.getInstalledModels()) {
-        model.print();
+        modelsJson.append(model.toJson());
     }
     // Fetch remote models if necessary;
     if (myJsonInput.includeRemote && models_.getNewModels().isEmpty()) {
         models_.fetchRemoteModels();
-        {
-            std::unique_lock<std::mutex> lk(fetchModelsMutex);
-            fetchModelsCV.wait(lk, [&]{return fetched_;});
-        }
+        eventLoop_.exec();
         modelMapInit(models_.getNewModels());
+        for (auto&& model : models_.getNewModels()) {
+            modelsJson.append(model.toJson());
+        }
     }
-
-    for (auto&& model : models_.getNewModels()) {
-        model.print();
-    }
+    jsonObj.insert(QString("data"), modelsJson);
+    lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
 }
 
 inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput, marian::bergamot::AsyncService *)  {
-    std::cerr << "Not implemented yet" << std::endl;
+    // Assume remote models are fetched already
+    QString modelID = myJsonInput.modelID;
+    // identify the model we want to download. This is a remote model and we have this complicated lambda function
+    // because i wanted it to be a const & as opposed to a copy of a model
+    const Model& model = [&]() {
+        // Keep track of available models in case we have an error
+        QString errorstr("Unable to find \'" + modelID + "\' in the list of available models. Available models:\n");
+        for (const Model& model : models_.getRemoteModels()) {
+            errorstr = errorstr + model.src + "-" + model.trg + " type: " + model.type + "; to fetch, make a request with " + model.shortName + '\n'; //@TODO properly jsonify
+            if (model.shortName == modelID) {
+                return model;
+            }
+        }
+        lockAndWriteJsonHelper(errJson(myJsonInput.id, errorstr));
+        return models_.getRemoteModels().at(0); // This line will never be executed, since we actually exit in the case of an error
+    }();
+    // Set up progress bar for downloading:
+    std::once_flag flag1, flag2, flag3, flag4, flag5; // Incredibly complicated way to print print just 5 times during download
+    connect(&network_, &Network::progressBar, this, [&](qint64 ist, qint64 max) {
+        double percentage = (double)ist/(double)max;
+        if (percentage > 0 && percentage < 0.2) {
+            std::call_once(flag1, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.2 && percentage < 0.4) {
+            std::call_once(flag2, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.4 && percentage < 0.6) {
+            std::call_once(flag3, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.6 && percentage < 0.8) {
+            std::call_once(flag4, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.8 && percentage < 1) {
+            std::call_once(flag5, [=](){std::cerr << percentage << std::endl;});
+        }
+    });
+    // Download the new model. Use eventloop again to prevent premature exit before download is finished
+    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum);
+    if (reply == nullptr) {
+        lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Could not connect to the internet and download: ") + model.url));
+    }
+    eventLoop_.exec();
+    lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Not yet fully implemented. Success?")));
 
 }
 
@@ -220,7 +272,7 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
             }
             return ret;
         }
-    } else if (command == "DownloadModels") {
+    } else if (command == "DownloadModel") {
         // Keys expected in a download request:
         static const QStringList mandatoryKeysDownload({"modelID"});
         DownloadRequest ret;
