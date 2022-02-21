@@ -1,5 +1,6 @@
 #include "NativeMsgIface.h"
 #include <QJsonDocument>
+#include <QSet>
 
 // bergamot-translator
 #include "3rd_party/bergamot-translator/src/translator/service.h"
@@ -26,20 +27,19 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , settings_(this)
       , models_(this, &settings_)
       , die_(false)
-      , eventLoop_(this)
     {
-    // Connections
-    connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){eventLoop_.exit();});
-    connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
-        models_.writeModel(file, filename);
-        eventLoop_.exit();
-    });
     modelMapInit(models_.getInstalledModels());
 
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
     inputWorker_ = std::thread([&](){
+        // Connections
+        connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){fetched_ = true;});
+        //connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
+        //    models_.writeModel(file, filename);
+        //    downloaded_ = true;
+        //});
         // Create service
         marian::bergamot::AsyncService::Config serviceConfig;
         serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
@@ -52,45 +52,18 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 die_ = true;
                 break;
             }
-            // First part of the message: Size of the input
+            // First part of the message: Find how long the input is
             char len[4];
             std::cin.read(len, 4);
             unsigned int ilen = *reinterpret_cast<unsigned int *>(len);
             if (ilen < kMaxInputLength && ilen>1) {
-                // This will be a json which is parsed and decoded, but for now just translate
+                //  Read in the message into Json
                 std::unique_ptr<char[]> input(new char[ilen]);
                 std::cin.read(input.get(), ilen);
-                TranslationRequest myJsonInput = parseJsonInput(input.get(), ilen);
-                marian::bergamot::ResponseOptions options;
-                options.HTML = myJsonInput.html;
-                int myID = myJsonInput.id;
-                std::cerr << "Received message size of: " << ilen << " with content: " << myJsonInput.text.toStdString() << std::endl;
-                bool success = tryLoadModel(myJsonInput.src, myJsonInput.trg);
-                std::cerr << "Loaded model: " << model_.first.first.toStdString() << "-" << model_.first.second.toStdString() << " " << std::boolalpha << success << std::endl;
-                std::function<void(marian::bergamot::Response&&)> callbackLambda = [&, myID](marian::bergamot::Response&& val) {
-                    QByteArray outputBytesJson = toJsonBytes(std::move(val), myID);
-                    std::lock_guard<std::mutex> lock(coutmutex_);
-
-                    size_t outputSize = outputBytesJson.size();
-                    std::cerr << "Writing response: " << outputSize << " " << outputBytesJson.data() << std::endl;
-                    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
-                    std::cout.write(outputBytesJson.data(), outputSize);
-                    std::cout.flush();};
-                if (!success) {
-                    QByteArray errOutput = errJson(myID, QString("Failed to load the necessary translation models."));
-                    std::lock_guard<std::mutex> lock(coutmutex_);
-                    size_t outputSize = errOutput.size();
-                    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
-                    std::cout.write(errOutput.data(), outputSize);
-                    std::cout.flush();
-                    std::cerr << "Here" << std::endl;
-                } else if (pivotModel_.first.first == QString("none")) {
-                    std::cerr << "elif " << model_.first.first.toStdString() << "-" << model_.first.second.toStdString() << std::endl;
-                    service->translate(model_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
-                } else {
-                    std::cerr << "zelf" << " " << pivotModel_.first.first.toStdString() << std::endl;
-                    service->pivot(model_.second, pivotModel_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
-                }
+                // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
+                // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
+                auto myJsonInputVariant = parseJsonInput(input.get(), ilen);
+                std::visit([&](auto&& req){handleRequest(req, service.get());}, myJsonInputVariant);
             } else {
               // @TODO Consume any invalid input here
               std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
@@ -106,19 +79,167 @@ int NativeMsgIface::run() {
     return 0;
 }
 
+//inline void NativeMsgIface::translateAndReturn(QJso)
 
-TranslationRequest NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
+inline void NativeMsgIface::lockAndWriteJsonHelper(QByteArray&& arr) {
+    std::lock_guard<std::mutex> lock(coutmutex_);
+    size_t outputSize = arr.size();
+    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
+    std::cout.write(arr.data(), outputSize);
+    std::cout.flush();
+}
+
+inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput, marian::bergamot::AsyncService * service) {
+    int myID = myJsonInput.id;
+
+    // Initialise models based on the request.
+    bool success = tryLoadModel(myJsonInput.src, myJsonInput.trg);
+    if (!success) {
+        lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
+    }
+
+    // Initialise translator settings options
+    marian::bergamot::ResponseOptions options;
+    options.HTML = myJsonInput.html;
+    std::function<void(marian::bergamot::Response&&)> callbackLambda = [&, myID](marian::bergamot::Response&& val) {
+        lockAndWriteJsonHelper(toJsonBytes(std::move(val), myID));};
+
+    // Attempt translation. Beware of runtime errors
+    try {
+        if (pivotModel_.first.first == QString("none")) {
+            service->translate(model_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+        } else {
+            service->pivot(model_.second, pivotModel_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+        }
+    } catch (const std::runtime_error &e) {
+       lockAndWriteJsonHelper(errJson(myID, QString::fromStdString(e.what())));
+    }
+}
+
+inline void NativeMsgIface::handleRequest(ListRequest myJsonInput, marian::bergamot::AsyncService *)  {
+    QJsonObject jsonObj;
+    jsonObj.insert(QString("id"), myJsonInput.id);
+    std::cerr << "Not implemented yet" << std::endl;
+    for (auto&& model : models_.getInstalledModels()) {
+        model.print();
+    }
+    // Fetch remote models if necessary;
+    if (myJsonInput.includeRemote && models_.getNewModels().isEmpty()) {
+        models_.fetchRemoteModels();
+        {
+            std::unique_lock<std::mutex> lk(fetchModelsMutex);
+            fetchModelsCV.wait(lk, [&]{return fetched_;});
+        }
+        modelMapInit(models_.getNewModels());
+    }
+
+    for (auto&& model : models_.getNewModels()) {
+        model.print();
+    }
+}
+
+inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput, marian::bergamot::AsyncService *)  {
+    std::cerr << "Not implemented yet" << std::endl;
+
+}
+
+inline void NativeMsgIface::handleRequest(ParseError myJsonInput, marian::bergamot::AsyncService *)  {
+    lockAndWriteJsonHelper(errJson(myJsonInput.id, myJsonInput.error));
+}
+
+request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
     QByteArray inputBytes(bytes, length);
     QJsonDocument inputJson = QJsonDocument::fromJson(inputBytes);
     QJsonObject jsonObj = inputJson.object();
-    TranslationRequest ret;
-    ret.text = jsonObj[QString("text")].toString();
-    ret.die = jsonObj[QString("die")].toBool();
-    ret.id = jsonObj[QString("id")].toInt();
-    ret.html = jsonObj[QString("html")].toBool();
-    ret.src = jsonObj[QString("src")].toString();
-    ret.trg = jsonObj[QString("trg")].toString();
-    return ret;
+
+    // Define what are mandatory and what are optional request keys
+    static const QStringList mandatoryKeys({"command", "id", "data"}); // Expected in every message
+    static const QSet<QString> commandTypes({"ListModels", "DownloadModel", "Translate"});
+    // Json doesn't have schema validation, so validate here, in place:
+    QString command;
+    int id;
+    QJsonObject data;
+    {
+        QJsonValueRef idVariant = jsonObj["id"];
+        if (idVariant.isNull()) {
+            return ParseError{-1, "ID field in message cannot be null!"};
+        } else {
+            id = idVariant.toInt();
+        }
+
+        QJsonValueRef commandVariant = jsonObj["command"];
+        if (commandVariant.isNull()) {
+            return ParseError{id, "command field in message cannot be null!"};
+        } else {
+            command = commandVariant.toString();
+            if (commandTypes.find(command) == commandTypes.end()) {
+                return ParseError{id, QString("Unrecognised message command: ") + command + QString(" AvailableCommands: ") +
+                commandTypes.values().at(0) + QString(" ") + commandTypes.values().at(1) + QString(" ") + commandTypes.values().at(2)};
+            }
+        }
+
+        QJsonValueRef dataVariant = jsonObj["data"];
+        if (dataVariant.isNull()) {
+            return ParseError{id, "data field in message cannot be null!"};
+        } else {
+            data = dataVariant.toObject();
+        }
+
+    }
+
+    if (command == "Translate") {
+        // Keys expected in a translation request
+        static const QStringList mandatoryKeysTranslate({"text", "html", "src", "trg"});
+        static const QStringList optionalKeysTranslate({"chosemodel", "quality", "alignments"});
+        TranslationRequest ret;
+        ret.set("id", id);
+        for (auto&& key : mandatoryKeysTranslate) {
+            QJsonValueRef val = data[key];
+            if (val.isNull()) {
+                return ParseError{id, QString("data field key ") + key + QString(" cannot be null!")};
+            } else {
+                ret.set(key, val);
+            }
+        }
+        for (auto&& key : optionalKeysTranslate) {
+            QJsonValueRef val = data[key];
+            if (!val.isNull()) {
+                ret.set(key, val);
+            }
+        }
+        return ret;
+    } else if (command == "ListModels") {
+        // Keys expected in a list requested
+        static const QStringList optionalKeysList({"includeRemote"});
+        ListRequest ret;
+        ret.id = id;
+        for (auto&& key : optionalKeysList) {
+            QJsonValueRef val = data[key];
+            if (!val.isNull()) {
+                ret.includeRemote = val.toBool();
+            }
+            return ret;
+        }
+    } else if (command == "DownloadModels") {
+        // Keys expected in a download request:
+        static const QStringList mandatoryKeysDownload({"modelID"});
+        DownloadRequest ret;
+        ret.id = id;
+        for (auto&& key : mandatoryKeysDownload) {
+            QJsonValueRef val = data[key];
+            if (val.isNull()) {
+                return ParseError{id, QString("data field key ") + key + QString(" cannot be null!")};
+            } else {
+                ret.modelID = val.toString();
+            }
+            return ret;
+        }
+    } else {
+        return ParseError{id, QString("Developer error. We shouldn't ever be here! Command: ") + command};
+    }
+
+    return ParseError{id, QString("Developer error. We shouldn't ever be here! This makes the compiler happy though.")};
+
 }
 
 inline QByteArray NativeMsgIface::errJson(int myID, QString err) {
@@ -154,16 +275,8 @@ bool NativeMsgIface::tryLoadModel(QString srctag, QString trgtag) {
     QPair<bool, Model> pivotCandidate({false, Model()});
     bool pivotRequired = false;
 
-    if (!candidate.first) { // We didn't find the model among the local models, try fetching remote models and do it again.
-        if (models_.getNewModels().isEmpty()) {
-            models_.fetchRemoteModels();
-            modelMapInit(models_.getNewModels());
-            candidate = findModelHelper(srctag, trgtag);
-        }
-    }
-
     if (!candidate.first) {
-        // We STILL didn't find a model. Try pivoting now.
+        // We didn't find a model. Try pivoting now.
         pivotRequired = true;
         // @TODO find ANY possible pivot language combination, but for now, just assume the bridging language is English
         candidate = findModelHelper(srctag, QString("en"));

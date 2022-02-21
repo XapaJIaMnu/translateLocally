@@ -30,7 +30,7 @@ struct Model {
     QString path; // This is full path to the directory. Only available if the model is local
     QString src;
     QString trg;
-    QMap<QString, QString> srcTags;
+    QMap<QString, QVariant> srcTags; // The second QVariant is a QString. This is done so that we can have direct toJson and fromJson conversion.
     QString trgTag;
     QString type; // Base or tiny
     QString repository = QObject::tr("unknown"); // Repository that the model belongs to. If we don't have that information, default to unknown.
@@ -81,9 +81,7 @@ struct Model {
             }
         } else if constexpr (std::is_same_v<QJsonObject, T>) {
             if (key == "srcTags") {
-                for (auto&& key : val.keys()) {
-                    srcTags.insert(key, val[key].toString());
-                }
+                srcTags = val.toVariantMap();
             } else {
                parseError = true;
             }
@@ -127,6 +125,25 @@ struct Model {
                      " url: " << url.toStdString() << " path " << path.toStdString() << " src " << src.toStdString() << " trg " << trg.toStdString() <<
                      " type: " << type.toStdString() << " localversion " << localversion << " localAPI " << localAPI <<
                      " remoteversion: " << remoteversion << " remoteAPI " << remoteAPI << std::endl;
+    }
+    /**
+     * @brief toJson Returns a json representation of the model. The only difference between the struct is that url and path will not be part of the json.
+     *               Instead, we will have one bool that says "Is it local, or is it remote". We also don't report checksums and API versions as those
+     *               should be handled by the backend.
+     * @return Json representation of a model
+     */
+    QJsonObject toJson() {
+        QJsonObject ret;
+        ret["shortname"] = shortName;
+        ret["modelName"] = modelName;
+        ret["local"] = isLocal();
+        ret["src"] = src;
+        ret["trg"] = trg;
+        ret["srcTags"] = QJsonObject::fromVariantMap(srcTags);
+        ret["trgTag"] = trgTag;
+        ret["type"] = type;
+        ret["repository"] = repository;
+        return ret;
     }
 };
 

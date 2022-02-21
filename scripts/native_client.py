@@ -10,12 +10,22 @@ from pathlib import Path
 
 def encode_msg(message: str, src: str, trg: str) -> bytearray:
     global counter
-    myjson = json.dumps({"text": message, "id": counter, "die": False, "src": src, "trg": trg})
+    myjson = json.dumps({"command": "Translate", "id": counter, "data": {"text": message, "src": src, "trg": trg, "html": False}})
     msglen = len(myjson.encode('utf-8'))
     len_in_bytes = bytes(ctypes.c_int(msglen))
     msg_in_bytes = bytes(myjson.encode('utf-8'))
     counter = counter + 1
     return len_in_bytes + msg_in_bytes
+
+def encode_list_msg(fetchremote: bool=True) -> bytearray:
+    global counter
+    myjson = json.dumps({"command": "ListModels", "id": counter, "data": {"includeRemote": fetchremote}})
+    msglen = len(myjson.encode('utf-8'))
+    len_in_bytes = bytes(ctypes.c_int(msglen))
+    msg_in_bytes = bytes(myjson.encode('utf-8'))
+    counter = counter + 1
+    return len_in_bytes + msg_in_bytes
+
 
 def get_translateLocally() -> subprocess.Popen:
     a = open('/tmp/testa', 'w')
@@ -27,7 +37,8 @@ if __name__ == '__main__':
     msg = encode_msg("Hello world!", "en", "de")
     msg2 = encode_msg("Sticks and stones may break my bones but words WILL NEVER HURT ME!", "en", "es")
     msg3 = encode_msg("¿Por qué no funciona bien?", "es", "de")
-    mgsgs = msg + msg2 + msg3
+    msg4 = encode_list_msg();
+    mgsgs = msg + msg2 + msg3 + msg4
     try:
         print(p.communicate(input=mgsgs, timeout=1))
     except subprocess.TimeoutExpired:
