@@ -295,23 +295,25 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
 }
 
 inline QByteArray NativeMsgIface::errJson(int myID, QString err) {
-    QJsonObject jsonObj;
-    jsonObj.insert(QString("id"), myID);
-    QJsonObject text;
-    text.insert(QString("text"), err);
-    jsonObj.insert(QString("target"), text);
-    jsonObj.insert(QString("success"), false);
+    QJsonObject jsonObj{
+        {"id", myID},
+        {"success", false},
+        {"error", err}
+    };
     QByteArray bytes = QJsonDocument(jsonObj).toJson();
     return bytes;
 }
 
 inline QByteArray NativeMsgIface::toJsonBytes(marian::bergamot::Response&& response, int myID) {
-    QJsonObject jsonObj;
-    jsonObj.insert(QString("id"), myID);
-    QJsonObject text;
-    text.insert(QString("text"), QString::fromStdString(response.target.text));
-    jsonObj.insert(QString("target"), text);
-    jsonObj.insert(QString("success"), true);
+    QJsonObject jsonObj{
+        {"id", myID},
+        {"success", true},
+        {"data", QJsonObject{
+            {"target", QJsonObject{
+                {"text", QString::fromStdString(response.target.text)}    
+            }}
+        }}
+    };
     QByteArray bytes = QJsonDocument(jsonObj).toJson();
     return bytes;
 }
