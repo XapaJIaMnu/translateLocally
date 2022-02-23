@@ -270,8 +270,8 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
             if (!val.isNull()) {
                 ret.includeRemote = val.toBool();
             }
-            return ret;
         }
+        return ret;
     } else if (command == "DownloadModel") {
         // Keys expected in a download request:
         static const QStringList mandatoryKeysDownload({"modelID"});
@@ -284,8 +284,8 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
             } else {
                 ret.modelID = val.toString();
             }
-            return ret;
         }
+        return ret;
     } else {
         return ParseError{id, QString("Developer error. We shouldn't ever be here! Command: ") + command};
     }
