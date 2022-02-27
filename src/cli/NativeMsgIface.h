@@ -90,21 +90,19 @@ class NativeMsgIface : public QObject {
     Q_OBJECT
 public:
     explicit NativeMsgIface(QObject * parent=nullptr);
-    int run();
+public slots:
+    void run();
 private:
-
     // Threading
-    std::thread inputWorker_;
+    //QEventLoop eventLoop_;
     std::mutex coutmutex_;
-    QEventLoop eventLoop_;
-
-    bool fetched_ = false;
-    std::mutex fetchModelsMutex;
-    std::condition_variable fetchModelsCV;
-
-    bool downloaded_ = false;
-    std::mutex downloadModelsMutex;
-    std::condition_variable downloadModelsCV;
+    std::atomic<int> pendingOps_;
+    // Sadly we don't have C++20 on ubuntu 18.04, otherwise could use std::atomic<T>::wait
+    std::mutex pendingOpsMutex_;
+    std::condition_variable pendingOpsCV_;
+    // Wait for fetchingModels to finish if it is in progress.
+    std::mutex pendingModelsFetchMutex_;
+    std::condition_variable pendingModelsFetchCV_;
 
     // TranslateLocally bits
     Settings settings_;
@@ -175,4 +173,6 @@ private:
      * @param myJsonInput ParseError
      */
     inline void handleRequest(ParseError myJsonInput, marian::bergamot::AsyncService *);
+signals:
+    void finished();
 };

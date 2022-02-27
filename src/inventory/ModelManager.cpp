@@ -448,7 +448,7 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     return true;
 }
 
-void ModelManager::fetchRemoteModels() {
+void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
@@ -475,7 +475,7 @@ void ModelManager::fetchRemoteModels() {
             }
             if (--(*num_repos) == 0) { // Once we have fetched all repositories, re-enable fetch.
                 isFetchingRemoteModels_ = false;
-                emit fetchedRemoteModels();
+                emit fetchedRemoteModels(extradata);
             }
 
             reply->deleteLater();

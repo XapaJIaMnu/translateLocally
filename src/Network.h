@@ -24,7 +24,7 @@ public:
      * with a pointer to the file and suggested filename. During download the
      * `progressBar(qint64,qint64)` signal is emitted.
      */ 
-    QNetworkReply *downloadFile(QUrl url, QFile* dest, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray());
+    QNetworkReply *downloadFile(QUrl url, QFile* dest, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray(), QVariant extradata = QVariant());
 
     /**
      * Overloaded version of `downloadFile(QUrl,QFile)` that downloads to a
@@ -32,15 +32,15 @@ public:
      * `QNetworkReply` object is destroyed. But you can change this by changing
      * the file's parent.
      */
-    QNetworkReply *downloadFile(QUrl url, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray());
+    QNetworkReply *downloadFile(QUrl url, QCryptographicHash::Algorithm algorithm = QCryptographicHash::Sha256, QByteArray hash = QByteArray(), QVariant extradata = QVariant());
     
 private:
     std::unique_ptr<QNetworkAccessManager> nam_;
 
 signals:
-    void downloadComplete(QFile* file, QString filename);
+    void downloadComplete(QFile* file, QString filename, QVariant extradata = QVariant());
     void progressBar(qint64 ist, qint64 max);
-    void error(QString);
+    void error(QString err, QVariant extradata = QVariant());
 };
 
 #endif // NETWORK_H

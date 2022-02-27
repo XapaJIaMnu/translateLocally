@@ -4,6 +4,7 @@
 #include "Translation.h"
 
 #include <QApplication>
+#include <QTimer>
 #include "cli/CLIParsing.h"
 #include "cli/CommandLineIface.h"
 #include "cli/NativeMsgIface.h"
@@ -37,7 +38,13 @@ int main(int argc, char *argv[])
             case translateLocally::AppType::CLI:
                 return CommandLineIface().run(parser);
             case translateLocally::AppType::NativeMsg:
-                return NativeMsgIface().run();
+        {
+                NativeMsgIface * nativeMSG = new NativeMsgIface(&translateLocally);
+                QObject::connect(nativeMSG, &NativeMsgIface::finished, &translateLocally, &QCoreApplication::quit);
+                QTimer::singleShot(0, nativeMSG, &NativeMsgIface::run);
+                std::cerr << "Execute event loop" << std::endl;
+                return translateLocally.exec();
+        }
             case translateLocally::AppType::GUI:
                 break; //Handled later outside this scope.
         }

@@ -239,8 +239,10 @@ public slots:
      * models causes updates on the outdated() status of local models.
      * By default, it fetches models from the official translateLocally repo, but can also fetch
      * models from a 3rd party repository.
+     *
+     * @param extradata Optional argument that is indended if we want to pass extra data to the slot
      */
-    void fetchRemoteModels();
+    void fetchRemoteModels(QVariant extradata = QVariant());
     
 private:
     void startupLoad();
@@ -287,7 +289,7 @@ private:
 
 signals:
     void fetchingRemoteModels();
-    void fetchedRemoteModels(); // when finished fetching (might be error)
+    void fetchedRemoteModels(QVariant extradata =  QVariant()); // when finished fetching (might be error)
     void localModelsChanged();
     void error(QString);
 };

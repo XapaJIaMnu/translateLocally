@@ -2,6 +2,9 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QSet>
+#include <QThread>
+#include <QAbstractEventDispatcher>
+#include <QDebug>
 
 // bergamot-translator
 #include "3rd_party/bergamot-translator/src/translator/service.h"
@@ -27,23 +30,60 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , network_(this)
       , settings_(this)
       , models_(this, &settings_)
-      , eventLoop_(this)
+      , pendingOps_(0)
+      //, eventLoop_(this)
       , die_(false)
     {
     modelMapInit(models_.getInstalledModels());
+    std::cerr << "Models loaded" << std::endl;
 
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
     // Connections
-    connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){eventLoop_.exit();});
-    connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
+    qDebug() << connect(&network_, &Network::error, this, [&](QString err, QVariant id) {
+        int messageID = -1;
+        if (!id.isNull()) {
+            messageID = id.toInt();
+        }
+        std::cerr << err.toStdString() << " " << messageID << std::endl;
+    }, Qt::QueuedConnection);
+    // Set up progress bar for downloading:
+    qDebug() << connect(&network_, &Network::progressBar, this, [&](qint64 ist, qint64 max) {
+        // This is wrong!
+        static std::once_flag flag1, flag2, flag3, flag4, flag5; // Incredibly complicated way to print print just 5 times during download
+        double percentage = (double)ist/(double)max;
+        if (percentage > 0 && percentage < 0.2) {
+            std::call_once(flag1, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.2 && percentage < 0.4) {
+            std::call_once(flag2, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.4 && percentage < 0.6) {
+            std::call_once(flag3, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.6 && percentage < 0.8) {
+            std::call_once(flag4, [=](){std::cerr << percentage << std::endl;});
+        }
+        if (percentage > 0.8 && percentage < 1) {
+            std::call_once(flag5, [=](){std::cerr << percentage << std::endl;});
+        }
+    }, Qt::QueuedConnection);
+    // Another reason to love QT. From the documentation:
+    // The signature of a signal must match the signature of the receiving slot. (In fact a slot may have a shorter signature than the signal it receives because it can ignore extra arguments.)
+    qDebug() << connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](){
+        std::cerr << "Fetched callback called" << std::endl;
+        pendingOps_--;
+        pendingModelsFetchCV_.notify_one();}, Qt::QueuedConnection);
+        //eventLoop_.exit();});
+    qDebug()<< connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename, QVariant id) {
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
-        std::cerr << "Model downloaded successfully!" << std::endl;
+        std::cerr << "Model downloaded successfully! " << " msg_id: " << id.toInt() << std::endl;
         models_.writeModel(file, filename);
-        eventLoop_.exit();
+        pendingOps_--;
+        //eventLoop_.exit();
         // @TODO inform the local model map that this model is now downloaded, as this doesn't happen automatically
-    });
+    }, Qt::QueuedConnection);
 
     //inputWorker_ = std::thread([&](){
         // Connections
@@ -57,7 +97,10 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
 
 }
 
-int NativeMsgIface::run() {
+void NativeMsgIface::run() {
+    int myeventLoop = QThread::currentThread()->loopLevel();
+    auto eventDispatcher = QThread::currentThread()->eventDispatcher();
+    std::cerr << "Starting the actual app: " << myeventLoop << " event dispatcher: " << eventDispatcher << std::endl;
     marian::bergamot::AsyncService::Config serviceConfig;
     serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
     serviceConfig.cacheEnabled = settings_.marianSettings().translation_cache;
@@ -87,10 +130,16 @@ int NativeMsgIface::run() {
           std::abort();
         }
     } while (!die_);
-    return 0;
+    // Wait for any pending network operations to complete their signals/slots
+    std::unique_lock<std::mutex> lck(pendingOpsMutex_);
+    pendingOpsCV_.wait(lck, [this](){
+        while (pendingOps_ != 0) {
+            QThread::sleep(1);
+            std::cerr << "Waiting to die: " << pendingOps_ << " process: " << std::endl << std::boolalpha << QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents) << std::endl;
+        }
+        return pendingOps_ == 0;});
+    emit finished();
 }
-
-//inline void NativeMsgIface::translateAndReturn(QJso)
 
 inline void NativeMsgIface::lockAndWriteJsonHelper(QByteArray&& arr) {
     std::lock_guard<std::mutex> lock(coutmutex_);
@@ -107,6 +156,13 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput, marian
     bool success = tryLoadModel(myJsonInput.src, myJsonInput.trg);
     if (!success) {
         lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
+        for (auto && first : modelMap_) {
+            for (auto && second : first) {
+                for (auto && model : second) {
+                    std::cerr << model.shortName.toStdString() << std::endl;;
+                }
+            }
+        }
     }
 
     // Initialise translator settings options
@@ -128,27 +184,47 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput, marian
 }
 
 inline void NativeMsgIface::handleRequest(ListRequest myJsonInput, marian::bergamot::AsyncService *)  {
-    QJsonObject jsonObj;
-    jsonObj.insert(QString("id"), myJsonInput.id);
-
     QJsonArray modelsJson;
     for (auto&& model : models_.getInstalledModels()) {
         modelsJson.append(model.toJson());
     }
     // Fetch remote models if necessary;
     if (myJsonInput.includeRemote && models_.getNewModels().isEmpty()) {
+        pendingOps_++; // Keep track of pending network operations
         models_.fetchRemoteModels();
-        eventLoop_.exec();
+        //eventLoop_.exec();
         modelMapInit(models_.getNewModels());
         for (auto&& model : models_.getNewModels()) {
             modelsJson.append(model.toJson());
         }
     }
-    jsonObj.insert(QString("data"), modelsJson);
+    QJsonObject jsonObj {
+        {"success", true},
+        {"id", myJsonInput.id},
+        {"data", modelsJson}
+    };
     lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
 }
 
 inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput, marian::bergamot::AsyncService *)  {
+    // We can't download a model, if the fetch operation is not completed yet. as we don't have a list of remote models
+    // loaded at start. This shouldn't be an issue normally as we would only fetch a new model once we get a list of models,
+    // but we also need to wait for the fetch model list network operation to finish
+    {
+        std::cerr << "About to lock: " << std::boolalpha << models_.isFetchingRemoteModels() << std::endl;
+        QThread::sleep(2);
+        std::unique_lock<std::mutex> lck(pendingModelsFetchMutex_);
+        pendingModelsFetchCV_.wait(lck, [&](){
+            while (models_.isFetchingRemoteModels()) {
+                QThread::sleep(1);
+                std::cerr << "Here: val: " << std::boolalpha << models_.isFetchingRemoteModels() << " Pending events: " << std::boolalpha << QThread::currentThread()->eventDispatcher()->hasPendingEvents()
+                          << " try to process: " << std::boolalpha <<  QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents) << std::endl;
+
+            }
+            return !models_.isFetchingRemoteModels();});
+        std::cerr << "Here" << std::endl;
+    }
+
     // Assume remote models are fetched already
     QString modelID = myJsonInput.modelID;
     // identify the model we want to download. This is a remote model and we have this complicated lambda function
@@ -165,32 +241,15 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput, marian::b
         lockAndWriteJsonHelper(errJson(myJsonInput.id, errorstr));
         return models_.getRemoteModels().at(0); // This line will never be executed, since we actually exit in the case of an error
     }();
-    // Set up progress bar for downloading:
-    std::once_flag flag1, flag2, flag3, flag4, flag5; // Incredibly complicated way to print print just 5 times during download
-    connect(&network_, &Network::progressBar, this, [&](qint64 ist, qint64 max) {
-        double percentage = (double)ist/(double)max;
-        if (percentage > 0 && percentage < 0.2) {
-            std::call_once(flag1, [=](){std::cerr << percentage << std::endl;});
-        }
-        if (percentage > 0.2 && percentage < 0.4) {
-            std::call_once(flag2, [=](){std::cerr << percentage << std::endl;});
-        }
-        if (percentage > 0.4 && percentage < 0.6) {
-            std::call_once(flag3, [=](){std::cerr << percentage << std::endl;});
-        }
-        if (percentage > 0.6 && percentage < 0.8) {
-            std::call_once(flag4, [=](){std::cerr << percentage << std::endl;});
-        }
-        if (percentage > 0.8 && percentage < 1) {
-            std::call_once(flag5, [=](){std::cerr << percentage << std::endl;});
-        }
-    });
+    //
+    QVariant idVariant = QVariant::fromValue(myJsonInput.id);
     // Download the new model. Use eventloop again to prevent premature exit before download is finished
-    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum);
+    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, idVariant);
+    pendingOps_++; // Keep track of pending network operations
     if (reply == nullptr) {
         lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Could not connect to the internet and download: ") + model.url));
     }
-    eventLoop_.exec();
+    //eventLoop_.exec();
     lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Not yet fully implemented. Success?")));
 
 }
