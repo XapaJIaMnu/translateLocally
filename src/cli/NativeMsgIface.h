@@ -90,10 +90,19 @@ class NativeMsgIface : public QObject {
     Q_OBJECT
 public:
     explicit NativeMsgIface(QObject * parent=nullptr);
+    ~NativeMsgIface();
 public slots:
     void run();
+private slots:
+    /**
+     * @brief emitJson emits a json msg (unprocessed as a char array) and its length. Shared ptr because signals and slots don't support move semantics
+     * @param input char array of json
+     * @param ilen length
+     */
+    void processJson(std::shared_ptr<char[]> input, int ilen);
 private:
     // Threading
+    std::thread iothread_;
     //QEventLoop eventLoop_;
     std::mutex coutmutex_;
     std::atomic<int> pendingOps_;
@@ -103,6 +112,9 @@ private:
     // Wait for fetchingModels to finish if it is in progress.
     std::mutex pendingModelsFetchMutex_;
     std::condition_variable pendingModelsFetchCV_;
+
+    // Marian shared ptr. We should be using a unique ptr but including the actual header breaks QT compilation. Sue me.
+    std::shared_ptr<marian::bergamot::AsyncService> service_;
 
     // TranslateLocally bits
     Settings settings_;
@@ -152,27 +164,32 @@ private:
     /**
      * @brief handleRequest handles a request type translationRequest and writes to stdout
      * @param myJsonInput translationRequest
-     * @param service
      */
-    inline void handleRequest(TranslationRequest myJsonInput, marian::bergamot::AsyncService * service);
+    inline void handleRequest(TranslationRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type ListRequest and writes to stdout
      * @param myJsonInput ListRequest
      */
-    inline void handleRequest(ListRequest myJsonInput, marian::bergamot::AsyncService *);
+    inline void handleRequest(ListRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type DownloadRequest and writes to stdout
      * @param myJsonInput DownloadRequest
      */
-    inline void handleRequest(DownloadRequest myJsonInput, marian::bergamot::AsyncService *);
+    inline void handleRequest(DownloadRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type ParseError and writes to stdout
      * @param myJsonInput ParseError
      */
-    inline void handleRequest(ParseError myJsonInput, marian::bergamot::AsyncService *);
+    inline void handleRequest(ParseError myJsonInput);
 signals:
     void finished();
+    /**
+     * @brief emitJson emits a json msg (unprocessed as a char array) and its length. Shared ptr because signals and slots don't support move semantics
+     * @param input char array of json
+     * @param ilen length
+     */
+    void emitJson(std::shared_ptr<char[]> input, int ilen);
 };

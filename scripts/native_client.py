@@ -48,6 +48,8 @@ if __name__ == '__main__':
     msg4 = encode_list_msg();
     msg5 = encode_dwn_msg("en-cs-tiny")
     mgsgs = msg + msg2 + msg3 + msg4 + msg5
+    with open('/tmp/inputtesta', 'wb') as testin:
+        testin.write(mgsgs)
     try:
         print(p.communicate(input=mgsgs, timeout=1))
     except subprocess.TimeoutExpired:

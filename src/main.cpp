@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
                 NativeMsgIface * nativeMSG = new NativeMsgIface(&translateLocally);
                 QObject::connect(nativeMSG, &NativeMsgIface::finished, &translateLocally, &QCoreApplication::quit);
                 QTimer::singleShot(0, nativeMSG, &NativeMsgIface::run);
-                std::cerr << "Execute event loop" << std::endl;
                 return translateLocally.exec();
         }
             case translateLocally::AppType::GUI:
