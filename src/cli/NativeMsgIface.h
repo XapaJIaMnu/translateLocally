@@ -105,13 +105,10 @@ private:
     std::thread iothread_;
     //QEventLoop eventLoop_;
     std::mutex coutmutex_;
-    std::atomic<int> pendingOps_;
+    std::atomic<int> operations_; // Keeps track of all operations. So that we know when to quit
     // Sadly we don't have C++20 on ubuntu 18.04, otherwise could use std::atomic<T>::wait
     std::mutex pendingOpsMutex_;
     std::condition_variable pendingOpsCV_;
-    // Wait for fetchingModels to finish if it is in progress.
-    std::mutex pendingModelsFetchMutex_;
-    std::condition_variable pendingModelsFetchCV_;
 
     // Marian shared ptr. We should be using a unique ptr but including the actual header breaks QT compilation. Sue me.
     std::shared_ptr<marian::bergamot::AsyncService> service_;

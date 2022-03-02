@@ -30,12 +30,11 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , network_(this)
       , settings_(this)
       , models_(this, &settings_)
-      , pendingOps_(0)
+      , operations_(0)
       , die_(false)
     {
     qRegisterMetaType<std::shared_ptr<char[]>>("std::shared_ptr<char[]>");
     modelMapInit(models_.getInstalledModels());
-    std::cerr << "Models loaded" << std::endl;
 
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
@@ -51,51 +50,18 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     connect(&network_, &Network::error, this, [&](QString err, QVariant id) {
         int messageID = -1;
         if (!id.isNull()) {
-            messageID = id.toInt();
+            operations_--;
+            if (id.canConvert<int>()) {
+                messageID = id.toInt();
+            } else if (id.canConvert<QMap<QString, QVariant>>()) {
+                messageID = id.toMap()["id"].toInt();
+            }
         }
         lockAndWriteJsonHelper(errJson(messageID, err));
-    }, Qt::QueuedConnection);
-    // Set up progress bar for downloading. Currently quite spammy
-    connect(&network_, &Network::progressBar, this, [&](qint64 ist, qint64 max) {
-        double percentage = (double)ist/(double)max;
-        QJsonObject jsonObj {
-            {"success", true},
-            {"data", QJsonArray({"progress", percentage})}
-        };
-        static bool flag1, flag2, flag3, flag4, flag5 = true;
-        if (percentage > 0 && percentage < 0.2 && flag1) {
-            flag1 = false;
-            flag5 = true;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
-        if (percentage > 0.2 && percentage < 0.4 && flag2) {
-            flag2 = false;
-            flag1 = true;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
-        if (percentage > 0.4 && percentage < 0.6 && flag3) {
-            flag3 = false;
-            flag2 = true;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
-        if (percentage > 0.6 && percentage < 0.8 && flag5) {
-            flag4 = false;
-            flag5 = true;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
-        if (percentage > 0.8 && percentage < 1 && flag5) {
-            flag5 = false;
-            flag1 = true;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
-        if (percentage == 1) { // Download complete
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        }
     });
     // Another reason to love QT. From the documentation:
     // The signature of a signal must match the signature of the receiving slot. (In fact a slot may have a shorter signature than the signal it receives because it can ignore extra arguments.)
     connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](QVariant myID=QVariant()){
-        std::cerr << "Fetched callback called" << std::endl;
         if (!myID.isNull()) {
             modelMapInit(models_.getNewModels());
             QJsonArray modelsJson;
@@ -111,7 +77,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 {"data", modelsJson}
             };
             lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-            pendingOps_--;
+            operations_--;
         } else {
             // We are here because this is a helper call for download model, so do nothing. Download model will know what to do.
         }});
@@ -119,18 +85,22 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
         models_.writeModel(file, filename);
         int messageID = -1;
-        if (!id.isNull()) {
+        QString shortname = filename; // Fallback in case we don't carry it in our message for whatever reason.
+        if (!id.isNull() && id.canConvert<int>()) {
             messageID = id.toInt();
+        } else if (!id.isNull() && id.canConvert<QMap<QString, QVariant>>()) {
+            messageID = id.toMap()["id"].toInt();
+            shortname = id.toMap()["modelID"].toString();
         }
         QJsonObject jsonObj {
             {"success", true},
             {"id", messageID},
-            {"data", QJsonArray({"id", filename})}
+            {"data", QJsonArray({QJsonObject{{"modelID", shortname}}})}
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        pendingOps_--;
-    }, Qt::QueuedConnection);
-    connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson, Qt::QueuedConnection);
+        operations_--;
+    });
+    connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson);
 }
 
 void NativeMsgIface::run() {
@@ -138,37 +108,37 @@ void NativeMsgIface::run() {
         do {
             if ((std::cin.peek() == std::char_traits<char>::eof())) {
                 // Send a final package telling other stuff to die
-                //die_ = true;
-                QThread::sleep(1);
-                continue;
+                die_ = true;
             }
             // First part of the message: Find how long the input is
             char len[4];
             std::cin.read(len, 4);
-            unsigned int ilen = *reinterpret_cast<unsigned int *>(len);
+            int ilen = *reinterpret_cast<unsigned int *>(len);
             if (ilen < kMaxInputLength && ilen>1) {
                 //  Read in the message into Json
                 std::shared_ptr<char[]> input(new char[ilen]);
                 std::cin.read(input.get(), ilen);
                 // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
                 // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
+                operations_++; // Also keep track of the number of operations that are happening.
                 emit emitJson(input, ilen);
+            } else if (ilen == -1) { // We signal the worker to die if the length of the next message is -1.
+                die_ = true;
+                break;
             } else {
               // @TODO Consume any invalid input here
               std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
               std::abort();
             }
         } while (!die_);
-        /*
-        std::cerr << "My pending ops: " << pendingOps_ << std::endl;
         std::unique_lock<std::mutex> lck(pendingOpsMutex_);
         pendingOpsCV_.wait(lck, [this](){
-            while (QThread::currentThread()->eventDispatcher()->hasPendingEvents() !=0) {
-                std::cerr << QThread::currentThread()->eventDispatcher()->hasPendingEvents() << " not calling for new events" << std::endl;// << std::boolalpha << QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents) <<  std::endl;
+            while (operations_!=0) { //@TODO notify.
+                std::cerr << "Ops remaining: " << operations_ <<  std::endl;
                 QThread::sleep(1);
             }
-            return QThread::currentThread()->eventDispatcher()->hasPendingEvents() == 0;});
-        emit finished();*/
+            return operations_ == 0;});
+        emit finished();
     });
 }
 
@@ -187,20 +157,16 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput) {
     bool success = tryLoadModel(myJsonInput.src, myJsonInput.trg);
     if (!success) {
         lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
-        for (auto && first : modelMap_) {
-            for (auto && second : first) {
-                for (auto && model : second) {
-                    std::cerr << model.shortName.toStdString() << std::endl;;
-                }
-            }
-        }
+        operations_--;
+        return;
     }
 
     // Initialise translator settings options
     marian::bergamot::ResponseOptions options;
     options.HTML = myJsonInput.html;
     std::function<void(marian::bergamot::Response&&)> callbackLambda = [&, myID](marian::bergamot::Response&& val) {
-        lockAndWriteJsonHelper(toJsonBytes(std::move(val), myID));};
+        lockAndWriteJsonHelper(toJsonBytes(std::move(val), myID));
+        operations_--;};
 
     // Attempt translation. Beware of runtime errors
     try {
@@ -211,13 +177,13 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput) {
         }
     } catch (const std::runtime_error &e) {
        lockAndWriteJsonHelper(errJson(myID, QString::fromStdString(e.what())));
+       operations_--;
     }
 }
 
 inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
     // Fetch remote models if necessary. In this case we report the models via signal
     if (myJsonInput.includeRemote && models_.getNewModels().isEmpty()) {
-        pendingOps_++; // Keep track of pending network operations
         models_.fetchRemoteModels(myJsonInput.id);
     } else {
         QJsonArray modelsJson;
@@ -233,6 +199,7 @@ inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
             {"data", modelsJson}
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
+        operations_--;
     }
 
 }
@@ -256,9 +223,45 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
             return models_.getRemoteModels().at(0); // This line will never be executed, since we actually exit in the case of an error
         }();
         // Download new model
-        QVariant idVariant = QVariant::fromValue(myJsonInput.id);
-        QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, idVariant);
-        pendingOps_++; // Keep track of pending network operations
+        QVariant idAndModelId = QVariant::fromValue(QMap<QString, QVariant>({{"id", myJsonInput.id}, {"modelID", myJsonInput.modelID}})); // Pass down metadata for the connection
+        // Set up progress bar for downloading. Ping 6 times.
+        std::shared_ptr<std::once_flag[]> flags(new std::once_flag[5]);
+        QMetaObject::Connection * const progressbarconnection = new QMetaObject::Connection;
+        *progressbarconnection = connect(&network_, &Network::progressBar, this, [=](qint64 ist, qint64 max) {
+            double percentage = (double)ist/(double)max;
+            QJsonObject jsonObj {
+                {"success", true},
+                {"id", myJsonInput.id},
+                {"data", QJsonArray{QJsonObject{{"progress", percentage}},
+                                   QJsonObject{{"url", model.url}},
+                                   QJsonObject{{"modelID", model.shortName}}}
+                }
+            };
+
+            if (percentage > 0 && percentage < 0.2) {
+                std::call_once(flags[0], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
+            }
+            if (percentage > 0.2 && percentage < 0.4) {
+                std::call_once(flags[1], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
+            }
+            if (percentage > 0.4 && percentage < 0.6) {
+                std::call_once(flags[2], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
+            }
+            if (percentage > 0.6 && percentage < 0.8) {
+                std::call_once(flags[3], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
+            }
+            if (percentage > 0.8 && percentage < 1) {
+                std::call_once(flags[4], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
+            }
+            if (percentage == 1) {
+                lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
+                // Disconnect this so we don't have 1000 instances of this in a long session.
+                // We can't do this with unique connection cause it doesn't work with lambdas and we use lambda capture to get extra metadata
+                QObject::disconnect(*progressbarconnection);
+                delete progressbarconnection;
+            }
+        });
+        QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, idAndModelId);
         if (reply == nullptr) {
             lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Could not connect to the internet and download: ") + model.url));
         }
@@ -267,6 +270,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
             QObject::disconnect(*connection);
         }
         delete connection;
+        operations_--;
     });
 
     // We can't download a model, if the fetch operation is not completed yet. as we don't have a list of remote models
@@ -502,21 +506,7 @@ void NativeMsgIface::processJson(std::shared_ptr<char[]> input, int ilen) {
 }
 
 NativeMsgIface::~NativeMsgIface() {
-    // This should be called after finished is emitted
-    // Wait for any pending network operations to complete their signals/slots
-    std::cerr << "Destructor called" << std::endl;
-    /*
-    std::unique_lock<std::mutex> lck(pendingOpsMutex_);
-    pendingOpsCV_.wait(lck, [this](){
-        while (pendingOps_ !=0) {
-            std::cerr << "Inside destructor " << pendingOps_ << std::endl; //" " << std::boolalpha << QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents) <<  std::endl;
-            QThread::sleep(1);
-        }
-        return pendingOps_ == 0;});
-    std::cerr << "Unlocked" << std::endl; */
     if (iothread_.joinable()) {
-        std::cerr << "Joining.." << std::endl;
         iothread_.join();
     }
-    std::cerr << "Joined or unjoinable" << std::endl;
 }
