@@ -95,7 +95,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
         QJsonObject jsonObj {
             {"success", true},
             {"id", messageID},
-            {"data", QJsonArray({QJsonObject{{"modelID", shortname}}})}
+            {"data", QJsonObject{{"modelID", shortname}}}
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
         operations_--;
@@ -232,10 +232,11 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
             QJsonObject jsonObj {
                 {"update", true},
                 {"id", myJsonInput.id},
-                {"data", QJsonArray{QJsonObject{{"progress", percentage}},
-                                   QJsonObject{{"url", model.url}},
-                                   QJsonObject{{"modelID", model.shortName}}}
-                }
+                {"data", QJsonObject{
+                    {"progress", percentage},
+                    {"url", model.url},
+                    {"modelID", model.shortName}
+                }}
             };
 
             if (percentage > 0 && percentage < 0.2) {
