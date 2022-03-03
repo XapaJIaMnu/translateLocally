@@ -230,7 +230,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
         *progressbarconnection = connect(&network_, &Network::progressBar, this, [=](qint64 ist, qint64 max) {
             double percentage = (double)ist/(double)max;
             QJsonObject jsonObj {
-                {"success", true},
+                {"update", true},
                 {"id", myJsonInput.id},
                 {"data", QJsonArray{QJsonObject{{"progress", percentage}},
                                    QJsonObject{{"url", model.url}},
@@ -260,6 +260,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
                 QObject::disconnect(*progressbarconnection);
                 delete progressbarconnection;
             }
+            // The real success=true message is send by the downloadFinished listener.
         });
         QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, idAndModelId);
         if (reply == nullptr) {
