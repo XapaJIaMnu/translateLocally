@@ -484,14 +484,23 @@ inline QPair<bool, Model> NativeMsgIface::findModelHelper(QString srctag, QStrin
     if (modelMap_.find(srctag) != modelMap_.end()) {
         if (modelMap_[srctag].find(trgtag) != modelMap_[srctag].end()) {
             found = true;
-            if (modelMap_[srctag][trgtag].size() > 1) { // Try to load the tiny model if we have multiple
-                for (auto&& model : modelMap_[srctag][trgtag]) {
-                    if (model.type == QString("tiny")) {
-                        foundModel = model;
-                    }
+
+            assert(!modelMap_[srctag][trgtag].isEmpty());
+            foundModel = modelMap_[srctag][trgtag].first();
+
+            // If we have multiple options, load the preferred one.
+            for (auto&& model : modelMap_[srctag][trgtag]) {
+                // Prefer local models over remote models
+                if (foundModel.isLocal() && !model.isLocal()) {
+                    continue;
                 }
-            } else {
-                foundModel = modelMap_[srctag][trgtag].first();
+
+                // Prefer tiny models
+                if (foundModel.type == QString("tiny") && model.type != QString("tiny")) {
+                    continue;
+                }
+
+                foundModel = model;
             }
         }
     }
