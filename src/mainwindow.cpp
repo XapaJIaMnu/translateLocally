@@ -66,8 +66,11 @@ MainWindow::MainWindow(QWidget *parent)
     updateLocalModels();
 
     // If we have preferred model, but it no longer exists on disk, reset it to empty
-    if (!settings_.translationModel().isEmpty() && !models_.getModelForPath(settings_.translationModel()).isLocal())
-        settings_.translationModel.setValue("");
+    if (!settings_.translationModel().isEmpty()) {
+        auto model = models_.getModelForPath(settings_.translationModel());
+        if (!model || !model->isLocal())
+            settings_.translationModel.setValue("");
+    }
 
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
@@ -293,9 +296,9 @@ void MainWindow::showDownloadPane(bool visible)
 }
 
 void MainWindow::handleDownload(QFile *file, QString filename) {
-    Model model = models_.writeModel(file, filename);
-    if (model.isLocal()) // if writeModel fails, model will be empty (and not local)
-        settings_.translationModel.setValue(model.path, Setting::AlwaysEmit);
+    auto model = models_.writeModel(file, filename);
+    if (model) // if writeModel didn't fail
+        settings_.translationModel.setValue(model->path, Setting::AlwaysEmit);
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {

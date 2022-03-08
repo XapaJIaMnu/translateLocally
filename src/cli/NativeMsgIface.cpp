@@ -1,10 +1,12 @@
 #include "NativeMsgIface.h"
+#include <cassert>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QSet>
 #include <QThread>
 #include <QAbstractEventDispatcher>
 #include <QDebug>
+#include <optional>
 
 // bergamot-translator
 #include "3rd_party/bergamot-translator/src/translator/service.h"
@@ -12,6 +14,13 @@
 #include "3rd_party/bergamot-translator/src/translator/response.h"
 
 namespace  {
+
+// Helper type for using std::visit() with multiple visitor lambdas. Copied
+// from the C++ reference.
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+
+// Explicit deduction guide (not needed as of C++20)
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_dir, const translateLocally::marianSettings &settings) {
     std::shared_ptr<marian::Options> options(marian::bergamot::parseOptionsFromFilePath(path_to_model_dir + "/config.intgemm8bitalpha.yml"));
@@ -34,8 +43,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , die_(false)
     {
     qRegisterMetaType<std::shared_ptr<char[]>>("std::shared_ptr<char[]>");
-    modelMapInit(models_.getInstalledModels());
-
+    
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
@@ -63,7 +71,6 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     // The signature of a signal must match the signature of the receiving slot. (In fact a slot may have a shorter signature than the signal it receives because it can ignore extra arguments.)
     connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](QVariant myID=QVariant()){
         if (!myID.isNull()) {
-            modelMapInit(models_.getNewModels());
             QJsonArray modelsJson;
             for (auto&& model : models_.getInstalledModels()) {
                 modelsJson.append(model.toJson());
@@ -84,18 +91,12 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename, QVariant id) {
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
         models_.writeModel(file, filename);
-        int messageID = -1;
-        QString shortname = filename; // Fallback in case we don't carry it in our message for whatever reason.
-        if (!id.isNull() && id.canConvert<int>()) {
-            messageID = id.toInt();
-        } else if (!id.isNull() && id.canConvert<QMap<QString, QVariant>>()) {
-            messageID = id.toMap()["id"].toInt();
-            shortname = id.toMap()["modelID"].toString();
-        }
+        int messageID = id.toMap()["id"].toInt();
+        QString modelID = id.toMap()["modelID"].toString();
         QJsonObject jsonObj {
             {"success", true},
             {"id", messageID},
-            {"data", QJsonObject{{"modelID", shortname}}}
+            {"data", QJsonObject{{"modelID", modelID}}}
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
         operations_--;
@@ -171,11 +172,14 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput) {
 
     // Attempt translation. Beware of runtime errors
     try {
-        if (pivotModel_.first.first == QString("none")) {
-            service_->translate(model_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
-        } else {
-            service_->pivot(model_.second, pivotModel_.second, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
-        }
+        std::visit(overloaded {
+            [&](DirectModelInstance &model) {
+                service_->translate(model.model, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+            },
+            [&](PivotModelInstance &model) {
+                service_->pivot(model.model, model.pivot, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+            }
+        }, *model_);
     } catch (const std::runtime_error &e) {
        lockAndWriteJsonHelper(errJson(myID, QString::fromStdString(e.what())));
        operations_--;
@@ -236,7 +240,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
                 {"data", QJsonObject{
                     {"progress", percentage},
                     {"url", model.url},
-                    {"modelID", model.shortName}
+                    {"modelID", model.id()}
                 }}
             };
 
@@ -418,98 +422,40 @@ inline QByteArray NativeMsgIface::toJsonBytes(marian::bergamot::Response&& respo
 
 bool NativeMsgIface::tryLoadModel(QString srctag, QString trgtag) {
     // First, check if we have everything required already loaded:
-    if ((model_.first.first == srctag && model_.first.second == trgtag) ||
-            ((model_.first.first == srctag && model_.first.second == QString("en") && pivotModel_.first.first == QString("en") && pivotModel_.first.second == trgtag))) {
+    if (model_ && std::visit([&](auto &&instance) { return instance.src == srctag && instance.trg == trgtag; }, *model_))
+        return true;
+
+    std::optional<Model> directModel = models_.getModelForLanguagePair(srctag, trgtag);
+    if (directModel && directModel->isLocal()) {
+        model_ = DirectModelInstance{
+            srctag,
+            directModel->trgTag,
+            std::make_shared<marian::bergamot::TranslationModel>(makeOptions(directModel->path.toStdString(), settings_.marianSettings()), settings_.marianSettings().cpu_threads)
+            // TODO: Maybe cache these shared ptrs? With a weakptr? They might still be around in the
+            // translation queue even when we switched. No need to load them again.
+        };
         return true;
     }
-    // Go through all local models and check if we can do the requested language pair
-    QPair<bool, Model> candidate = findModelHelper(srctag, trgtag);
-    QPair<bool, Model> pivotCandidate({false, Model()});
-    bool pivotRequired = false;
 
-    if (!candidate.first) {
-        // We didn't find a model. Try pivoting now.
-        pivotRequired = true;
-        // @TODO find ANY possible pivot language combination, but for now, just assume the bridging language is English
-        candidate = findModelHelper(srctag, QString("en"));
-        pivotCandidate = findModelHelper(QString("en"), trgtag);
-    }
-    // Load what we have found, if we have found it
-    if (candidate.first) {
-        if (candidate.second.path.isEmpty()) {
-            return false; //@TODO remove when model fetching is implemented
-        }
-        auto modelConfig = makeOptions(candidate.second.path.toStdString(), settings_.marianSettings());
-        model_ = {{srctag, candidate.second.trgTag}, std::make_shared<marian::bergamot::TranslationModel>(modelConfig, settings_.marianSettings().cpu_threads)};
-        if (pivotCandidate.first && candidate.second.path.isEmpty()) {
-            return false; //@TODO remove when model fetching is implemented
-        }
-        if (pivotCandidate.first) {
-            auto modelPivotConfig = makeOptions(pivotCandidate.second.path.toStdString(), settings_.marianSettings());
-            pivotModel_ = {{QString("en"), trgtag}, std::make_shared<marian::bergamot::TranslationModel>(modelPivotConfig, settings_.marianSettings().cpu_threads)};
-        }
-    }
-    if (!pivotRequired && candidate.first) {
-        // Clear the pivot model
-        pivotModel_.first = {QString("none"), QString("none")};
+    std::optional<ModelPair> pivotModel = models_.getModelPairForLanguagePair(srctag, trgtag);
+    if (pivotModel && pivotModel->model.isLocal() && pivotModel->pivot.isLocal()) {
+        model_ = PivotModelInstance{
+            srctag,
+            pivotModel->pivot.trgTag,
+            std::make_shared<marian::bergamot::TranslationModel>(
+                makeOptions(pivotModel->model.path.toStdString(), settings_.marianSettings()),
+                settings_.marianSettings().cpu_threads),
+            std::make_shared<marian::bergamot::TranslationModel>(
+                makeOptions(pivotModel->pivot.path.toStdString(), settings_.marianSettings()),
+                settings_.marianSettings().cpu_threads)
+        };
         return true;
-    } else if (candidate.first && pivotCandidate.first) {
-        return true;
-    } else {
-        return false;
     }
-}
 
-//@TODO Move this to the model Manager class and abolish the old list
-void NativeMsgIface::modelMapInit(QList<Model> myModelList) {
-    for (auto&& model : myModelList) {
-        QStringList srcTags;
-        for (auto&& tag : model.srcTags.keys()) {
-            srcTags.append(tag);
-            if (modelMap_.find(tag) != modelMap_.end()) {
-                if (modelMap_[tag].find(model.trgTag) != modelMap_[tag].end()) {
-                    modelMap_[tag][model.trgTag].append(model);
-                } else {
-                    modelMap_[tag][model.trgTag] = {model};
-                }
-            } else {
-                modelMap_[tag] = QMap<QString, QList<Model>>{{model.trgTag, {model}}};
-            }
-        }
-    }
-}
+    // TODO download directModel if it is non-local? And last resort, download
+    // the pivotModel models if they're not local?
 
-inline QPair<bool, Model> NativeMsgIface::findModelHelper(QString srctag, QString trgtag) {
-    bool found = false;
-    Model foundModel;
-    if (modelMap_.find(srctag) != modelMap_.end()) {
-        if (modelMap_[srctag].find(trgtag) != modelMap_[srctag].end()) {
-            found = true;
-
-            assert(!modelMap_[srctag][trgtag].isEmpty());
-            foundModel = modelMap_[srctag][trgtag].first();
-
-            // If we have multiple options, load the preferred one.
-            for (auto&& model : modelMap_[srctag][trgtag]) {
-                // Prefer local models over remote models
-                if (foundModel.isLocal() && !model.isLocal()) {
-                    continue;
-                }
-
-                // Prefer tiny models
-                if (foundModel.type == QString("tiny") && model.type != QString("tiny")) {
-                    continue;
-                }
-
-                foundModel = model;
-            }
-        }
-    }
-    if (found && foundModel.path.isEmpty()) {
-        // @TODO model downloading code and
-        std::cerr << "Model downloading not implemented yet" << std::endl;
-    }
-    return {found, foundModel};
+    return false;
 }
 
 void NativeMsgIface::processJson(std::shared_ptr<char[]> input, int ilen) {

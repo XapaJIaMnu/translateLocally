@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <QPair>
+#include <optional>
 #include <type_traits>
 #include <QEventLoop>
 #include "inventory/ModelManager.h"
@@ -10,6 +11,7 @@
 #include "Translation.h"
 #include "Network.h"
 #include <memory>
+#include <variant>
 
 // If we include the actual header, we break QT compilation.
 namespace marian {
@@ -86,6 +88,21 @@ struct ParseError {
 
 using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, ParseError>;
 
+struct DirectModelInstance {
+    QString src;
+    QString trg;
+    std::shared_ptr<marian::bergamot::TranslationModel> model;
+};
+
+struct PivotModelInstance {
+    QString src;
+    QString trg;
+    std::shared_ptr<marian::bergamot::TranslationModel> model;
+    std::shared_ptr<marian::bergamot::TranslationModel> pivot;
+};
+
+using ModelInstance = std::variant<DirectModelInstance,PivotModelInstance>;
+
 class NativeMsgIface : public QObject {
     Q_OBJECT
 public:
@@ -119,9 +136,7 @@ private:
     ModelManager models_;
     QMap<QString, QMap<QString, QList<Model>>> modelMap_;
 
-    // Those are modified through tryLoadModel
-    QPair<QPair<QString, QString>, std::shared_ptr<marian::bergamot::TranslationModel>> model_;
-    QPair<QPair<QString, QString>, std::shared_ptr<marian::bergamot::TranslationModel>> pivotModel_;
+    std::optional<ModelInstance> model_;
 
     bool die_;
 
@@ -136,20 +151,6 @@ private:
      * @return whether we succeeded or not.
      */
     bool tryLoadModel(QString srctag, QString trgtag);
-
-    /**
-     * @brief modelMapInit Populates the model map with either local or remote models
-     * @param myModelList
-     */
-    void modelMapInit(QList<Model> myModelList);
-
-    /**
-     * @brief findModelHelper
-     * @param srctag Tag of the source language
-     * @param trgtag Tag of the target language
-     * @return A pair of bool and a model if the model was found
-     */
-    inline QPair<bool, Model> findModelHelper(QString srctag, QString trgtag);
 
     /**
      * @brief lockAndWriteJsonHelper This function locks input stream and then writes the size and a json message after. It would be called in many places so it makes

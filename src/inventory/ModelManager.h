@@ -7,6 +7,7 @@
 #include <QFuture>
 #include <QAbstractTableModel>
 #include <iostream>
+#include <optional>
 #include <type_traits>
 
 #include "Network.h"
@@ -91,6 +92,12 @@ struct Model {
         }
     }
 
+    inline QString id() const {
+        // @TODO make this something globally unique (so not just depended on what is in the JSON)
+        // but also something that stays the same before/after downloading the model.
+        return QString("%1%2").arg(shortName).arg(qHash(repository));
+    }
+
     inline bool isLocal() const {
         return !path.isEmpty();
     }
@@ -134,6 +141,7 @@ struct Model {
      */
      QJsonObject toJson() const {
         QJsonObject ret;
+        ret["id"] = id();
         ret["shortname"] = shortName;
         ret["modelName"] = modelName;
         ret["local"] = isLocal();
@@ -149,10 +157,35 @@ struct Model {
 
 Q_DECLARE_METATYPE(Model)
 
+/**
+ * @Brief model pair for src -> pivot -> trg translation.
+ */
+struct ModelPair {
+    Model model;
+    Model pivot;
+};
+
+Q_DECLARE_METATYPE(ModelPair)
+
 class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent, Settings *settings);
+
+    /**
+     * @Brief get model by its id
+     */
+    std::optional<Model> getModel(QString const &id) const;
+
+    /**
+     * @Brief find model to translate directly from src to trg language.
+     */
+    std::optional<Model> getModelForLanguagePair(QString src, QString trg) const;
+
+    /**
+     * @Brief find model to translate via pivot from src to trg language.
+     */
+    std::optional<ModelPair> getModelPairForLanguagePair(QString src, QString trg, QString pivot = QString("en")) const;
 
     /**
      * @Brief extract a model into the directory of models managed by this
@@ -162,7 +195,7 @@ public:
      * and the function will return the filled in model instance. On failure, an
      * empty Model object is returned (i.e. model.isLocal() returns false).
      */
-    Model writeModel(QFile *file, QString filename = QString());
+    std::optional<Model> writeModel(QFile *file, QString filename = QString());
 
     /**
      * @Brief Tries to delete a model from the getInstalledModels() list. Also
@@ -181,7 +214,7 @@ public:
      * Useful for checking whether a model for which you've saved the path
      * is still available.
      */
-    Model getModelForPath(QString path) const;
+    std::optional<Model> getModelForPath(QString path) const;
 
     /**
      * @Brief list of locally available models
