@@ -99,6 +99,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
         operations_--;
+        //@TODO update model map so newly downloaded model is marked as local now.
     });
     connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson);
 }
