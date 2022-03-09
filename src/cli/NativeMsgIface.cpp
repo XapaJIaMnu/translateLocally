@@ -118,7 +118,7 @@ void NativeMsgIface::run() {
             int ilen = *reinterpret_cast<unsigned int *>(len);
             if (ilen < kMaxInputLength && ilen>1) {
                 //  Read in the message into Json
-                std::shared_ptr<char[]> input(new char[ilen], [](auto p) { delete[] p; });
+                std::shared_ptr<char[]> input(new char[ilen]);
                 std::cin.read(input.get(), ilen);
                 // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
                 // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
