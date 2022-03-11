@@ -1,62 +1,127 @@
 #!/usr/bin/env python3
 '''A native client simulating the plugin to use for testing the server'''
-import typing
-import os
-import ctypes
-import subprocess
-import time
+import asyncio
+import itertools
+import struct
 import json
 from pathlib import Path
+from pprint import pprint
 
-def encode_msg(message: str, src: str, trg: str) -> bytearray:
-    global counter
-    myjson = json.dumps({"command": "Translate", "id": counter, "data": {"text": message, "src": src, "trg": trg, "html": False}})
-    msglen = len(myjson.encode('utf-8'))
-    len_in_bytes = bytes(ctypes.c_int(msglen))
-    msg_in_bytes = bytes(myjson.encode('utf-8'))
-    counter = counter + 1
-    return len_in_bytes + msg_in_bytes
 
-def encode_list_msg(fetchremote: bool=True) -> bytearray:
-    global counter
-    myjson = json.dumps({"command": "ListModels", "id": counter, "data": {"includeRemote": fetchremote}})
-    msglen = len(myjson.encode('utf-8'))
-    len_in_bytes = bytes(ctypes.c_int(msglen))
-    msg_in_bytes = bytes(myjson.encode('utf-8'))
-    counter = counter + 1
-    return len_in_bytes + msg_in_bytes
+class Client:
+    """asyncio based native messaging client. Main interface is just calling
+    `request()` with the right parameters and awaiting the future it returns.
+    """
+    def __init__(self, *args):
+        self.serial = itertools.count(1)
+        self.futures = {}
+        self.args = args
 
-def encode_dwn_msg(modelname: str) -> bytearray:
-    global counter
-    myjson = json.dumps({"command": "DownloadModel", "id": counter, "data": {"modelID": modelname}})
-    msglen = len(myjson.encode('utf-8'))
-    len_in_bytes = bytes(ctypes.c_int(msglen))
-    msg_in_bytes = bytes(myjson.encode('utf-8'))
-    counter = counter + 1
-    return len_in_bytes + msg_in_bytes
+    async def __aenter__(self):
+        self.proc = await asyncio.create_subprocess_exec(*self.args, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
+        self.read_task = asyncio.create_task(self.reader())
+        return self
 
-def get_translateLocally() -> subprocess.Popen:
-    a = open('/tmp/testa', 'w')
-    return subprocess.Popen([str(Path(__file__).resolve().parent) + "/../build/translateLocally", "-p"], stdout=a, stderr=subprocess.STDOUT, stdin=subprocess.PIPE) # subprocess.PIPE
+    async def __aexit__(self, *args):
+        self.read_task.cancel() # cancel?
+        self.proc.terminate()
 
-if __name__ == '__main__':
-    counter = 0
-    p = get_translateLocally()
-    msg = encode_msg("Hello world!", "en", "de")
-    msg2 = encode_msg("Sticks and stones may break my bones but words WILL NEVER HURT ME!", "en", "es")
-    msg3 = encode_msg("¿Por qué no funciona bien?", "es", "de")
-    msg4 = encode_list_msg();
-    msg5 = encode_dwn_msg("en-cs-tiny")
-    mgsgs = msg + msg2 + msg3 + msg4 + msg5
-    with open('/tmp/inputtesta', 'wb') as testin:
-        testin.write(mgsgs)
-    try:
-        print(p.communicate(input=mgsgs, timeout=1))
-    except subprocess.TimeoutExpired:
-        pass
-    print("Waiting for translateLocally to finish...")
-    p.wait()
-    print(mgsgs)
-    with open('/tmp/testa', 'r', encoding='utf-8', errors='ignore') as a:
-        for line in a:
-            print(line.strip())
+    async def request(self, command, data):
+        message_id = next(self.serial)
+        message = json.dumps({"command": command, "id": message_id, "data": data}).encode()
+        print(f"Sending message {message_id}")
+        future = asyncio.get_running_loop().create_future()
+        self.futures[message_id] = future
+        self.proc.stdin.write(struct.pack("@I", len(message)))
+        self.proc.stdin.write(message)
+        print(f"Waiting for response on {message_id}")
+        return await future
+
+    async def reader(self):
+        while True:
+            try:
+                print("Read loop: start")
+                raw_length = await self.proc.stdout.readexactly(4)
+                length = struct.unpack("@I", raw_length)[0]
+                print(f"Read loop: length received = {length}")
+                raw_message = await self.proc.stdout.readexactly(length)
+                print(f"Read loop: message received")
+                message = json.loads(raw_message)
+                
+                # Not cool if there is no response message "id" here
+                if not "id" in message:
+                    continue
+                
+                # Ignore all progress updates etc for now
+                if not "success" in message:
+                    continue
+
+                print(f"Received response for {message['id']}")
+
+                future = self.futures[message["id"]]
+                if message["success"]:
+                    future.set_result(message["data"])
+                else:
+                    future.set_exception(Exception(message["error"]))
+            except asyncio.IncompleteReadError:
+                break # Stop read loop if EOF is reached
+            except asyncio.CancelledError:
+                break # Also stop reading if we're cancelled
+
+
+class TranslateLocally(Client):
+    """TranslateLocally wrapper around Client that translates
+    our defined messages into functions with arguments.
+    """
+    async def list_models(self, include_remote=False):
+        return await self.request("ListModels", {"includeRemote": bool(include_remote)})
+
+    async def translate(self, src, trg, text, html=False):
+        return await self.request("Translate", {"src": str(src), "trg": str(trg), "text": str(text), "html": bool(html)})
+
+    async def download_model(self, model_id):
+        return await self.request("DownloadModel", {"modelID": str(model_id)})
+
+
+def first(iterable, *default):
+    return next(iter(iterable), *default) #passing as rest argument so it can be nothing and trigger StopIteration exception
+
+
+async def main():
+    async with TranslateLocally(Path(__file__).resolve().parent / Path("../build/translateLocally"), "-p") as tl:
+        models = await tl.list_models(include_remote=True)
+        pprint(models)
+
+        # Models necessary for tests, both direct & pivot
+        necessary_models = {("en", "de"), ("en", "es"), ("es", "en")}
+
+        selected_models = {
+            (src,trg): first(sorted(
+                (
+                    model
+                    for model in models
+                    if src in model["srcTags"] and trg == model["trgTag"]
+                ),
+                key=lambda model: 0 if model["type"] == "tiny" else 1
+            ))
+            for src, trg in necessary_models
+        }
+
+        pprint(selected_models)
+
+        await asyncio.gather(*(
+            tl.download_model(model["id"])
+            for model in selected_models.values()
+            if not model["local"]))
+
+        translations = await asyncio.gather(
+            tl.translate("en", "de", "Hello world!"),
+            tl.translate("en", "es", "Sticks and stones may break my bones but words WILL NEVER HURT ME!"),
+            tl.translate("es", "de", "¿Por qué no funciona bien?")
+        )
+
+        pprint(translations)
+
+    print("Ende")
+
+asyncio.run(main())
