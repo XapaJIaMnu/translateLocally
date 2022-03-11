@@ -7,6 +7,7 @@
 #include <QAbstractEventDispatcher>
 #include <QDebug>
 #include <optional>
+#include <QNetworkReply>
 
 // bergamot-translator
 #include "3rd_party/bergamot-translator/src/translator/service.h"
@@ -210,74 +211,58 @@ inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
 }
 
 inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
+    // Connection to store our callback in. Qt6 has single shot connections, but 5 doesn't.
     QMetaObject::Connection * const connection = new QMetaObject::Connection;
+
     auto downloadModelLambda = std::function([=](){
-        QString modelID = myJsonInput.modelID;
-        // identify the model we want to download. This is a remote model and we have this complicated lambda function
-        // because i wanted it to be a const & as opposed to a copy of a model
-        const Model& model = [&]() {
-            // Keep track of available models in case we have an error
-            QString errorstr("Unable to find \'" + modelID + "\' in the list of available models. Available models:\n");
-            for (const Model& model : models_.getRemoteModels()) {
-                errorstr = errorstr + model.src + "-" + model.trg + " type: " + model.type + "; to fetch, make a request with " + model.shortName + '\n'; //@TODO properly jsonify
-                if (model.shortName == modelID) {
-                    return model;
-                }
-            }
-            lockAndWriteJsonHelper(errJson(myJsonInput.id, errorstr));
-            return models_.getRemoteModels().at(0); // This line will never be executed, since we actually exit in the case of an error
-        }();
-        // Download new model
-        QVariant idAndModelId = QVariant::fromValue(QMap<QString, QVariant>({{"id", myJsonInput.id}, {"modelID", myJsonInput.modelID}})); // Pass down metadata for the connection
-        // Set up progress bar for downloading. Ping 6 times.
-        std::shared_ptr<std::once_flag[]> flags(new std::once_flag[5]);
-        QMetaObject::Connection * const progressbarconnection = new QMetaObject::Connection;
-        *progressbarconnection = connect(&network_, &Network::progressBar, this, [=](qint64 ist, qint64 max) {
-            double percentage = (double)ist/(double)max;
+        // Remove the connection right after we fetch model, if the connection is valid
+        if (*connection)
+            QObject::disconnect(*connection);
+
+        // Clean up our callback connection
+        // TODO: abstract this all away in a connectSingleShot() helper?
+        delete connection;
+        operations_--;
+
+        auto model = models_.getModel(myJsonInput.modelID);
+        if (!model) {
+            lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Model not found")));
+            return;
+        }
+
+        // Model already downloaded?
+        // TODO: same logic as in downloadComplete signal handler
+        if (model->isLocal()) {
             QJsonObject jsonObj {
+                {"success", true},
+                {"id", myJsonInput.id},
+                {"data", QJsonObject{{"modelID", model->id()}}}
+            };
+            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
+            return;
+        }
+
+        // Download new model
+        QNetworkReply *reply = network_.downloadFile(model->url, QCryptographicHash::Sha256, model->checksum, QVariant::fromValue(QMap<QString, QVariant>({
+            {"id", myJsonInput.id},
+            {"modelID", model->id()}
+        })));
+
+        // Pass any download progress updates along to the client. Previous implementation
+        // has some logic to limit the amount of progress updates to 6 but I don't
+        // think throttling the number of messages is necessary.
+        connect(reply, &QNetworkReply::downloadProgress, this, [=](qint64 ist, qint64 max) {
+             QJsonObject jsonObj {
                 {"update", true},
                 {"id", myJsonInput.id},
                 {"data", QJsonObject{
-                    {"progress", percentage},
-                    {"url", model.url},
-                    {"modelID", model.id()}
+                    {"progress", (float) ist / (float) max},
+                    {"url", model->url},
+                    {"modelID", model->id()}
                 }}
             };
-
-            if (percentage > 0 && percentage < 0.2) {
-                std::call_once(flags[0], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
-            }
-            if (percentage > 0.2 && percentage < 0.4) {
-                std::call_once(flags[1], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
-            }
-            if (percentage > 0.4 && percentage < 0.6) {
-                std::call_once(flags[2], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
-            }
-            if (percentage > 0.6 && percentage < 0.8) {
-                std::call_once(flags[3], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
-            }
-            if (percentage > 0.8 && percentage < 1) {
-                std::call_once(flags[4], [&](){lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());});
-            }
-            if (percentage == 1) {
-                lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-                // Disconnect this so we don't have 1000 instances of this in a long session.
-                // We can't do this with unique connection cause it doesn't work with lambdas and we use lambda capture to get extra metadata
-                QObject::disconnect(*progressbarconnection);
-                delete progressbarconnection;
-            }
-            // The real success=true message is send by the downloadFinished listener.
+            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
         });
-        QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, idAndModelId);
-        if (reply == nullptr) {
-            lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Could not connect to the internet and download: ") + model.url));
-        }
-        // Remove the connection right after we fetch model, if the connection is valid
-        if (*connection) {
-            QObject::disconnect(*connection);
-        }
-        delete connection;
-        operations_--;
     });
 
     // We can't download a model, if the fetch operation is not completed yet. as we don't have a list of remote models
