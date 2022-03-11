@@ -51,8 +51,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     // Init the marian translation service:
     marian::bergamot::AsyncService::Config serviceConfig;
     serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
-    serviceConfig.cacheEnabled = settings_.marianSettings().translation_cache;
-    serviceConfig.cacheSize = kTranslationCacheSize;
+    serviceConfig.cacheSize = settings_.marianSettings().translation_cache ? kTranslationCacheSize : 0;
     service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
 
     // Connections
