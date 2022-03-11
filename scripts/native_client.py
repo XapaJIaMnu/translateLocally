@@ -4,6 +4,9 @@ import asyncio
 import itertools
 import struct
 import json
+import time
+import sys
+import csv
 from pathlib import Path
 from pprint import pprint
 
@@ -29,23 +32,18 @@ class Client:
     async def request(self, command, data):
         message_id = next(self.serial)
         message = json.dumps({"command": command, "id": message_id, "data": data}).encode()
-        print(f"Sending message {message_id}")
         future = asyncio.get_running_loop().create_future()
         self.futures[message_id] = future
         self.proc.stdin.write(struct.pack("@I", len(message)))
         self.proc.stdin.write(message)
-        print(f"Waiting for response on {message_id}")
         return await future
 
     async def reader(self):
         while True:
             try:
-                print("Read loop: start")
                 raw_length = await self.proc.stdout.readexactly(4)
                 length = struct.unpack("@I", raw_length)[0]
-                print(f"Read loop: length received = {length}")
                 raw_message = await self.proc.stdout.readexactly(length)
-                print(f"Read loop: message received")
                 message = json.loads(raw_message)
                 
                 # Not cool if there is no response message "id" here
@@ -55,8 +53,6 @@ class Client:
                 # Ignore all progress updates etc for now
                 if not "success" in message:
                     continue
-
-                print(f"Received response for {message['id']}")
 
                 future = self.futures[message["id"]]
                 if message["success"]:
@@ -77,7 +73,8 @@ class TranslateLocally(Client):
         return await self.request("ListModels", {"includeRemote": bool(include_remote)})
 
     async def translate(self, src, trg, text, html=False):
-        return await self.request("Translate", {"src": str(src), "trg": str(trg), "text": str(text), "html": bool(html)})
+        result = await self.request("Translate", {"src": str(src), "trg": str(trg), "text": str(text), "html": bool(html)})
+        return result["target"]["text"]
 
     async def download_model(self, model_id):
         return await self.request("DownloadModel", {"modelID": str(model_id)})
@@ -87,8 +84,12 @@ def first(iterable, *default):
     return next(iter(iterable), *default) #passing as rest argument so it can be nothing and trigger StopIteration exception
 
 
-async def main():
-    async with TranslateLocally(Path(__file__).resolve().parent / Path("../build/translateLocally"), "-p") as tl:
+def get_build():
+    return TranslateLocally(Path(__file__).resolve().parent / Path("../build/translateLocally"), "-p")
+
+
+async def test():
+    async with get_build() as tl:
         models = await tl.list_models(include_remote=True)
         pprint(models)
 
@@ -124,4 +125,50 @@ async def main():
 
     print("Ende")
 
-asyncio.run(main())
+
+class Timer:
+    def __init__(self):
+        self.measurements = []
+
+    async def measure(self, coro, *details):
+        start = time.perf_counter()
+        result = await coro
+        end = time.perf_counter()
+        self.measurements.append([end - start, *details])
+        return result
+
+    def dump(self, fh):
+        # TODO stats? For now I just export to Excel or something
+        writer = csv.writer(fh)
+        writer.writerows(self.measurements)
+
+
+async def latency_test():
+    timer = Timer()
+
+    # Our line generator: just read Crime & Punishment from stdin :D
+    lines = (line.strip() for line in sys.stdin)
+
+    async with get_build() as tl:
+        for epoch in range(100):
+            print(f"Epoch {epoch}...", file=sys.stderr)
+            for batch_size in [1, 5, 10, 20, 50, 100]:
+                await asyncio.gather(*(
+                    timer.measure(
+                        tl.translate("en", "de", line),
+                        epoch,
+                        batch_size,
+                        len(line.split(' ')))
+                    for n, line in zip(range(batch_size), lines)
+                ))
+
+    timer.dump(sys.stdout)
+
+
+def main():
+    if len(sys.argv) == 1:
+        print("Usage: {sys.argv[0]} test | latency", file=sys.stderr)
+    elif sys.argv[1] == "test":
+        asyncio.run(test())
+    elif sys.argv[1] == "latency":
+        asyncio.run(latency_test())
