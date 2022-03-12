@@ -6,6 +6,7 @@
 #include <QThread>
 #include <QAbstractEventDispatcher>
 #include <QDebug>
+#include <memory>
 #include <optional>
 #include <QNetworkReply>
 
@@ -32,6 +33,21 @@ std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_di
                  "quiet", true);
     return options;
 }
+
+// Little helper function that sets up a SingleShot connection in both Qt 5 and 6
+template <typename Derived, typename PointerToMemberFunction, typename ...Args>
+QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMemberFunction signal, const QObject *context, std::function<void(Args...)> functor) {
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+    std::shared_ptr<QMetaObject::Connection> connection = std::make_shared<QMetaObject::Connection>();
+    return *connection = QObject::connect(sender, signal, context, [=](Args &&...args) {
+        QObject::disconnect(*connection);
+        functor(std::forward<Args>(args)...);
+    });
+#else
+    return QObject::connect(sender, signal, context, functor, Qt::SingleShotConnection);
+#endif
+}
+
 
 }
 
@@ -210,18 +226,7 @@ inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
 }
 
 inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
-    // Connection to store our callback in. Qt6 has single shot connections, but 5 doesn't.
-    QMetaObject::Connection * const connection = new QMetaObject::Connection;
-
-    auto downloadModelLambda = std::function([=](){
-        // Remove the connection right after we fetch model, if the connection is valid
-        if (*connection)
-            QObject::disconnect(*connection);
-
-        // Clean up our callback connection
-        // TODO: abstract this all away in a connectSingleShot() helper?
-        delete connection;
-        
+    auto downloadModelLambda = std::function([=](){    
         auto model = models_.getModel(myJsonInput.modelID);
         if (!model) {
             operations_--;
@@ -281,7 +286,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
     // will just exit. That should ensure that a download wouldn't happen twice.
     // Lambda captures by copy as things could potentially go out of scope and be de-allocated.
     if (models_.getNewModels().isEmpty()) {
-        *connection = connect(&models_, &ModelManager::fetchedRemoteModels, this, downloadModelLambda);
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, downloadModelLambda);
         models_.fetchRemoteModels(); // Fetch Remote models will trigger download as well.
     } else {
         // In this case we know that models are fetched so we can proceed to download directly

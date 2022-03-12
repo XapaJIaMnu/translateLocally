@@ -54,6 +54,7 @@ class Client:
                 future, update = self.futures[message["id"]]
                 
                 if "success" in message:
+                    del self.futures[message["id"]]
                     if message["success"]:
                         future.set_result(message["data"])
                     else:
@@ -129,6 +130,17 @@ async def test():
             download_with_progress(tl, model, position)
             for position, model in enumerate(selected_models.values())
         ))
+        print() # tqdm messes a lot with the print position, this makes it less bad
+
+        # Test whether the model list has been updated to reflect that the
+        # downloaded models are now local.
+        models = await tl.list_models(include_remote=True)
+        assert all(
+            model["local"]
+            for selected_model in selected_models.values()
+            for model in models
+            if model["id"] == selected_model["id"]
+        )
 
         # Perform some translations, switching between the models
         translations = await asyncio.gather(
@@ -157,8 +169,6 @@ async def test():
             assert False, "How are we able to translate to 'xx'???"
         except Exception as e:
             assert "Failed to load the necessary translation models" in str(e)
-
-        
 
     print("Fin")
 
