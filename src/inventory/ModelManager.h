@@ -107,8 +107,7 @@ struct Model {
     }
 
     inline bool isSameModel(Model const &model) const {
-        // TODO: matching by name might not be very robust
-        return shortName == model.shortName && repository == model.repository;
+        return id() == model.id();
     }
 
     inline bool operator<(const Model& other) const {
