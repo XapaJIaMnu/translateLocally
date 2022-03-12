@@ -12,6 +12,26 @@ from pprint import pprint
 from tqdm import tqdm
 
 
+class Timer:
+    """Little helper class top measure runtime of async function calls and dump
+    all of those to a CSV.
+    """
+    def __init__(self):
+        self.measurements = []
+
+    async def measure(self, coro, *details):
+        start = time.perf_counter()
+        result = await coro
+        end = time.perf_counter()
+        self.measurements.append([end - start, *details])
+        return result
+
+    def dump(self, fh):
+        # TODO stats? For now I just export to Excel or something
+        writer = csv.writer(fh)
+        writer.writerows(self.measurements)
+
+
 class Client:
     """asyncio based native messaging client. Main interface is just calling
     `request()` with the right parameters and awaiting the future it returns.
@@ -74,8 +94,20 @@ class TranslateLocally(Client):
     async def list_models(self, *, include_remote=False):
         return await self.request("ListModels", {"includeRemote": bool(include_remote)})
 
-    async def translate(self, src, trg, text, *, html=False):
-        result = await self.request("Translate", {"src": str(src), "trg": str(trg), "text": str(text), "html": bool(html)})
+    async def translate(self, text, src=None, trg=None, *, model=None, pivot=None, html=False):
+        if src and trg:
+            if model or pivot:
+                raise InvalidArgumentException("Cannot combine src + trg and model + pivot arguments")
+            spec = {"src": str(src), "trg": str(trg)}
+        elif model:
+            if pivot:
+                spec = {"model": str(model), "pivot": str(pivot)}
+            else:
+                spec = {"model": str(model)}
+        else:
+            raise InvalidArgumentException("Missing src + trg or model argument")
+
+        result = await self.request("Translate", {**spec, "text": str(text), "html": bool(html)})
         return result["target"]["text"]
 
     async def download_model(self, model_id, *, update=lambda data: None):
@@ -83,14 +115,21 @@ class TranslateLocally(Client):
 
 
 def first(iterable, *default):
-    return next(iter(iterable), *default) #passing as rest argument so it can be nothing and trigger StopIteration exception
+    """Returns the first value of anything iterable, or throws StopIteration
+    if it is empty. Or, if you specify a default argument, it will return that.
+    """
+    return next(iter(iterable), *default) # passing as rest argument so it can be nothing and trigger StopIteration exception
 
 
 def get_build():
+    """Instantiate an asyncio TranslateLocally client that connects to
+    tranlateLocally in your local build directory.
+    """
     return TranslateLocally(Path(__file__).resolve().parent / Path("../build/translateLocally"), "-p")
 
 
 async def download_with_progress(tl, model, position):
+    """tl.download but with a tqdm powered progress bar."""
     with tqdm(position=position, desc=model["modelName"], unit="b", unit_scale=True, leave=False) as bar:
         def update(data):
             assert data["read"] <= data["size"]
@@ -101,6 +140,7 @@ async def download_with_progress(tl, model, position):
 
 
 async def test():
+    """Test TranslateLocally functionality."""
     async with get_build() as tl:
         models = await tl.list_models(include_remote=True)
         pprint(models)
@@ -144,12 +184,12 @@ async def test():
 
         # Perform some translations, switching between the models
         translations = await asyncio.gather(
-            tl.translate("en", "de", "Hello world!"),
-            tl.translate("en", "de", "Let's translate another sentence to German."),
-            tl.translate("en", "es", "Sticks and stones may break my bones but words WILL NEVER HURT ME!"),
-            tl.translate("en", "de", "I <i>like</i> to drive my car. But I don't have one.", html=True),
-            tl.translate("es", "de", "¿Por qué no funciona bien?"),
-            tl.translate("en", "de", "This will be the last sentence of the day."),
+            tl.translate("Hello world!", "en", "de"),
+            tl.translate("Let's translate another sentence to German.", "en", "de"),
+            tl.translate("Sticks and stones may break my bones but words WILL NEVER HURT ME!", "en", "es"),
+            tl.translate("I <i>like</i> to drive my car. But I don't have one.", "en", "de", html=True),
+            tl.translate("¿Por qué no funciona bien?", "es", "de"),
+            tl.translate("This will be the last sentence of the day.", "en", "de"),
         )
 
         pprint(translations)
@@ -165,32 +205,20 @@ async def test():
 
         # Test bad input
         try:
-            await tl.translate("en", "xx", "This is impossible to translate")
+            await tl.translate("This is impossible to translate", "en", "xx")
             assert False, "How are we able to translate to 'xx'???"
         except Exception as e:
-            assert "Failed to load the necessary translation models" in str(e)
+            assert "Could not find the necessary translation models" in str(e)
 
     print("Fin")
 
 
-class Timer:
-    def __init__(self):
-        self.measurements = []
-
-    async def measure(self, coro, *details):
-        start = time.perf_counter()
-        result = await coro
-        end = time.perf_counter()
-        self.measurements.append([end - start, *details])
-        return result
-
-    def dump(self, fh):
-        # TODO stats? For now I just export to Excel or something
-        writer = csv.writer(fh)
-        writer.writerows(self.measurements)
 
 
-async def latency_test():
+
+
+
+async def test_latency():
     timer = Timer()
 
     # Our line generator: just read Crime & Punishment from stdin :D
@@ -202,7 +230,7 @@ async def latency_test():
             for batch_size in [1, 5, 10, 20, 50, 100]:
                 await asyncio.gather(*(
                     timer.measure(
-                        tl.translate("en", "de", line),
+                        tl.translate(line, "en", "de"),
                         epoch,
                         batch_size,
                         len(line.split(' ')))
@@ -213,12 +241,16 @@ async def latency_test():
 
 
 def main():
-    if len(sys.argv) == 1:
+    tests = {
+        "test": test,
+        "third-party": test_third_party,
+        "latency": test_latency,
+    }
+
+    if len(sys.argv) == 1 or sys.argv[1] not in tests:
         print("Usage: {sys.argv[0]} test | latency", file=sys.stderr)
-    elif sys.argv[1] == "test":
-        asyncio.run(test())
-    elif sys.argv[1] == "latency":
-        asyncio.run(latency_test())
+    else:
+        asyncio.run(tests[sys.argv[1]]())
 
 
 main()

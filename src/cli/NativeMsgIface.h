@@ -28,13 +28,14 @@ const int constexpr kMaxInputLength = 10*1024*1024; // 10 MB limit on the input 
 struct TranslationRequest {
     QString src;
     QString trg;
-    QString chosenmodel;
+    QString model;
+    QString pivot;
     QString text;
     QString command;
     int id;
-    bool html;
-    bool quality;
-    bool alignments;
+    bool html{false};
+    bool quality{false};
+    bool alignments{false};
 
 
     inline void set(QString key, QJsonValueRef& val) {
@@ -42,8 +43,10 @@ struct TranslationRequest {
             src = val.toString();
         } else if (key == "trg") {
             trg = val.toString();
-        } else if (key == "chosenmodel") {
-            chosenmodel = val.toString();
+        } else if (key == "model") {
+            model = val.toString();
+        } else if (key == "pivot") {
+            pivot = val.toString();
         } else if (key == "text") {
             text = val.toString();
         } else if (key == "command") {
@@ -89,14 +92,13 @@ struct ParseError {
 using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, ParseError>;
 
 struct DirectModelInstance {
-    QString src;
-    QString trg;
+    QString modelID;
     std::shared_ptr<marian::bergamot::TranslationModel> model;
 };
 
 struct PivotModelInstance {
-    QString src;
-    QString trg;
+    QString modelID;
+    QString pivotID;
     std::shared_ptr<marian::bergamot::TranslationModel> model;
     std::shared_ptr<marian::bergamot::TranslationModel> pivot;
 };
@@ -144,13 +146,32 @@ private:
     request_variant parseJsonInput(char * bytes, size_t length);
     inline QByteArray errJson(int myID, QString err);
     inline QByteArray toJsonBytes(marian::bergamot::Response&& response, int myID);
+    
     /**
-     * @brief tryLoadModel This function tries its best to load an appropriate model for the target language/languages, including dowloading from ze Internet
-     * @param srctag Tag of the source language
-     * @param trgtag Tag of the target language
+     * @brief This function tries its best to identify an appropriate model for
+     * the target language/languages. The id of the found model (and possibly
+     * pivot model) will be filled in in the `request` and the function will
+     * return `true`.
+     * @param TranslationRequest request
      * @return whether we succeeded or not.
      */
-    bool tryLoadModel(QString srctag, QString trgtag);
+    bool findModels(TranslationRequest &request) const;
+
+    /**
+     * @brief Loads the models specified in the request. Assumes `request.model`
+     * and possibly `request.pivot` are filled in.
+     * @param TranslationRequest request with `model` (and optionally `pivot`)
+     * filled in.
+     * @return Returns false if any of the necessary models is either not found
+     * or not downloaded.
+     */
+    bool loadModels(TranslationRequest const &request);
+
+    /**
+     * @brief instantiates a model that will work with the service.
+     * @returns model instance.
+     */
+    std::shared_ptr<marian::bergamot::TranslationModel> makeModel(Model const &model);
 
     /**
      * @brief lockAndWriteJsonHelper This function locks input stream and then writes the size and a json message after. It would be called in many places so it makes

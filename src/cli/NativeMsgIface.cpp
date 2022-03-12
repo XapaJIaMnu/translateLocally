@@ -5,7 +5,6 @@
 #include <QSet>
 #include <QThread>
 #include <QAbstractEventDispatcher>
-#include <QDebug>
 #include <memory>
 #include <optional>
 #include <QNetworkReply>
@@ -14,6 +13,7 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
+#include "translator/translation_model.h"
 
 namespace  {
 
@@ -145,7 +145,7 @@ void NativeMsgIface::run() {
                 break;
             } else {
               // @TODO Consume any invalid input here
-              std::cerr << "Unknown input, aboring for now. Will handle gracefully later" << std::endl;
+              std::cerr << "Unknown input, aborting for now. Will handle gracefully later" << std::endl;
               std::abort();
             }
         } while (!die_);
@@ -172,28 +172,34 @@ inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput) {
     int myID = myJsonInput.id;
 
     // Initialise models based on the request.
-    bool success = tryLoadModel(myJsonInput.src, myJsonInput.trg);
-    if (!success) {
-        lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
+    if (!findModels(myJsonInput)) {
+        lockAndWriteJsonHelper(errJson(myID, QString("Could not find the necessary translation models.")));
         operations_--;
         return;
+    }
+
+    if (!loadModels(myJsonInput)) {
+        lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
+        operations_--;
+        return;   
     }
 
     // Initialise translator settings options
     marian::bergamot::ResponseOptions options;
     options.HTML = myJsonInput.html;
-    std::function<void(marian::bergamot::Response&&)> callbackLambda = [&, myID](marian::bergamot::Response&& val) {
+    std::function<void(marian::bergamot::Response&&)> callback = [&, myID](marian::bergamot::Response&& val) {
         lockAndWriteJsonHelper(toJsonBytes(std::move(val), myID));
-        operations_--;};
+        operations_--;
+    };
 
     // Attempt translation. Beware of runtime errors
     try {
         std::visit(overloaded {
             [&](DirectModelInstance &model) {
-                service_->translate(model.model, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+                service_->translate(model.model, std::move(myJsonInput.text.toStdString()), callback, options);
             },
             [&](PivotModelInstance &model) {
-                service_->pivot(model.model, model.pivot, std::move(myJsonInput.text.toStdString()), callbackLambda, options);
+                service_->pivot(model.model, model.pivot, std::move(myJsonInput.text.toStdString()), callback, options);
             }
         }, *model_);
     } catch (const std::runtime_error &e) {
@@ -226,7 +232,7 @@ inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
 }
 
 inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
-    auto downloadModelLambda = std::function([=](){    
+    auto downloadModelLambda = std::function([=](){
         auto model = models_.getModel(myJsonInput.modelID);
         if (!model) {
             operations_--;
@@ -340,8 +346,8 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
 
     if (command == "Translate") {
         // Keys expected in a translation request
-        static const QStringList mandatoryKeysTranslate({"text", "html", "src", "trg"});
-        static const QStringList optionalKeysTranslate({"chosemodel", "quality", "alignments"});
+        static const QStringList mandatoryKeysTranslate({"text"});
+        static const QStringList optionalKeysTranslate({"html", "quality", "alignments", "src", "trg", "model", "pivot"});
         TranslationRequest ret;
         ret.set("id", id);
         for (auto&& key : mandatoryKeysTranslate) {
@@ -357,6 +363,9 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
             if (!val.isNull()) {
                 ret.set(key, val);
             }
+        }
+        if ((!ret.src.isEmpty() && !ret.trg.isEmpty()) == (!ret.model.isEmpty())) {
+            return ParseError{id, QString("either the data fields src and trg, or the field model has to be specified")};
         }
         return ret;
     } else if (command == "ListModels") {
@@ -417,42 +426,61 @@ inline QByteArray NativeMsgIface::toJsonBytes(marian::bergamot::Response&& respo
     return bytes;
 }
 
-bool NativeMsgIface::tryLoadModel(QString srctag, QString trgtag) {
-    // First, check if we have everything required already loaded:
-    if (model_ && std::visit([&](auto &&instance) { return instance.src == srctag && instance.trg == trgtag; }, *model_))
+// Fills in the TranslationRequest.{model,pivot} parameters if src + trg are specified.
+bool NativeMsgIface::findModels(TranslationRequest &request) const {
+    if (!request.model.isEmpty())
         return true;
 
-    std::optional<Model> directModel = models_.getModelForLanguagePair(srctag, trgtag);
-    if (directModel && directModel->isLocal()) {
-        model_ = DirectModelInstance{
-            srctag,
-            directModel->trgTag,
-            std::make_shared<marian::bergamot::TranslationModel>(makeOptions(directModel->path.toStdString(), settings_.marianSettings()), settings_.marianSettings().cpu_threads)
-            // TODO: Maybe cache these shared ptrs? With a weakptr? They might still be around in the
-            // translation queue even when we switched. No need to load them again.
-        };
+    if (std::optional<Model> directModel = models_.getModelForLanguagePair(request.src, request.trg)) {
+        request.model = directModel->id();
         return true;
     }
 
-    std::optional<ModelPair> pivotModel = models_.getModelPairForLanguagePair(srctag, trgtag);
-    if (pivotModel && pivotModel->model.isLocal() && pivotModel->pivot.isLocal()) {
-        model_ = PivotModelInstance{
-            srctag,
-            pivotModel->pivot.trgTag,
-            std::make_shared<marian::bergamot::TranslationModel>(
-                makeOptions(pivotModel->model.path.toStdString(), settings_.marianSettings()),
-                settings_.marianSettings().cpu_threads),
-            std::make_shared<marian::bergamot::TranslationModel>(
-                makeOptions(pivotModel->pivot.path.toStdString(), settings_.marianSettings()),
-                settings_.marianSettings().cpu_threads)
-        };
+    if (std::optional<ModelPair> pivotModel = models_.getModelPairForLanguagePair(request.src, request.trg)) {
+        request.model = pivotModel->model.id();
+        request.pivot = pivotModel->pivot.id();
         return true;
     }
-
-    // TODO download directModel if it is non-local? And last resort, download
-    // the pivotModel models if they're not local?
 
     return false;
+}
+
+bool NativeMsgIface::loadModels(TranslationRequest const &request) {
+    // First, check if we have everything required already loaded:
+    if (model_ && std::visit(overloaded {
+        [&](DirectModelInstance const &instance) { return instance.modelID == request.model && request.pivot.isEmpty(); },
+        [&](PivotModelInstance const &instance) { return instance.modelID == request.model && instance.pivotID == request.pivot; }
+    }, *model_))
+        return true;
+
+    if (!request.model.isEmpty() && !request.pivot.isEmpty()) {
+        auto model = models_.getModel(request.model);
+        auto pivot = models_.getModel(request.pivot);
+
+        if (!model || !pivot || !model->isLocal() || !pivot->isLocal())
+            return false;
+
+        model_ = PivotModelInstance{model->id(), pivot->id(), makeModel(*model), makeModel(*pivot)};
+        return true;
+    } else if (!request.model.isEmpty()) {
+        auto model = models_.getModel(request.model);
+        if (!model || !model->isLocal())
+            return false;
+        
+        model_ = DirectModelInstance{model->id(), makeModel(*model)};
+        return true;
+    }
+
+    return false; // Should not happen, because we called findModels first, right?
+}
+
+std::shared_ptr<marian::bergamot::TranslationModel> NativeMsgIface::makeModel(Model const &model) {
+    // TODO: Maybe cache these shared ptrs? With a weakptr? They might still be around in the
+    // translation queue even when we switched. No need to load them again.
+    return std::make_shared<marian::bergamot::TranslationModel>(
+        makeOptions(model.path.toStdString(), settings_.marianSettings()),
+        settings_.marianSettings().cpu_threads
+    );
 }
 
 void NativeMsgIface::processJson(std::shared_ptr<char[]> input, int ilen) {
