@@ -213,9 +213,38 @@ async def test():
     print("Fin")
 
 
+async def test_third_party():
+    """Test whether TranslateLocally can switch between different types of
+    models. This test assumes you have the OPUS repository in your list:
+    https://object.pouta.csc.fi/OPUS-MT-models/app/models.json
+    """
+    async with get_build() as tl:
+        models_to_try = [
+            'en-de-tiny',
+            'en-de-base',
+            'eng-fin-tiny', # model has broken model_info.json so won't work anyway :(
+            'eng-ukr-tiny',
+        ]
 
+        models = await tl.list_models(include_remote=False)
 
+        selected_models = {
+            shortname: model
+            for shortname in models_to_try
+            if (model := first((model for model in models if model["shortname"] == shortname), None))
+        }
 
+        await asyncio.gather(*(
+            download_with_progress(tl, model, position)
+            for position, model in enumerate(selected_models.values())
+        ))
+
+        translations = await asyncio.gather(*[
+            tl.translate("This is a very simple test sentence", model=model["id"])
+            for model in selected_models.values()
+        ])
+
+        pprint(list(zip(selected_models.keys(), translations)))
 
 
 async def test_latency():

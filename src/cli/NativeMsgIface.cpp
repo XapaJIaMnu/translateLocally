@@ -217,8 +217,10 @@ inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
         for (auto&& model : models_.getInstalledModels()) {
             modelsJson.append(model.toJson());
         }
-        for (auto&& model : models_.getNewModels()) {
-            modelsJson.append(model.toJson());
+        if (myJsonInput.includeRemote) {
+            for (auto&& model : models_.getNewModels()) {
+                modelsJson.append(model.toJson());
+            }
         }
         QJsonObject jsonObj {
             {"success", true},
