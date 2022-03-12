@@ -58,7 +58,6 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     connect(&network_, &Network::error, this, [&](QString err, QVariant id) {
         int messageID = -1;
         if (!id.isNull()) {
-            operations_--;
             if (id.canConvert<int>()) {
                 messageID = id.toInt();
             } else if (id.canConvert<QMap<QString, QVariant>>()) {
@@ -84,10 +83,10 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
                 {"data", modelsJson}
             };
             lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-            operations_--;
-        } else {
+            
             // We are here because this is a helper call for download model, so do nothing. Download model will know what to do.
         }});
+    operations_--;
     connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename, QVariant id) {
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
         models_.writeModel(file, filename);
@@ -99,6 +98,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
             {"data", QJsonObject{{"modelID", modelID}}}
         };
         lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
+        operations_--;
         operations_--;
         //@TODO update model map so newly downloaded model is marked as local now.
     });
@@ -221,10 +221,10 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
         // Clean up our callback connection
         // TODO: abstract this all away in a connectSingleShot() helper?
         delete connection;
-        operations_--;
-
+        
         auto model = models_.getModel(myJsonInput.modelID);
         if (!model) {
+            operations_--;
             lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Model not found")));
             return;
         }
@@ -237,6 +237,7 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
                 {"id", myJsonInput.id},
                 {"data", QJsonObject{{"modelID", model->id()}}}
             };
+            operations_--;
             lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
             return;
         }
@@ -246,6 +247,12 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
             {"id", myJsonInput.id},
             {"modelID", model->id()}
         })));
+
+        // downloadFile can return nullptr if it can't open the temp file. In
+        // that case it will also emit an Network::error(QString) signal which
+        // we already handle above.
+        if (!reply)
+            return;
 
         // Pass any download progress updates along to the client. Previous implementation
         // has some logic to limit the amount of progress updates to 6 but I don't
