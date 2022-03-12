@@ -262,7 +262,8 @@ inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
                 {"update", true},
                 {"id", myJsonInput.id},
                 {"data", QJsonObject{
-                    {"progress", (float) ist / (float) max},
+                    {"read", ist},
+                    {"size", max},
                     {"url", model->url},
                     {"modelID", model->id()}
                 }}
