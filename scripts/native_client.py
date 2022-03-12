@@ -226,8 +226,10 @@ async def test_third_party():
             'eng-ukr-tiny',
         ]
 
-        models = await tl.list_models(include_remote=False)
+        models = await tl.list_models(include_remote=True)
 
+        # Select a model from the model list for each of models_to_try, but
+        # leave it out if there is no model available.
         selected_models = {
             shortname: model
             for shortname in models_to_try
@@ -239,6 +241,16 @@ async def test_third_party():
             for position, model in enumerate(selected_models.values())
         ))
 
+        # TODO: Temporary filter to figure out 'failed' downloads. eng-fin-tiny
+        # has a broken JSON file so it will download correctly, but still not
+        # be available or show up in this list. We should probably make the
+        # download fail in that scenario.
+        models = await tl.list_models(include_remote=False)
+        for shortname in list(selected_models.keys()):
+            if not any(True for model in models if model["shortname"] == shortname):
+                print(f"Skipping {shortname} because it didn't show up in model list after downloading", file=sys.stderr)
+                del selected_models[shortname]
+        
         translations = await asyncio.gather(*[
             tl.translate("This is a very simple test sentence", model=model["id"])
             for model in selected_models.values()
