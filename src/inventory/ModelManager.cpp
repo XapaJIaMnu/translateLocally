@@ -326,13 +326,25 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         }
     }
 
-    { // srcTags keys. It's a json object. Non-critical.
+    // srcTags keys. It's a json object. Non-critical.
+    {
         auto iter = obj.find(QString("srcTags"));
         if (iter != obj.end()) {
             model.set("srcTags", iter.value().toObject());
         }
     }
 
+    // Fill in srcTags based on model name if it is an old-style model_info.json
+    {
+        // split 'eng-ukr-tiny11' into 'eng', 'ukr', and the rest.
+        auto parts = model.shortName.split('-');
+        if (parts.size() > 2) {
+            if (model.srcTags.isEmpty())
+                model.srcTags = {{parts[0], model.src}};
+            if (model.trgTag.isEmpty())
+                model.trgTag = parts[1];
+        }
+    }
 
     // Critical key. If this key is missing the json is completely invalid and needs to be discarded
     // it's either the path to the model or the url to its download location
