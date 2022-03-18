@@ -35,8 +35,8 @@ std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_di
 }
 
 // Little helper function that sets up a SingleShot connection in both Qt 5 and 6
-template <typename Derived, typename PointerToMemberFunction, typename ...Args>
-QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMemberFunction signal, const QObject *context, std::function<void(Args...)> functor) {
+template <typename Derived, typename PointerToMemberFunction, typename Functor>
+QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMemberFunction signal, const QObject *context, Functor functor) {
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     std::shared_ptr<QMetaObject::Connection> connection = std::make_shared<QMetaObject::Connection>();
     return *connection = QObject::connect(sender, signal, context, [=](Args &&...args) {
@@ -47,7 +47,6 @@ QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMember
     return QObject::connect(sender, signal, context, functor, Qt::SingleShotConnection);
 #endif
 }
-
 
 }
 
