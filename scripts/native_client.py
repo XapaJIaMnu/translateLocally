@@ -53,6 +53,7 @@ class Client:
     async def request(self, command, data, *, update=lambda data: None):
         message_id = next(self.serial)
         message = json.dumps({"command": command, "id": message_id, "data": data}).encode()
+        # print(f"Sending: {message}", file=sys.stderr)
         future = asyncio.get_running_loop().create_future()
         self.futures[message_id] = future, update
         self.proc.stdin.write(struct.pack("@I", len(message)))
@@ -65,12 +66,15 @@ class Client:
                 raw_length = await self.proc.stdout.readexactly(4)
                 length = struct.unpack("@I", raw_length)[0]
                 raw_message = await self.proc.stdout.readexactly(length)
+
+                # print(f"Receiving: {raw_message.decode()}", file=sys.stderr)
                 message = json.loads(raw_message)
                 
                 # Not cool if there is no response message "id" here
                 if not "id" in message:
                     continue
 
+                # print(f"Receiving response to {message['id']}", file=sys.stderr)
                 future, update = self.futures[message["id"]]
                 
                 if "success" in message:
@@ -281,15 +285,24 @@ async def test_latency():
     timer.dump(sys.stdout)
 
 
+async def test_concurrency():
+    async with get_build() as tl:
+        fetch_one = tl.list_models(include_remote=True)
+        fetch_two = tl.list_models(include_remote=False)
+        fetch_three = tl.list_models(include_remote=True)
+        await asyncio.gather(fetch_one, fetch_two, fetch_three)
+
+
 def main():
     tests = {
         "test": test,
         "third-party": test_third_party,
         "latency": test_latency,
+        "concurrency": test_concurrency,
     }
 
     if len(sys.argv) == 1 or sys.argv[1] not in tests:
-        print("Usage: {sys.argv[0]} test | latency", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} {' | '.join(tests.keys())}", file=sys.stderr)
     else:
         asyncio.run(tests[sys.argv[1]]())
 
