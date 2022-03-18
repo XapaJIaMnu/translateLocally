@@ -5,6 +5,7 @@
 #include <optional>
 #include <type_traits>
 #include <QEventLoop>
+#include <QJsonDocument>
 #include "inventory/ModelManager.h"
 #include "settings/Settings.h"
 #include "MarianInterface.h"
@@ -25,14 +26,19 @@ namespace marian {
 
 const int constexpr kMaxInputLength = 10*1024*1024; // 10 MB limit on the input length via native messaging
 
-struct TranslationRequest {
+struct Request {
+    int id;
+};
+
+Q_DECLARE_METATYPE(Request);
+
+struct TranslationRequest : public Request {
     QString src;
     QString trg;
     QString model;
     QString pivot;
     QString text;
     QString command;
-    int id;
     bool html{false};
     bool quality{false};
     bool alignments{false};
@@ -74,22 +80,25 @@ struct TranslationRequest {
     }
 };
 
-struct ListRequest {
-    int id;
+Q_DECLARE_METATYPE(TranslationRequest);
+
+struct ListRequest  : Request {
     bool includeRemote;
 };
 
-struct DownloadRequest {
-    int id;
+Q_DECLARE_METATYPE(ListRequest);
+
+struct DownloadRequest : Request {
     QString modelID;
 };
 
-struct ParseError {
-    int id;
+Q_DECLARE_METATYPE(DownloadRequest);
+
+struct MalformedRequest : Request {
     QString error;
 };
 
-using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, ParseError>;
+using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, MalformedRequest>;
 
 struct DirectModelInstance {
     QString modelID;
@@ -144,8 +153,7 @@ private:
 
     // Methods
     request_variant parseJsonInput(char * bytes, size_t length);
-    inline QByteArray errJson(int myID, QString err);
-    inline QByteArray toJsonBytes(marian::bergamot::Response&& response, int myID);
+    QByteArray converTranslationTo(marian::bergamot::Response&& response, int myID);
     
     /**
      * @brief This function tries its best to identify an appropriate model for
@@ -178,31 +186,74 @@ private:
      *                               sense to put the common bits here to avoid code duplication
      * @param arr QbyteArray json array
      */
-    inline void lockAndWriteJsonHelper(QByteArray&& arr);
+    void lockAndWriteJsonHelper(QJsonDocument&& json);
+
+    template <typename T> // T can be QJsonValue, QJsonArray or QJsonObject
+    void writeResponse(Request const &request, T &&data) {
+        // Decrement pending operation count
+        operations_--;
+        
+        QJsonObject response = {
+            {"success", true},
+            {"id", request.id},
+            {"data", std::move(data)}
+        };
+        lockAndWriteJsonHelper(QJsonDocument(std::move(response)));
+    }
+
+    template <typename T>
+    void writeUpdate(Request const &request, T &&data) {
+        QJsonObject response = {
+            {"update", true},
+            {"id", request.id},
+            {"data", std::move(data)}
+        };
+        lockAndWriteJsonHelper(QJsonDocument(std::move(response)));
+    }
+
+    void writeError(Request const &request, QString &&err) {
+        // Only writeResponse or writeError will decrement the counter, and thus
+        // only one should be called once per request. We can verify this by
+        // looking at the message ids in request, but that's too much runtime
+        // checking. I did do it in debug code.
+        operations_--;
+        
+        QJsonObject response{
+            {"success", false},
+            {"error", err}
+        };
+
+        // We have request.id == -1 if the error is that the message id could
+        // not be parsed.
+        if (request.id >= 0)
+            response["id"] = request.id;
+
+        lockAndWriteJsonHelper(QJsonDocument(std::move(response)));
+    }
 
     /**
      * @brief handleRequest handles a request type translationRequest and writes to stdout
      * @param myJsonInput translationRequest
      */
-    inline void handleRequest(TranslationRequest myJsonInput);
+    void handleRequest(TranslationRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type ListRequest and writes to stdout
      * @param myJsonInput ListRequest
      */
-    inline void handleRequest(ListRequest myJsonInput);
+    void handleRequest(ListRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type DownloadRequest and writes to stdout
      * @param myJsonInput DownloadRequest
      */
-    inline void handleRequest(DownloadRequest myJsonInput);
+    void handleRequest(DownloadRequest myJsonInput);
 
     /**
-     * @brief handleRequest handles a request type ParseError and writes to stdout
-     * @param myJsonInput ParseError
+     * @brief handleRequest handles a request type MalformedRequest and writes to stdout
+     * @param myJsonInput MalformedRequest
      */
-    inline void handleRequest(ParseError myJsonInput);
+    void handleRequest(MalformedRequest myJsonInput);
 signals:
     void finished();
     /**

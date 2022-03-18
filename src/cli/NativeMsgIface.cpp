@@ -13,6 +13,7 @@
 #include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
+#include "inventory/ModelManager.h"
 #include "translator/translation_model.h"
 
 namespace  {
@@ -69,54 +70,15 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     serviceConfig.cacheSize = settings_.marianSettings().translation_cache ? kTranslationCacheSize : 0;
     service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
 
-    // Connections
-    connect(&network_, &Network::error, this, [&](QString err, QVariant id) {
-        int messageID = -1;
-        if (!id.isNull()) {
-            if (id.canConvert<int>()) {
-                messageID = id.toInt();
-            } else if (id.canConvert<QMap<QString, QVariant>>()) {
-                messageID = id.toMap()["id"].toInt();
-            }
-        }
-        lockAndWriteJsonHelper(errJson(messageID, err));
+    // Pick up on network errors
+    // TODO: not sure if every request always returns on 1 error. fetchRemoteModels for example
+    // will cut short if a request is already in progress. If that one fails, the second request
+    // that got cut short will have no response, and stay pending.
+    connect(&network_, &Network::error, this, [&](QString err, QVariant data) {
+        if (data.canConvert<Request>())
+            writeError(data.value<Request>(), std::move(err));
     });
-    // Another reason to love QT. From the documentation:
-    // The signature of a signal must match the signature of the receiving slot. (In fact a slot may have a shorter signature than the signal it receives because it can ignore extra arguments.)
-    connect(&models_, &ModelManager::fetchedRemoteModels, this, [&](QVariant myID=QVariant()){
-        if (!myID.isNull()) {
-            QJsonArray modelsJson;
-            for (auto&& model : models_.getInstalledModels()) {
-                modelsJson.append(model.toJson());
-            }
-            for (auto&& model : models_.getNewModels()) {
-                modelsJson.append(model.toJson());
-            }
-            QJsonObject jsonObj {
-                {"success", true},
-                {"id", myID.toInt()},
-                {"data", modelsJson}
-            };
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-            
-            // We are here because this is a helper call for download model, so do nothing. Download model will know what to do.
-        }});
-    operations_--;
-    connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename, QVariant id) {
-        // We use cout here, as QTextStream out gives a warning about being lamda captured.
-        models_.writeModel(file, filename);
-        int messageID = id.toMap()["id"].toInt();
-        QString modelID = id.toMap()["modelID"].toString();
-        QJsonObject jsonObj {
-            {"success", true},
-            {"id", messageID},
-            {"data", QJsonObject{{"modelID", modelID}}}
-        };
-        lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        operations_--;
-        operations_--;
-        //@TODO update model map so newly downloaded model is marked as local now.
-    });
+
     connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson);
 }
 
@@ -159,150 +121,120 @@ void NativeMsgIface::run() {
     });
 }
 
-inline void NativeMsgIface::lockAndWriteJsonHelper(QByteArray&& arr) {
-    std::lock_guard<std::mutex> lock(coutmutex_);
-    size_t outputSize = arr.size();
-    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
-    std::cout.write(arr.data(), outputSize);
-    std::cout.flush();
-}
-
-inline void NativeMsgIface::handleRequest(TranslationRequest myJsonInput) {
-    int myID = myJsonInput.id;
-
+void NativeMsgIface::handleRequest(TranslationRequest request) {
     // Initialise models based on the request.
-    if (!findModels(myJsonInput)) {
-        lockAndWriteJsonHelper(errJson(myID, QString("Could not find the necessary translation models.")));
-        operations_--;
-        return;
-    }
+    if (!findModels(request))
+        return writeError(request, "Could not find the necessary translation models.");
 
-    if (!loadModels(myJsonInput)) {
-        lockAndWriteJsonHelper(errJson(myID, QString("Failed to load the necessary translation models.")));
-        operations_--;
-        return;   
-    }
+    if (!loadModels(request))
+        return writeError(request, "Failed to load the necessary translation models.");
 
     // Initialise translator settings options
     marian::bergamot::ResponseOptions options;
-    options.HTML = myJsonInput.html;
-    std::function<void(marian::bergamot::Response&&)> callback = [&, myID](marian::bergamot::Response&& val) {
-        lockAndWriteJsonHelper(toJsonBytes(std::move(val), myID));
-        operations_--;
+    options.HTML = request.html;
+    std::function<void(marian::bergamot::Response&&)> callback = [this,request](marian::bergamot::Response&& val) {
+        QJsonObject data = {
+            {"target", QJsonObject{
+                {"text", QString::fromStdString(std::move(val.target.text))}
+            }}
+        };
+        writeResponse(request, std::move(data));
     };
 
     // Attempt translation. Beware of runtime errors
     try {
         std::visit(overloaded {
             [&](DirectModelInstance &model) {
-                service_->translate(model.model, std::move(myJsonInput.text.toStdString()), callback, options);
+                service_->translate(model.model, std::move(request.text.toStdString()), callback, options);
             },
             [&](PivotModelInstance &model) {
-                service_->pivot(model.model, model.pivot, std::move(myJsonInput.text.toStdString()), callback, options);
+                service_->pivot(model.model, model.pivot, std::move(request.text.toStdString()), callback, options);
             }
         }, *model_);
     } catch (const std::runtime_error &e) {
-       lockAndWriteJsonHelper(errJson(myID, QString::fromStdString(e.what())));
-       operations_--;
+        writeError(request, QString::fromStdString(std::move(e.what())));
     }
 }
 
-inline void NativeMsgIface::handleRequest(ListRequest myJsonInput)  {
-    // Fetch remote models if necessary. In this case we report the models via signal
-    if (myJsonInput.includeRemote && models_.getNewModels().isEmpty()) {
-        models_.fetchRemoteModels(myJsonInput.id);
-    } else {
-        QJsonArray modelsJson;
-        for (auto&& model : models_.getInstalledModels()) {
+void NativeMsgIface::handleRequest(ListRequest request)  {
+    // Fetch remote models if necessary.
+    if (request.includeRemote && models_.getRemoteModels().isEmpty()) {
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]() {
+            handleRequest(request);
+        });
+        return models_.fetchRemoteModels();
+    }
+    
+    QJsonArray modelsJson;
+    for (auto&& model : models_.getInstalledModels()) {
+        modelsJson.append(model.toJson());
+    }
+    
+    if (request.includeRemote) {
+        for (auto&& model : models_.getNewModels()) {
             modelsJson.append(model.toJson());
         }
-        if (myJsonInput.includeRemote) {
-            for (auto&& model : models_.getNewModels()) {
-                modelsJson.append(model.toJson());
-            }
-        }
-        QJsonObject jsonObj {
-            {"success", true},
-            {"id", myJsonInput.id},
-            {"data", modelsJson}
-        };
-        lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-        operations_--;
     }
-
+    
+    writeResponse(request, modelsJson);
 }
 
-inline void NativeMsgIface::handleRequest(DownloadRequest myJsonInput)  {
-    auto downloadModelLambda = std::function([=](){
-        auto model = models_.getModel(myJsonInput.modelID);
-        if (!model) {
-            operations_--;
-            lockAndWriteJsonHelper(errJson(myJsonInput.id, QString("Model not found")));
-            return;
-        }
-
-        // Model already downloaded?
-        // TODO: same logic as in downloadComplete signal handler
-        if (model->isLocal()) {
-            QJsonObject jsonObj {
-                {"success", true},
-                {"id", myJsonInput.id},
-                {"data", QJsonObject{{"modelID", model->id()}}}
-            };
-            operations_--;
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
-            return;
-        }
-
-        // Download new model
-        QNetworkReply *reply = network_.downloadFile(model->url, QCryptographicHash::Sha256, model->checksum, QVariant::fromValue(QMap<QString, QVariant>({
-            {"id", myJsonInput.id},
-            {"modelID", model->id()}
-        })));
-
-        // downloadFile can return nullptr if it can't open the temp file. In
-        // that case it will also emit an Network::error(QString) signal which
-        // we already handle above.
-        if (!reply)
-            return;
-
-        // Pass any download progress updates along to the client. Previous implementation
-        // has some logic to limit the amount of progress updates to 6 but I don't
-        // think throttling the number of messages is necessary.
-        connect(reply, &QNetworkReply::downloadProgress, this, [=](qint64 ist, qint64 max) {
-             QJsonObject jsonObj {
-                {"update", true},
-                {"id", myJsonInput.id},
-                {"data", QJsonObject{
-                    {"read", ist},
-                    {"size", max},
-                    {"url", model->url},
-                    {"modelID", model->id()}
-                }}
-            };
-            lockAndWriteJsonHelper(QJsonDocument(jsonObj).toJson());
+void NativeMsgIface::handleRequest(DownloadRequest request)  {
+    // Edge case: client issued a DownloadRequest before fetching the list of
+    // remote models because it knows the model ID from a previous run. We still
+    // need to dowload the remote model list to figure out which model it wants.
+    // We thus fire off a fetchRemoteModels() request, and re-handle the
+    // DownloadRequest from its "done!" signal.
+    if (models_.getRemoteModels().isEmpty()) {
+        // Note: this could pick up the signal emitted from a previous request
+        // to fetch the model list. But that's okay, because fetchRemoteModels()
+        // just returns if a request is still in progress.
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request](QVariant ignored) {
+            handleRequest(request);
         });
+        models_.fetchRemoteModels();
+        return;
+    }
+
+    auto model = models_.getModel(request.modelID);
+    if (!model)
+        return writeError(request, "Model not found");
+
+    // Model already downloaded?
+    if (model->isLocal()) {
+        QJsonObject response{{"modelID", model->id()}};
+        return writeResponse(request, response);
+    }
+
+    // Download new model
+    QNetworkReply *reply = network_.downloadFile(model->url, QCryptographicHash::Sha256, model->checksum, QVariant::fromValue(request));
+
+    // downloadFile can return nullptr if it can't open the temp file. In
+    // that case it will also emit an Network::error(QString) signal which
+    // we already handle above.
+    if (!reply)
+        return;
+
+    // Pass any download progress updates along to the client.
+    connect(reply, &QNetworkReply::downloadProgress, this, [=](qint64 ist, qint64 max) {
+         QJsonObject update {
+            {"read", ist},
+            {"size", max},
+            {"url", model->url},
+            {"modelID", model->id()}
+        };
+        writeUpdate(request, update);
     });
 
-    // We can't download a model, if the fetch operation is not completed yet. as we don't have a list of remote models
-    // loaded at start. This shouldn't be an issue normally as we would only fetch a new model once we get a list of models,
-    // but we also need to wait for the fetch model list network operation to finish. We should also be prepared for a clinet having
-    // a cached list of models. Unfortunately, as all the signals and slots are executed on the same thread (unless we further complicate the code)
-    // We can't have a lock waiting on slot from the same thread because no work will ever be done unless QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents)
-    // is called and that is extremely hacky. Instead, chain a signal call based on the signal emitted from fetchRemoteModels();. If fetchRemoteModels() is being executted currently, it
-    // will just exit. That should ensure that a download wouldn't happen twice.
-    // Lambda captures by copy as things could potentially go out of scope and be de-allocated.
-    if (models_.getNewModels().isEmpty()) {
-        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, downloadModelLambda);
-        models_.fetchRemoteModels(); // Fetch Remote models will trigger download as well.
-    } else {
-        // In this case we know that models are fetched so we can proceed to download directly
-        downloadModelLambda();
-    }
+    connectSingleShot(&network_, &Network::downloadComplete, this, [this, request](QFile *file, QString filename) {
+        models_.writeModel(file, filename);
+        // TODO: update which models are local and which not. Maybe writeModel should do that itself.
+        writeResponse(request, QJsonObject{{"modelID", request.modelID}});
+    });
 }
 
-inline void NativeMsgIface::handleRequest(ParseError myJsonInput)  {
-    lockAndWriteJsonHelper(errJson(myJsonInput.id, myJsonInput.error));
+void NativeMsgIface::handleRequest(MalformedRequest request)  {
+    writeError(request, std::move(request.error));
 }
 
 request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
@@ -320,25 +252,24 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
     {
         QJsonValueRef idVariant = jsonObj["id"];
         if (idVariant.isNull()) {
-            return ParseError{-1, "ID field in message cannot be null!"};
+            return MalformedRequest{-1, "ID field in message cannot be null!"};
         } else {
             id = idVariant.toInt();
         }
 
         QJsonValueRef commandVariant = jsonObj["command"];
         if (commandVariant.isNull()) {
-            return ParseError{id, "command field in message cannot be null!"};
+            return MalformedRequest{id, "command field in message cannot be null!"};
         } else {
             command = commandVariant.toString();
             if (commandTypes.find(command) == commandTypes.end()) {
-                return ParseError{id, QString("Unrecognised message command: ") + command + QString(" AvailableCommands: ") +
-                commandTypes.values().at(0) + QString(" ") + commandTypes.values().at(1) + QString(" ") + commandTypes.values().at(2)};
+                return MalformedRequest{id, QString("Unrecognised message command: %1 AvailableCommands: %2").arg(command).arg(QStringList(commandTypes.begin(), commandTypes.end()).join(' '))};
             }
         }
 
         QJsonValueRef dataVariant = jsonObj["data"];
         if (dataVariant.isNull()) {
-            return ParseError{id, "data field in message cannot be null!"};
+            return MalformedRequest{id, "data field in message cannot be null!"};
         } else {
             data = dataVariant.toObject();
         }
@@ -354,7 +285,7 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
         for (auto&& key : mandatoryKeysTranslate) {
             QJsonValueRef val = data[key];
             if (val.isNull()) {
-                return ParseError{id, QString("data field key ") + key + QString(" cannot be null!")};
+                return MalformedRequest{id, QString("data field key %1 cannot be null!").arg(key)};
             } else {
                 ret.set(key, val);
             }
@@ -366,7 +297,7 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
             }
         }
         if ((!ret.src.isEmpty() && !ret.trg.isEmpty()) == (!ret.model.isEmpty())) {
-            return ParseError{id, QString("either the data fields src and trg, or the field model has to be specified")};
+            return MalformedRequest{id, QString("either the data fields src and trg, or the field model has to be specified")};
         }
         return ret;
     } else if (command == "ListModels") {
@@ -389,42 +320,27 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
         for (auto&& key : mandatoryKeysDownload) {
             QJsonValueRef val = data[key];
             if (val.isNull()) {
-                return ParseError{id, QString("data field key ") + key + QString(" cannot be null!")};
+                return MalformedRequest{id, QString("data field key %1 cannot be null!").arg(key)};
             } else {
                 ret.modelID = val.toString();
             }
         }
         return ret;
     } else {
-        return ParseError{id, QString("Developer error. We shouldn't ever be here! Command: ") + command};
+        return MalformedRequest{id, QString("Developer error. We shouldn't ever be here! Command: %1").arg(command)};
     }
 
-    return ParseError{id, QString("Developer error. We shouldn't ever be here! This makes the compiler happy though.")};
+    return MalformedRequest{id, QString("Developer error. We shouldn't ever be here! This makes the compiler happy though.")};
 
 }
 
-inline QByteArray NativeMsgIface::errJson(int myID, QString err) {
-    QJsonObject jsonObj{
-        {"id", myID},
-        {"success", false},
-        {"error", err}
-    };
-    QByteArray bytes = QJsonDocument(jsonObj).toJson();
-    return bytes;
-}
-
-inline QByteArray NativeMsgIface::toJsonBytes(marian::bergamot::Response&& response, int myID) {
-    QJsonObject jsonObj{
-        {"id", myID},
-        {"success", true},
-        {"data", QJsonObject{
-            {"target", QJsonObject{
-                {"text", QString::fromStdString(response.target.text)}    
-            }}
-        }}
-    };
-    QByteArray bytes = QJsonDocument(jsonObj).toJson();
-    return bytes;
+void NativeMsgIface::lockAndWriteJsonHelper(QJsonDocument&& document) {
+    QByteArray arr = document.toJson();
+    std::lock_guard<std::mutex> lock(coutmutex_);
+    size_t outputSize = arr.size();
+    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
+    std::cout.write(arr.data(), outputSize);
+    std::cout.flush();
 }
 
 // Fills in the TranslationRequest.{model,pivot} parameters if src + trg are specified.
