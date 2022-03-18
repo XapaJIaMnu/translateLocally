@@ -47,8 +47,8 @@ class Client:
         return self
 
     async def __aexit__(self, *args):
-        self.read_task.cancel() # cancel?
-        self.proc.terminate()
+        self.proc.stdin.close()
+        await self.proc.wait()
 
     async def request(self, command, data, *, update=lambda data: None):
         message_id = next(self.serial)
