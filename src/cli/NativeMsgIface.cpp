@@ -49,6 +49,19 @@ QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMember
 #endif
 }
 
+// Little helper to print QSet<QString> and QList<QString> without the need to
+// convert them into a QStringList.
+template <typename T>
+QString join(QString glue, T const &list) {
+    QString out;
+    for (auto &&item : list) {
+        if (!out.isEmpty())
+            out += glue;
+        out += item;
+    }
+    return out;
+};
+
 }
 
 NativeMsgIface::NativeMsgIface(QObject * parent) :
@@ -263,7 +276,7 @@ request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
         } else {
             command = commandVariant.toString();
             if (commandTypes.find(command) == commandTypes.end()) {
-                return MalformedRequest{id, QString("Unrecognised message command: %1 AvailableCommands: %2").arg(command).arg(QStringList(commandTypes.begin(), commandTypes.end()).join(' '))};
+                return MalformedRequest{id, QString("Unrecognised message command: %1 AvailableCommands: %2").arg(command).arg(join(" ", commandTypes))};
             }
         }
 
