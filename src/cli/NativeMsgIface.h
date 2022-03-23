@@ -127,7 +127,7 @@ private slots:
      * @param input char array of json
      * @param ilen length
      */
-    void processJson(std::shared_ptr<char[]> input, int ilen);
+    void processJson(std::shared_ptr<std::vector<char>> input);
 private:
     // Threading
     std::thread iothread_;
@@ -261,5 +261,5 @@ signals:
      * @param input char array of json
      * @param ilen length
      */
-    void emitJson(std::shared_ptr<char[]> input, int ilen);
+    void emitJson(std::shared_ptr<std::vector<char>> input);
 };

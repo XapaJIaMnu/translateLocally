@@ -108,12 +108,12 @@ void NativeMsgIface::run() {
             int ilen = *reinterpret_cast<unsigned int *>(len);
             if (ilen < kMaxInputLength && ilen>1) {
                 //  Read in the message into Json
-                std::shared_ptr<char[]> input(new char[ilen]);
-                std::cin.read(input.get(), ilen);
+                std::shared_ptr<std::vector<char>> input(std::make_shared<std::vector<char>>(ilen));
+                std::cin.read(&input->front(), ilen);
                 // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
                 // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
                 operations_++; // Also keep track of the number of operations that are happening.
-                emit emitJson(input, ilen);
+                emit emitJson(input);
             } else if (ilen == -1) { // We signal the worker to die if the length of the next message is -1.
                 die_ = true;
                 break;
@@ -413,8 +413,8 @@ std::shared_ptr<marian::bergamot::TranslationModel> NativeMsgIface::makeModel(Mo
     );
 }
 
-void NativeMsgIface::processJson(std::shared_ptr<char[]> input, int ilen) {
-    auto myJsonInputVariant = parseJsonInput(input.get(), ilen);
+void NativeMsgIface::processJson(std::shared_ptr<std::vector<char>> input) {
+    auto myJsonInputVariant = parseJsonInput(&input->front(), input->size());
     std::visit([&](auto&& req){handleRequest(req);}, myJsonInputVariant);
 }
 
