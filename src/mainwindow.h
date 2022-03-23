@@ -34,6 +34,10 @@ public:
     };
     Q_ENUM(Action);
 
+signals:
+    // Emitted at the end of MainWindow's initialisation
+    void launched();
+
 public slots:
     
 
@@ -69,6 +73,8 @@ private slots:
     void updateLocalModels();
 
     void updateSelectedModel();
+
+    bool registerNativeMessagingAppManifest();
 
 protected: // We use this for first run dialog
     void showEvent(QShowEvent *ev);

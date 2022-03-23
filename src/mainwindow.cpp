@@ -17,6 +17,7 @@
 #include <QFontDialog>
 #include <QSignalBlocker>
 #include <QStandardItem>
+#include <QStandardPaths>
 #include <QWindow>
 #include "Translation.h"
 #include "logo/logo_svg.h"
@@ -77,6 +78,10 @@ MainWindow::MainWindow(QWidget *parent)
         settings_.translationModel.setValue(models_.getInstalledModels().at(0).path);
 
     // Attach slots
+    
+    // As soon as we've started up, try to register this application as a native messaging host
+    connect(this, &MainWindow::launched, this, &MainWindow::registerNativeMessagingAppManifest);
+
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     // Update when new models are discovered
     connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
@@ -241,6 +246,8 @@ MainWindow::MainWindow(QWidget *parent)
         if (settings_.syncScrolling())
             ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     }, Qt::QueuedConnection);
+
+    emit launched();
 }
 
 void MainWindow::showEvent(QShowEvent *ev) {
@@ -507,4 +514,46 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
     } else {
         alignmentWorker_->query(Translation(), Translation::translation_to_source, 0, 0);
     }
+}
+
+bool MainWindow::registerNativeMessagingAppManifest() {
+    // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
+    QString name = "translatelocally";
+
+    QJsonDocument manifest({
+        {"name", name},
+        {"description", "Fast and secure translation on your local machine, powered by marian and Bergamot."},
+        {"type", "stdio"},
+        {"path", QCoreApplication::applicationFilePath()},
+        {"allowed_extensions", QJsonArray{
+            "{c9cdf885-0431-4eed-8e18-967b1758c951}" // https://github.com/jelmervdl/firefox-translations
+        }}
+    });
+
+#if defined(Q_OS_MACOS)
+    QString manifestPath = QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
+#elif defined (Q_OS_LINUX)
+    QString manifestPath = QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
+#elif defined (Q_OS_WIN)
+    // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
+    QString manifestPath = QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
+    QSettings registry(QSettings::NativeFormat, QSettings::UserScope, "Mozilla", "NativeMessagingHosts");
+    registry.setValue(name, manifestPath);
+#else
+    return false;
+#endif
+
+    QFileInfo manifestInfo(manifestPath);
+
+    if (!manifestInfo.dir().exists()) {
+        if (!QDir().mkpath(manifestInfo.absolutePath())) {
+            qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
+            return false;
+        }
+    }
+
+    QFile manifestFile(manifestPath);
+    manifestFile.open(QFile::WriteOnly);
+    manifestFile.write(manifest.toJson());
+    return true;
 }
