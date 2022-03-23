@@ -6,6 +6,7 @@
 #include <QThread>
 #include <QAbstractEventDispatcher>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <QNetworkReply>
 
@@ -72,7 +73,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , operations_(0)
       , die_(false)
     {
-    qRegisterMetaType<std::shared_ptr<char[]>>("std::shared_ptr<char[]>");
+    qRegisterMetaType<std::shared_ptr<std::vector<char>>>("std::shared_ptr<std::vector<char>>");
     
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
@@ -97,39 +98,41 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
 
 void NativeMsgIface::run() {
     iothread_ = std::thread([this](){
-        do {
-            if ((std::cin.peek() == std::char_traits<char>::eof())) {
-                // Send a final package telling other stuff to die
-                die_ = true;
-            }
-            // First part of the message: Find how long the input is
+        for (;;) {
+            // First part of the message: Find how long the input is. If that
+            // read fails, we're probably at EOF.
             char len[4];
-            std::cin.read(len, 4);
-            int ilen = *reinterpret_cast<unsigned int *>(len);
-            if (ilen < kMaxInputLength && ilen>1) {
-                //  Read in the message into Json
-                std::shared_ptr<std::vector<char>> input(std::make_shared<std::vector<char>>(ilen));
-                std::cin.read(&input->front(), ilen);
-                // Get JsonInput. It could be one of 4 RequestTypes: TranslationRequest, DownloadRequest, ListRequest and ParseRequest
-                // All of them are handled by overloaded function handleRequest and std::visit does the dispatch by type.
-                operations_++; // Also keep track of the number of operations that are happening.
-                emit emitJson(input);
-            } else if (ilen == -1) { // We signal the worker to die if the length of the next message is -1.
-                die_ = true;
+            if (!std::cin.read(len, 4))
                 break;
-            } else {
-              // @TODO Consume any invalid input here
-              std::cerr << "Unknown input, aborting for now. Will handle gracefully later" << std::endl;
-              std::abort();
+            
+            int ilen = *reinterpret_cast<unsigned int *>(len);
+            if (ilen >= kMaxInputLength || ilen < 2) { // >= 2 because JSON is at least "{}"
+                std::cerr << "Invalid message size. Shutting down." << std::endl;
+                break;
             }
-        } while (!die_);
+
+            //  Read in the message into Json
+            std::shared_ptr<std::vector<char>> input(std::make_shared<std::vector<char>>(ilen));
+            if (!std::cin.read(&input->front(), ilen)) {
+                std::cerr << "Error while reading input message of length " << ilen << ". Shutting down." << std::endl;
+                break;
+            }
+                
+            {
+                // Keep track of the number of pending operations so we can wait for them to
+                // all finish before we shut down the main thread.
+                std::lock_guard<std::mutex> lock(pendingOpsMutex_);
+                operations_++;
+            }
+
+            emit emitJson(input);
+        }
+
+        // Here we lock the reading thread until all work is completed because
+        // the NativeMsgIface destructor blocks on this thread finishing. Bit
+        // convoluted at the moment.
         std::unique_lock<std::mutex> lck(pendingOpsMutex_);
-        pendingOpsCV_.wait(lck, [this](){
-            while (operations_!=0) { //@TODO notify.
-                std::cerr << "Ops remaining: " << operations_ <<  std::endl;
-                QThread::sleep(1);
-            }
-            return operations_ == 0;});
+        pendingOpsCV_.wait(lck, [this](){ return operations_ == 0; });
         emit finished();
     });
 }
