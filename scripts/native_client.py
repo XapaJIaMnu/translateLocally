@@ -50,7 +50,7 @@ class Client:
         self.proc.stdin.close()
         await self.proc.wait()
 
-    async def request(self, command, data, *, update=lambda data: None):
+    def request(self, command, data, *, update=lambda data: None):
         message_id = next(self.serial)
         message = json.dumps({"command": command, "id": message_id, "data": data}).encode()
         # print(f"Sending: {message}", file=sys.stderr)
@@ -58,7 +58,7 @@ class Client:
         self.futures[message_id] = future, update
         self.proc.stdin.write(struct.pack("@I", len(message)))
         self.proc.stdin.write(message)
-        return await future
+        return future
 
     async def reader(self):
         while True:
@@ -293,12 +293,31 @@ async def test_concurrency():
         await asyncio.gather(fetch_one, fetch_two, fetch_three)
 
 
+async def test_shutdown():
+    tasks = []
+    async with get_build() as tl:
+        for n in range(10):
+            print(f"Requesting translation {n}")
+            tasks.append(tl.request("Translate", {
+                "src": "en",
+                "trg": "de",
+                "text": f"This is simple sentence number {n}!",
+                "html": False
+            }))
+        print("Shutting down")
+    print("Shutdown complete")
+    for translation in asyncio.as_completed(tasks):
+        print(await translation)
+    print("Fin.")
+
+
 def main():
     tests = {
         "test": test,
         "third-party": test_third_party,
         "latency": test_latency,
         "concurrency": test_concurrency,
+        "shutdown": test_shutdown
     }
 
     if len(sys.argv) == 1 or sys.argv[1] not in tests:
