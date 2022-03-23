@@ -36,16 +36,16 @@ std::shared_ptr<marian::Options> makeOptions(const std::string &path_to_model_di
 }
 
 // Little helper function that sets up a SingleShot connection in both Qt 5 and 6
-template <typename Derived, typename PointerToMemberFunction, typename Functor>
-QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMemberFunction signal, const QObject *context, Functor functor) {
+template <typename Sender, typename Emitter, typename Slot, typename... Args>
+QMetaObject::Connection connectSingleShot(Sender *sender, void (Emitter::*signal)(Args ...args), const QObject *context, Slot slot) {
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     std::shared_ptr<QMetaObject::Connection> connection = std::make_shared<QMetaObject::Connection>();
-    return *connection = QObject::connect(sender, signal, context, [=](auto &&...args) {
+    return *connection = QObject::connect(sender, signal, context, [=](Args ...args) {
         QObject::disconnect(*connection);
-        functor(std::forward(args)...);
+        slot(std::forward<Args>(args)...);
     });
 #else
-    return QObject::connect(sender, signal, context, functor, Qt::SingleShotConnection);
+    return QObject::connect(sender, signal, context, slot, Qt::SingleShotConnection);
 #endif
 }
 
@@ -172,7 +172,7 @@ void NativeMsgIface::handleRequest(TranslationRequest request) {
 void NativeMsgIface::handleRequest(ListRequest request)  {
     // Fetch remote models if necessary.
     if (request.includeRemote && models_.getRemoteModels().isEmpty()) {
-        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]() {
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]([[maybe_unused]] QVariant ignored) {
             handleRequest(request);
         });
         return models_.fetchRemoteModels();
@@ -202,7 +202,7 @@ void NativeMsgIface::handleRequest(DownloadRequest request)  {
         // Note: this could pick up the signal emitted from a previous request
         // to fetch the model list. But that's okay, because fetchRemoteModels()
         // just returns if a request is still in progress.
-        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request](QVariant ignored) {
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]([[maybe_unused]] QVariant ignored) {
             handleRequest(request);
         });
         models_.fetchRemoteModels();
@@ -239,7 +239,7 @@ void NativeMsgIface::handleRequest(DownloadRequest request)  {
         writeUpdate(request, update);
     });
 
-    connectSingleShot(&network_, &Network::downloadComplete, this, [this, request](QFile *file, QString filename) {
+    connectSingleShot(&network_, &Network::downloadComplete, this, [this, request](QFile *file, QString filename, [[maybe_unused]] QVariant data) {
         models_.writeModel(file, filename);
         // TODO: update which models are local and which not. Maybe writeModel should do that itself.
         writeResponse(request, QJsonObject{{"modelID", request.modelID}});
