@@ -40,9 +40,9 @@ template <typename Derived, typename PointerToMemberFunction, typename Functor>
 QMetaObject::Connection connectSingleShot(const Derived *sender, PointerToMemberFunction signal, const QObject *context, Functor functor) {
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     std::shared_ptr<QMetaObject::Connection> connection = std::make_shared<QMetaObject::Connection>();
-    return *connection = QObject::connect(sender, signal, context, [=](Args &&...args) {
+    return *connection = QObject::connect(sender, signal, context, [=](auto &&...args) {
         QObject::disconnect(*connection);
-        functor(std::forward<Args>(args)...);
+        functor(std::forward(args)...);
     });
 #else
     return QObject::connect(sender, signal, context, functor, Qt::SingleShotConnection);
