@@ -136,8 +136,7 @@ private:
     std::mutex coutmutex_;
     
     // Sadly we don't have C++20 on ubuntu 18.04, otherwise could use std::atomic<T>::wait
-    // For now, only access operations_ if you have a unique_lock on pendingOpsMutex.
-    int operations_; // Keeps track of all operations. So that we know when to quit
+    std::atomic<int> operations_; // Keeps track of all operations. So that we know when to quit
     std::mutex pendingOpsMutex_;
     std::condition_variable pendingOpsCV_;
 
@@ -194,10 +193,7 @@ private:
     template <typename T> // T can be QJsonValue, QJsonArray or QJsonObject
     void writeResponse(Request const &request, T &&data) {
         // Decrement pending operation count
-        {
-            std::lock_guard<std::mutex> lock(pendingOpsMutex_);
-            operations_--;
-        }
+        operations_--;
         pendingOpsCV_.notify_one();
         
         QJsonObject response = {
@@ -223,10 +219,7 @@ private:
         // only one should be called once per request. We can verify this by
         // looking at the message ids in request, but that's too much runtime
         // checking. I did do it in debug code.
-        {
-            std::lock_guard<std::mutex> lock(pendingOpsMutex_);
-            operations_--;
-        }
+        operations_--;
         pendingOpsCV_.notify_one();
         
         QJsonObject response{

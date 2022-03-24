@@ -104,7 +104,7 @@ void NativeMsgIface::run() {
             char len[4];
             if (!std::cin.read(len, 4))
                 break;
-            
+
             int ilen = *reinterpret_cast<unsigned int *>(len);
             if (ilen >= kMaxInputLength || ilen < 2) { // >= 2 because JSON is at least "{}"
                 std::cerr << "Invalid message size. Shutting down." << std::endl;
@@ -117,13 +117,10 @@ void NativeMsgIface::run() {
                 std::cerr << "Error while reading input message of length " << ilen << ". Shutting down." << std::endl;
                 break;
             }
-                
-            {
-                // Keep track of the number of pending operations so we can wait for them to
-                // all finish before we shut down the main thread.
-                std::lock_guard<std::mutex> lock(pendingOpsMutex_);
-                operations_++;
-            }
+
+            // Keep track of the number of pending operations so we can wait for them to
+            // all finish before we shut down the main thread.
+            operations_++;
 
             emit emitJson(input);
         }
