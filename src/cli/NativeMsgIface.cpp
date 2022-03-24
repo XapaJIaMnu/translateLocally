@@ -93,6 +93,15 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
             writeError(data.value<Request>(), std::move(err));
     });
 
+    connect(&network_, &Network::downloadComplete, this, [this](QFile *file, QString filename, QVariant data) {
+        models_.writeModel(file, filename);
+
+        if (data.canConvert<DownloadRequest>()) {
+            DownloadRequest request = data.value<DownloadRequest>();
+            writeResponse(request, QJsonObject{{"modelID", request.modelID}});
+        }
+    });
+
     connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson);
 }
 
@@ -239,11 +248,7 @@ void NativeMsgIface::handleRequest(DownloadRequest request)  {
         writeUpdate(request, update);
     });
 
-    connectSingleShot(&network_, &Network::downloadComplete, this, [this, request](QFile *file, QString filename, [[maybe_unused]] QVariant data) {
-        models_.writeModel(file, filename);
-        // TODO: update which models are local and which not. Maybe writeModel should do that itself.
-        writeResponse(request, QJsonObject{{"modelID", request.modelID}});
-    });
+    // Network::downloadComplete() or Network::error() will trigger the writeResponse or writeError for this request.
 }
 
 void NativeMsgIface::handleRequest(MalformedRequest request)  {

@@ -311,13 +311,26 @@ async def test_shutdown():
     print("Fin.")
 
 
+async def test_concurrent_download():
+    """Test parallel downloads."""
+    async with get_build() as tl:
+        models = await tl.list_models(include_remote=True)
+        remote = [model for model in models if not model["local"]]
+        downloads = [
+            tl.download_model(model["id"])
+            for model, _ in zip(remote, range(3))
+        ]
+        await asyncio.gather(*downloads)
+
+
 def main():
     tests = {
         "test": test,
         "third-party": test_third_party,
         "latency": test_latency,
         "concurrency": test_concurrency,
-        "shutdown": test_shutdown
+        "shutdown": test_shutdown,
+        "concurrent-downloads": test_concurrent_download
     }
 
     if len(sys.argv) == 1 or sys.argv[1] not in tests:
