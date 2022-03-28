@@ -84,22 +84,30 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     serviceConfig.cacheSize = settings_.marianSettings().translation_cache ? kTranslationCacheSize : 0;
     service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
 
-    // Pick up on network errors
-    // TODO: not sure if every request always returns on 1 error. fetchRemoteModels for example
-    // will cut short if a request is already in progress. If that one fails, the second request
-    // that got cut short will have no response, and stay pending.
+    // Pick up on network errors: Right now these are only caused by DownloadRequest
+    // because of how Network.h is implemented. But in the future it might be that
+    // fetchRemoteModels() might also hook into this, and those can yield multiple
+    // errors for one request (e.g. multiple model repositories.)
     connect(&network_, &Network::error, this, [&](QString err, QVariant data) {
         if (data.canConvert<Request>())
             writeError(data.value<Request>(), std::move(err));
+        else 
+            qDebug() << "Network error without request data:" << err;
     });
 
     connect(&network_, &Network::downloadComplete, this, [this](QFile *file, QString filename, QVariant data) {
-        models_.writeModel(file, filename);
-
-        if (data.canConvert<DownloadRequest>()) {
+        ABORT_UNLESS(data.canConvert<DownloadRequest>(), "Model download completed without DownloadRequest data");
+        auto model = models_.writeModel(file, filename);
+        if (model) {
             DownloadRequest request = data.value<DownloadRequest>();
-            writeResponse(request, QJsonObject{{"modelID", request.modelID}});
+            writeResponse(request, model->toJson());
         }
+    });
+
+    // Model manager errors are not always 1-on-1 mappable to requests. For now
+    // we'll just forward them to stderr.
+    connect(&models_, &ModelManager::error, this, [this](QString err) {
+        qDebug() << "Error from model manager:" << err;
     });
 
     connect(this, &NativeMsgIface::emitJson, this, &NativeMsgIface::processJson);
@@ -181,6 +189,10 @@ void NativeMsgIface::handleRequest(TranslationRequest request) {
 void NativeMsgIface::handleRequest(ListRequest request)  {
     // Fetch remote models if necessary.
     if (request.includeRemote && models_.getRemoteModels().isEmpty()) {
+        // Note: this might pick up the completion of an earlier fetchRemoteModels()
+        // request but that's okay since fetchRemoteModels() returns early if a
+        // fetch is still in progress. Also, fetchedRemoteModels() is called
+        // regardless of whether errors occurred during the fetching.
         connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]([[maybe_unused]] QVariant ignored) {
             handleRequest(request);
         });
