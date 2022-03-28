@@ -270,18 +270,23 @@ using ModelInstance = std::variant<DirectModelInstance,PivotModelInstance>;
 
 class NativeMsgIface : public QObject {
     Q_OBJECT
+
 public:
     explicit NativeMsgIface(QObject * parent=nullptr);
     ~NativeMsgIface();
+
 public slots:
     void run();
+
 private slots:
     /**
-     * @brief emitJson emits a json msg (unprocessed as a char array) and its length. Shared ptr because signals and slots don't support move semantics
+     * @brief hooked to emitJson, called for every message that the native client
+     * receives, parses its json into a Request using `parseJsonInput`, and then
+     * calls the corresponding `handleRequest` overload.
      * @param input char array of json
-     * @param ilen length
      */
-    void processJson(std::shared_ptr<std::vector<char>> input);
+    void processJson(QByteArray input);
+
 private:
     // Threading
     std::thread iothread_;
@@ -305,7 +310,7 @@ private:
     std::optional<ModelInstance> model_;
 
     // Methods
-    request_variant parseJsonInput(char * bytes, size_t length);
+    request_variant parseJsonInput(QByteArray bytes);
     QByteArray converTranslationTo(marian::bergamot::Response&& response, int myID);
     
     /**
@@ -335,9 +340,10 @@ private:
     std::shared_ptr<marian::bergamot::TranslationModel> makeModel(Model const &model);
 
     /**
-     * @brief lockAndWriteJsonHelper This function locks input stream and then writes the size and a json message after. It would be called in many places so it makes
-     *                               sense to put the common bits here to avoid code duplication
-     * @param arr QbyteArray json array
+     * @brief lockAndWriteJsonHelper This function locks input stream and then writes the size and a
+     *                               json message after. It would be called in many places so it
+     *                               makes sense to put the common bits here to avoid code duplication.
+     * @param json QJsonDocument that will be stringified and written to stdout in a blocking fashion.
      */
     void lockAndWriteJsonHelper(QJsonDocument&& json);
 
@@ -409,12 +415,16 @@ private:
      * @param myJsonInput MalformedRequest
      */
     void handleRequest(MalformedRequest myJsonInput);
+
 signals:
-    void finished();
     /**
-     * @brief emitJson emits a json msg (unprocessed as a char array) and its length. Shared ptr because signals and slots don't support move semantics
-     * @param input char array of json
-     * @param ilen length
+     * @brief Emitted when input is closed and all the messages have been processed.
      */
-    void emitJson(std::shared_ptr<std::vector<char>> input);
+    void finished();
+
+    /**
+     * @brief Internal signal that is emitted from the stdin reading thread whenever a full request message is read.
+     * @param input QByteArray of the json message
+     */
+    void emitJson(QByteArray input);
 };

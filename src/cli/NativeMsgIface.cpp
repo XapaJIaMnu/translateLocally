@@ -71,9 +71,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , settings_(this)
       , models_(this, &settings_)
       , operations_(0)
-    {
-    qRegisterMetaType<std::shared_ptr<std::vector<char>>>("std::shared_ptr<std::vector<char>>");
-    
+    {    
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
@@ -128,8 +126,8 @@ void NativeMsgIface::run() {
             }
 
             //  Read in the message into Json
-            std::shared_ptr<std::vector<char>> input(std::make_shared<std::vector<char>>(ilen));
-            if (!std::cin.read(&input->front(), ilen)) {
+            QByteArray input(ilen, 0);
+            if (!std::cin.read(input.data(), ilen)) {
                 std::cerr << "Error while reading input message of length " << ilen << ". Shutting down." << std::endl;
                 break;
             }
@@ -266,9 +264,8 @@ void NativeMsgIface::handleRequest(MalformedRequest request)  {
     writeError(request, std::move(request.error));
 }
 
-request_variant NativeMsgIface::parseJsonInput(char * bytes, size_t length) {
-    QByteArray inputBytes(bytes, length);
-    QJsonDocument inputJson = QJsonDocument::fromJson(inputBytes);
+request_variant NativeMsgIface::parseJsonInput(QByteArray input) {
+    QJsonDocument inputJson = QJsonDocument::fromJson(input);
     QJsonObject jsonObj = inputJson.object();
 
     // Define what are mandatory and what are optional request keys
@@ -429,8 +426,8 @@ std::shared_ptr<marian::bergamot::TranslationModel> NativeMsgIface::makeModel(Mo
     );
 }
 
-void NativeMsgIface::processJson(std::shared_ptr<std::vector<char>> input) {
-    auto myJsonInputVariant = parseJsonInput(&input->front(), input->size());
+void NativeMsgIface::processJson(QByteArray input) {
+    auto myJsonInputVariant = parseJsonInput(input);
     std::visit([&](auto&& req){handleRequest(req);}, myJsonInputVariant);
 }
 
