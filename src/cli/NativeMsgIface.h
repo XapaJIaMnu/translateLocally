@@ -304,8 +304,6 @@ private:
 
     std::optional<ModelInstance> model_;
 
-    bool die_;
-
     // Methods
     request_variant parseJsonInput(char * bytes, size_t length);
     QByteArray converTranslationTo(marian::bergamot::Response&& response, int myID);

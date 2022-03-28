@@ -71,7 +71,6 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
       , settings_(this)
       , models_(this, &settings_)
       , operations_(0)
-      , die_(false)
     {
     qRegisterMetaType<std::shared_ptr<std::vector<char>>>("std::shared_ptr<std::vector<char>>");
     
