@@ -255,7 +255,7 @@ void NativeMsgIface::handleRequest(DownloadRequest request)  {
             {"read", ist},
             {"size", max},
             {"url", model->url},
-            {"modelID", model->id()}
+            {"id", model->id()}
         };
         writeUpdate(request, update);
     });
