@@ -53,8 +53,16 @@ static AppType runType(QCommandLineParser& parser) {
         }
     }
 
+    QSet<QString> nativeMessagingClients{
+        // Firefox browser extension: https://github.com/jelmervdl/firefox-translations
+        "{c9cdf885-0431-4eed-8e18-967b1758c951}"
+    };
+
+    // Search for the extension ID among the start-up arguments. This is the only thing
+    // the native messaging APIs of Firefox and Chrome have in common. See also:
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
     for (auto&& path : parser.positionalArguments()) {
-        if (path == "{c9cdf885-0431-4eed-8e18-967b1758c951}") {
+        if (nativeMessagingClients.contains(path)) {
             return NativeMsg;
         }
     }
