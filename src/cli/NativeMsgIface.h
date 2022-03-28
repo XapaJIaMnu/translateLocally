@@ -27,12 +27,84 @@ namespace marian {
 
 const int constexpr kMaxInputLength = 10*1024*1024; // 10 MB limit on the input length via native messaging
 
+/**
+ * Incoming requests all extend Request which contains the client supplied message
+ * id. This id is used in any reply to this request. See parseJsonInput() for the
+ * code parsing JSON strings into one of the request structs. See all requests
+ * that extend this struct below for their JSON format.
+ * 
+ * Generic request format:
+ * {
+ *   "id": int
+ *   "command": str
+ *   "data": {
+ *     ... command specific fields
+ *   }
+ * }
+ * 
+ * Generic success response:
+ * {
+ *   "id": int same value as in the request
+ *   "success": true,
+ *   "data": {
+ *     ... command specific fields
+ *   }
+ * }
+ * 
+ * Generic error response:
+ * {
+ *   "id": int same value as in the request
+ *   "success": false
+ *   "error": str error message
+ * }
+ * 
+ * Generic update format:
+ * {
+ *   "id": int same value as in the request
+ *   "update": true,
+ *   "data": {
+ *     ... command specific fields
+ *   }
+ * }
+ */
 struct Request {
     int id;
 };
 
 Q_DECLARE_METATYPE(Request);
 
+/**
+ * Request:
+ * {
+ *   "id": int
+ *   "command": "Translate",
+ *   "data": {
+ *     EIHER 
+ *      "src": str BCP-47 language code,
+ *      "trg": str BCP-47 language code,
+ *     OR
+ *      "model": str model id,
+ *      "pivot": str model id
+ *     REQUIRED
+ *      "text": str text to translate
+ *     OPTIONAL
+ *      "html": bool the input is HTML
+ *      "quality": bool return quality scores
+ *      "alignments" return token alignments
+ *   }
+ * }
+ * 
+ * Success response:
+ * {
+ *   "id": int,
+ *   "success": true,
+ *   "data": {
+ *     "target": {
+ *       "text": str
+ *     } 
+ *   }
+ * }
+ */
 struct TranslationRequest : public Request {
     QString src;
     QString trg;
@@ -83,29 +155,107 @@ struct TranslationRequest : public Request {
 
 Q_DECLARE_METATYPE(TranslationRequest);
 
+/**
+ * List of available models.
+ * 
+ * Request:
+ * {
+ *   "id": int,
+ *   "command": "ListModels",
+ *   "data": {
+ *     OPTIONAL
+ *      "includeRemote": bool whether to fetch and include models that are available but not already downloaded
+ *   }
+ * }
+ * 
+ * Successful response:
+ * {
+ *   "id": int,
+ *   "success": true,
+ *   "data": [
+ *     {
+ *       "id": str,
+ *       "shortname": str,
+ *       "modelName": str,
+ *       "local": bool whether the model is already downloaded
+ *       "src": str full name of source language
+ *       "trg": str full name of target language
+ *       "srcTags": {
+ *         [str]: str Map of BCP-47 and full language name of supported source languages
+ *       }
+ *       "trgTag": str BCP-47 tag of target language
+ *       "type": str often "base" or "tiny"
+ *       "repository": str
+ *     }
+ *     ...
+ *   ]
+ * }
+ */
 struct ListRequest  : Request {
     bool includeRemote;
 };
 
 Q_DECLARE_METATYPE(ListRequest);
 
+/**
+ * Request to download a model to the user's machine so it can be used.
+ *
+ * Request:
+ * {
+ *   "id": int,
+ *   "command": "DownloadModel",
+ *   "data": {
+ *     "modelID": str value of `id` field from one of the non-local models returned by the ListModels request.
+ *   }
+ * }
+ * 
+ * Successful response:
+ * {
+ *   "id": int,
+ *   "success": true,
+ *   "data": {
+ *     ... (See ListModels request for model fields)
+ *   }
+ * }
+ * 
+ * Download progress update:
+ * {
+ *   "id": int
+ *   "update": true,
+ *   "data": {
+ *     "id": str model id
+ *     "url": str url of model being downloaded (listed url, not final redirected url)
+ *     "read": int bytes downloaded so far
+ *     "size": int estimated total bytes to download
+ *   }
+ * }
+ */
 struct DownloadRequest : Request {
     QString modelID;
 };
 
 Q_DECLARE_METATYPE(DownloadRequest);
 
+/**
+ * Internal structure to handle a request that is missing a required field.
+ */
 struct MalformedRequest : Request {
     QString error;
 };
 
 using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, MalformedRequest>;
 
+/**
+ * Internal structure to cache a loaded direct model (i.e. no pivoting)
+ */
 struct DirectModelInstance {
     QString modelID;
     std::shared_ptr<marian::bergamot::TranslationModel> model;
 };
 
+/**
+ * Internal structure to cache a loaded indirect model (i.e. needs to pivot)
+ */
 struct PivotModelInstance {
     QString modelID;
     QString pivotID;
@@ -113,6 +263,9 @@ struct PivotModelInstance {
     std::shared_ptr<marian::bergamot::TranslationModel> pivot;
 };
 
+/**
+ * A loaded model
+ */
 using ModelInstance = std::variant<DirectModelInstance,PivotModelInstance>;
 
 class NativeMsgIface : public QObject {
