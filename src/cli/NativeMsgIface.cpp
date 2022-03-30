@@ -17,6 +17,11 @@
 #include "inventory/ModelManager.h"
 #include "translator/translation_model.h"
 
+#if defined(Q_OS_WIN)
+#include <stdio.h>
+#include <fcntl.h>
+#endif
+
 namespace  {
 
 // Helper type for using std::visit() with multiple visitor lambdas. Copied
@@ -111,6 +116,14 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
 }
 
 void NativeMsgIface::run() {
+#if defined(Q_OS_WIN)
+    // Switch stdin and stdout to binary mode to prevent Windows from attempting
+    // to do any newline conversion. Apparently there is no standard way of doing
+    // this so ifdef win only section here.
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
     iothread_ = std::thread([this](){
         for (;;) {
             // First part of the message: Find how long the input is. If that
