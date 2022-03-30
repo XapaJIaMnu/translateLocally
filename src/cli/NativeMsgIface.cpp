@@ -18,8 +18,9 @@
 #include "translator/translation_model.h"
 
 #if defined(Q_OS_WIN)
-#include <stdio.h>
+// for _setmode, _fileno and _O_BINARY on Windows
 #include <fcntl.h>
+#include <io.h>
 #endif
 
 namespace  {
