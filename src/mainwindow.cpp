@@ -538,7 +538,7 @@ bool MainWindow::registerNativeMessagingAppManifest() {
     // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
     QString manifestPath = QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
     QSettings registry(QSettings::NativeFormat, QSettings::UserScope, "Mozilla", "NativeMessagingHosts");
-    registry.setValue(name, manifestPath);
+    registry.setValue(QString("%1\\Default").arg(name), manifestPath);
 #else
     return false;
 #endif
