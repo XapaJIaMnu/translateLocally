@@ -27,7 +27,7 @@ int countWords(std::string input) {
     int numWords = 0;
 
     while (*str != '\0') {
-        if (std::isspace(*str)) {
+        if (std::isspace(static_cast<unsigned char>(*str))) {
             inSpaces = true;
         } else if (inSpaces) {
             numWords++;
