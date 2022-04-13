@@ -20,6 +20,7 @@
 #include <QStandardPaths>
 #include <QWindow>
 #include "Translation.h"
+#include "constants.h"
 #include "logo/logo_svg.h"
 #include <iostream>
 #include <QScrollBar>
@@ -517,7 +518,10 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
 }
 
 bool MainWindow::registerNativeMessagingAppManifest() {
+    using translateLocally::kNativeMessagingClients;
+
     // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
+    // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
     QString name = "translatelocally";
 
     QJsonDocument manifest({
@@ -525,9 +529,7 @@ bool MainWindow::registerNativeMessagingAppManifest() {
         {"description", "Fast and secure translation on your local machine, powered by marian and Bergamot."},
         {"type", "stdio"},
         {"path", QCoreApplication::applicationFilePath()},
-        {"allowed_extensions", QJsonArray{
-            "{c9cdf885-0431-4eed-8e18-967b1758c951}" // https://github.com/jelmervdl/firefox-translations
-        }}
+        {"allowed_extensions", QJsonArray::fromStringList(kNativeMessagingClients.values())}
     });
 
 #if defined(Q_OS_MACOS)

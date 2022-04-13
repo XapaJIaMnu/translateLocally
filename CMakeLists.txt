@@ -128,6 +128,7 @@ include_directories(logo)
 add_subdirectory(src)
 # This doesn't quite work if places in the subdirectory's CMakeLists.txt
 set(PROJECT_SOURCES
+        src/constants.h
         src/main.cpp
         src/mainwindow.cpp
         src/mainwindow.h
