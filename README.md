@@ -127,6 +127,26 @@ sacrebleu -t wmt13 -l en-es --echo ref > /tmp/es.in
 cat /tmp/es.in | ./translateLocally -m es-en-tiny | ./translateLocally -m en-de-tiny -o /tmp/de.out
 ```
 
+# NativeMessaging interface
+translateLocally can integrate with other applications and browser extensions using [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging). This functionality is similar to using pipes on the command line, except that the message format is JSON which allows you to specify options per input fragment, and the translated fragments are returned when they become available as opposed to the input order.
+
+## Using NativeMessaging from Python
+Start translateLocally in a subprocess with the `-p` option, and pass it messages [formatted as described here](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#app_side) to its stdin. All supported messages are described in the [NativeMsgIface.h](src/cli/NativeMsgIface.h) file.
+
+There is an example, [native_client.py](scripts/native_client.py), that demonstrates how to use translateLocally as an async Python API.
+
+## Using NativeMessaging from browser extensions
+Right now, the functionality is only automatically available to Firefox.
+
+translateLocally automatically registers itself with Firefox when you start translateLocally in GUI mode. Then you can install the [Firefox translation addon](https://github.com/jelmervdl/firefox-translations/releases). After installation of the addon, go into the addon settings and pick "translateLocally" as translation provider.
+
+### Developing your own browser extension
+Due to the way Firefox and Chrome call translateLocally, you will need to add your browser extension id to the translateLocally source code before it is able to accept native messages.
+
+Add your extension id to [constants.h](src/constants.h) and rebuild translateLocally from source. Once you start it in GUI mode, it will re-register itself with support for your extension.
+
+If you want your extension id added to translateLocally permanently, please open an issue or send us a pull request!
+
 # Importing custom models
 translateLocally supports importing custom models. translateLocally uses the [Bergamot](https://github.com/browsermt/marian-dev) fork of [marian](https://github.com/marian-nmt/marian-dev). As such, it supports the vast majority marian models out of the box. You can just train your marian model and place it a directory. 
 ## Basic model import
