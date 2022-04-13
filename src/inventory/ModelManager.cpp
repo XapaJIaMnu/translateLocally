@@ -16,6 +16,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 #include <algorithm>
+#include <optional>
+#include <variant>
 
 namespace {
     /**
@@ -44,6 +46,22 @@ namespace {
 
         // prefix.section("/", 0, -1)?
         return prefix.section("/", 0, -2);
+    }
+
+    std::optional<Model> findModel(QList<Model> const &models, QString src, QString trg) {
+        std::optional<Model> found;
+
+        for (auto &&model : models) {
+            // Skip models that do not match src & trg
+            // @TODO deal with 'en' vs 'en-US'
+            if (!model.srcTags.contains(src) || model.trgTag != trg)
+                continue;
+
+            if (!found || (found->type != "tiny" && model.type == "tiny"))
+                found = model;
+        }
+
+        return found;
     }
 }
 
@@ -86,7 +104,42 @@ bool ModelManager::validateModel(QString path) {
     return true;
 }
 
-Model ModelManager::writeModel(QFile *file, QString filename) {
+std::optional<Model> ModelManager::getModel(QString const &id) const {
+    for (auto &&model : getInstalledModels())
+        if (model.id() == id)
+            return model;
+
+    for (auto &&model : getRemoteModels())
+        if (model.id() == id)
+            return model;
+
+    return std::nullopt;
+}
+
+std::optional<Model> ModelManager::getModelForLanguagePair(QString src, QString trg) const {
+    // First search the already installed models.
+    std::optional<Model> found(findModel(getInstalledModels(), src, trg));
+    
+    // Did we find an installed model? If not, search the remote models
+    if (!found)
+        found = findModel(getRemoteModels(), src, trg);
+
+    return found;
+}
+
+std::optional<ModelPair> ModelManager::getModelPairForLanguagePair(QString src, QString trg, QString pivot) const {
+    std::optional<Model> sourceModel = getModelForLanguagePair(src, pivot);
+    if (!sourceModel)
+        return std::nullopt;
+
+    std::optional<Model> pivotModel = getModelForLanguagePair(pivot, trg);
+    if (!pivotModel)
+        return std::nullopt;
+
+    return ModelPair{*sourceModel, *pivotModel};
+}
+
+std::optional<Model> ModelManager::writeModel(QFile *file, QString filename) {
     // Default value for filename is the basename of the file.
     if (filename.isEmpty())
         filename = QFileInfo(*file).fileName();
@@ -99,18 +152,18 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     QTemporaryDir tempDir(configDir_.filePath("extracting-XXXXXXX"));
     if (!tempDir.isValid()) {
         emit error(tr("Could not create temporary directory in %1 to extract the model archive to.").arg(configDir_.path()));
-        return Model{};
+        return std::nullopt;
     }
 
     // Try to extract the archive to the temporary directory
     QStringList extracted;
     if (!extractTarGz(file, tempDir.path(), extracted))
-        return Model{};
+        return std::nullopt;
 
     // Assert we extracted at least something.
     if (extracted.isEmpty()) {
         emit error(tr("Did not extract any files from the model archive."));
-        return Model{};
+        return std::nullopt;
     }
 
     // Get the common prefix of all files. In the ideal case, it's the same as
@@ -118,7 +171,7 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     QString prefix = getCommonPrefixPath(extracted);
     if (prefix.isEmpty()) {
         emit error(tr("Could not determine prefix path of extracted model."));
-        return Model{};
+        return std::nullopt;
     }
 
     Q_ASSERT(prefix.startsWith(tempDir.path()));
@@ -126,14 +179,14 @@ Model ModelManager::writeModel(QFile *file, QString filename) {
     // Try determining whether the model is any good before we continue to safe
     // it to a permanent destination
     if (!validateModel(prefix)) // validateModel emits its own error() signals (hence validateModel and not isModelValid)
-        return Model{};
+        return std::nullopt;
 
     QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentMSecsSinceEpoch() / 1000);
     QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
 
     if (!QDir().rename(prefix, newModelDirPath)) {
         emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path(), newModelDirPath));
-        return Model{};
+        return std::nullopt;
     }
 
     // Only remove the temp directory if we moved a directory within it. Don't 
@@ -247,6 +300,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"modelName"},
                                     QString{"src"},
                                     QString{"trg"},
+                                    QString("trgTag"),
                                     QString{"type"},
                                     QString("repository"),
                                     QString{"checksum"}};
@@ -272,6 +326,26 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         }
     }
 
+    // srcTags keys. It's a json object. Non-critical.
+    {
+        auto iter = obj.find(QString("srcTags"));
+        if (iter != obj.end()) {
+            model.set("srcTags", iter.value().toObject());
+        }
+    }
+
+    // Fill in srcTags based on model name if it is an old-style model_info.json
+    {
+        // split 'eng-ukr-tiny11' into 'eng', 'ukr', and the rest.
+        auto parts = model.shortName.split('-');
+        if (parts.size() > 2) {
+            if (model.srcTags.isEmpty())
+                model.srcTags = {{parts[0], model.src}};
+            if (model.trgTag.isEmpty())
+                model.trgTag = parts[1];
+        }
+    }
+
     // Critical key. If this key is missing the json is completely invalid and needs to be discarded
     // it's either the path to the model or the url to its download location
     auto iter = obj.find(criticalKey);
@@ -282,7 +356,6 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                       "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
         return Model{};
     }
-
     return model;
 }
 
@@ -440,7 +513,7 @@ bool ModelManager::extractTarGzInCurrentPath(QFile *file, QStringList &files) {
     return true;
 }
 
-void ModelManager::fetchRemoteModels() {
+void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
@@ -467,7 +540,7 @@ void ModelManager::fetchRemoteModels() {
             }
             if (--(*num_repos) == 0) { // Once we have fetched all repositories, re-enable fetch.
                 isFetchingRemoteModels_ = false;
-                emit fetchedRemoteModels();
+                emit fetchedRemoteModels(extradata);
             }
 
             reply->deleteLater();
@@ -511,12 +584,12 @@ const QList<Model>& ModelManager::getUpdatedModels() const {
     return updatedModels_;
 }
 
-Model ModelManager::getModelForPath(QString path) const {
+std::optional<Model> ModelManager::getModelForPath(QString path) const {
     for (Model const &model : getInstalledModels())
         if (model.path == path)
             return model;
 
-    return Model{};
+    return std::nullopt;
 }
 
 void ModelManager::updateAvailableModels() {

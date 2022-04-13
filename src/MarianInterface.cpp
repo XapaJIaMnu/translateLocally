@@ -1,9 +1,7 @@
 #include "MarianInterface.h"
 #include "3rd_party/bergamot-translator/src/translator/service.h"
-#include "3rd_party/bergamot-translator/src/translator/service.h"
 #include "3rd_party/bergamot-translator/src/translator/parser.h"
 #include "3rd_party/bergamot-translator/src/translator/response.h"
-#include "3rd_party/bergamot-translator/3rd_party/marian-dev/src/3rd_party/spdlog/spdlog.h"
 #include <future>
 #include <memory>
 #include <mutex>
@@ -29,7 +27,7 @@ int countWords(std::string input) {
     int numWords = 0;
 
     while (*str != '\0') {
-        if (std::isspace(*str)) {
+        if (std::isspace(static_cast<unsigned char>(*str))) {
             inSpaces = true;
         } else if (inSpaces) {
             numWords++;

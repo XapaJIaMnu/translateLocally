@@ -128,6 +128,7 @@ include_directories(logo)
 add_subdirectory(src)
 # This doesn't quite work if places in the subdirectory's CMakeLists.txt
 set(PROJECT_SOURCES
+        src/constants.h
         src/main.cpp
         src/mainwindow.cpp
         src/mainwindow.h
@@ -145,9 +146,11 @@ set(PROJECT_SOURCES
         src/Translation.h
         src/Translation.cpp
         src/types.h
-        src/CommandLineIface.h
-        src/CommandLineIface.cpp
-        src/CLIParsing.h
+        src/cli/CLIParsing.h
+        src/cli/CommandLineIface.cpp
+        src/cli/CommandLineIface.h
+        src/cli/NativeMsgIface.cpp
+        src/cli/NativeMsgIface.h
         src/inventory/ModelManager.cpp
         src/inventory/ModelManager.h
         src/inventory/RepoManager.cpp

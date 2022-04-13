@@ -1,10 +1,15 @@
 #ifndef MODELMANAGER_H
 #define MODELMANAGER_H
 #include <QDir>
+#include <QMap>
 #include <QList>
+#include <QJsonObject>
 #include <QFuture>
 #include <QAbstractTableModel>
 #include <iostream>
+#include <optional>
+#include <type_traits>
+
 #include "Network.h"
 #include "types.h"
 #include "settings/Settings.h"
@@ -26,49 +31,71 @@ struct Model {
     QString path; // This is full path to the directory. Only available if the model is local
     QString src;
     QString trg;
+    QMap<QString, QVariant> srcTags; // The second QVariant is a QString. This is done so that we can have direct toJson and fromJson conversion.
+    QString trgTag;
     QString type; // Base or tiny
-    QString repository = "unknown"; // Repository that the model belongs to. If we don't have that information, default to unknown.
+    QString repository = QObject::tr("unknown"); // Repository that the model belongs to. If we don't have that information, default to unknown.
     QByteArray checksum;
     int localversion  = -1;
     int localAPI = -1;
     int remoteversion = -1;
     int remoteAPI = -1;
 
-    inline void set(QString key, QString val) {
-        if (key == "shortName") {
-            shortName = val;
-        } else if (key == "modelName") {
-            modelName = val;
-        } else if (key == "url") {
-            url = val;
-        } else if (key == "path") {
-            path = val;
-        } else if (key == "src") {
-            src = val;
-        } else if (key == "trg") {
-            trg = val;
-        } else if (key == "type") {
-            type = val;
-        } else if (key == "repository") {
-            repository = val;
-        } else if (key == "checksum") {
-            checksum = QByteArray::fromHex(val.toUtf8());
-        } else {
+    template<class T>
+    inline void set(QString key, T val) {
+        bool parseError = false;
+        if constexpr (std::is_same_v<QString, T>) {
+            if (key == "shortName") {
+                shortName = val;
+            } else if (key == "modelName") {
+                modelName = val;
+            } else if (key == "url") {
+                url = val;
+            } else if (key == "path") {
+                path = val;
+            } else if (key == "src") {
+                src = val;
+            } else if (key == "trg") {
+                trg = val;
+            } else if (key == "trgTag") {
+                trgTag = val;
+            } else if (key == "type") {
+                type = val;
+            } else if (key == "repository") {
+                repository = val;
+            } else if (key == "checksum") {
+                checksum = QByteArray::fromHex(val.toUtf8());
+            } else {
+                parseError = true;
+            }
+        } else if constexpr (std::is_same_v<int, T>) {
+            if (key == "localversion") {
+                localversion = val;
+            } else if (key == "localAPI") {
+                localAPI = val;
+            } else if (key == "remoteversion") {
+                remoteversion = val;
+            } else if (key == "remoteAPI") {
+                remoteAPI = val;
+            } else {
+                parseError = true;
+            }
+        } else if constexpr (std::is_same_v<QJsonObject, T>) {
+            if (key == "srcTags") {
+                srcTags = val.toVariantMap();
+            } else {
+               parseError = true;
+            }
+        }
+        if (parseError) {
             std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
         }
     }
-    inline void set(QString key, int val) {
-        if (key == "localversion") {
-            localversion = val;
-        } else if (key == "localAPI") {
-            localAPI = val;
-        } else if (key == "remoteversion") {
-            remoteversion = val;
-        } else if (key == "remoteAPI") {
-            remoteAPI = val;
-        } else {
-            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
-        }
+
+    inline QString id() const {
+        // @TODO make this something globally unique (so not just depended on what is in the JSON)
+        // but also something that stays the same before/after downloading the model.
+        return QString("%1%2").arg(shortName).arg(qHash(repository));
     }
 
     inline bool isLocal() const {
@@ -80,8 +107,7 @@ struct Model {
     }
 
     inline bool isSameModel(Model const &model) const {
-        // TODO: matching by name might not be very robust
-        return shortName == model.shortName && repository == model.repository;
+        return id() == model.id();
     }
 
     inline bool operator<(const Model& other) const {
@@ -106,14 +132,59 @@ struct Model {
                      " type: " << type.toStdString() << " localversion " << localversion << " localAPI " << localAPI <<
                      " remoteversion: " << remoteversion << " remoteAPI " << remoteAPI << std::endl;
     }
+    /**
+     * @brief toJson Returns a json representation of the model. The only difference between the struct is that url and path will not be part of the json.
+     *               Instead, we will have one bool that says "Is it local, or is it remote". We also don't report checksums and API versions as those
+     *               should be handled by the backend.
+     * @return Json representation of a model
+     */
+     QJsonObject toJson() const {
+        QJsonObject ret;
+        ret["id"] = id();
+        ret["shortname"] = shortName;
+        ret["modelName"] = modelName;
+        ret["local"] = isLocal();
+        ret["src"] = src;
+        ret["trg"] = trg;
+        ret["srcTags"] = QJsonObject::fromVariantMap(srcTags);
+        ret["trgTag"] = trgTag;
+        ret["type"] = type;
+        ret["repository"] = repository;
+        return ret;
+    }
 };
 
 Q_DECLARE_METATYPE(Model)
+
+/**
+ * @Brief model pair for src -> pivot -> trg translation.
+ */
+struct ModelPair {
+    Model model;
+    Model pivot;
+};
+
+Q_DECLARE_METATYPE(ModelPair)
 
 class ModelManager : public QAbstractTableModel {
         Q_OBJECT
 public:
     ModelManager(QObject *parent, Settings *settings);
+
+    /**
+     * @Brief get model by its id
+     */
+    std::optional<Model> getModel(QString const &id) const;
+
+    /**
+     * @Brief find model to translate directly from src to trg language.
+     */
+    std::optional<Model> getModelForLanguagePair(QString src, QString trg) const;
+
+    /**
+     * @Brief find model to translate via pivot from src to trg language.
+     */
+    std::optional<ModelPair> getModelPairForLanguagePair(QString src, QString trg, QString pivot = QString("en")) const;
 
     /**
      * @Brief extract a model into the directory of models managed by this
@@ -123,7 +194,7 @@ public:
      * and the function will return the filled in model instance. On failure, an
      * empty Model object is returned (i.e. model.isLocal() returns false).
      */
-    Model writeModel(QFile *file, QString filename = QString());
+    std::optional<Model> writeModel(QFile *file, QString filename = QString());
 
     /**
      * @Brief Tries to delete a model from the getInstalledModels() list. Also
@@ -142,7 +213,7 @@ public:
      * Useful for checking whether a model for which you've saved the path
      * is still available.
      */
-    Model getModelForPath(QString path) const;
+    std::optional<Model> getModelForPath(QString path) const;
 
     /**
      * @Brief list of locally available models
@@ -200,8 +271,10 @@ public slots:
      * models causes updates on the outdated() status of local models.
      * By default, it fetches models from the official translateLocally repo, but can also fetch
      * models from a 3rd party repository.
+     *
+     * @param extradata Optional argument that is indended if we want to pass extra data to the slot
      */
-    void fetchRemoteModels();
+    void fetchRemoteModels(QVariant extradata = QVariant());
     
 private:
     void startupLoad();
@@ -248,7 +321,7 @@ private:
 
 signals:
     void fetchingRemoteModels();
-    void fetchedRemoteModels(); // when finished fetching (might be error)
+    void fetchedRemoteModels(QVariant extradata =  QVariant()); // when finished fetching (might be error)
     void localModelsChanged();
     void error(QString);
 };

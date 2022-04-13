@@ -10,13 +10,6 @@
 #include <thread>
 #include <memory>
 
-// If we include the actual header, we break QT compilation.
-namespace marian {
-    namespace bergamot {
-    class Service;
-    }
-}
-
 struct ModelDescription;
 
 constexpr const size_t kTranslationCacheSize = 1 << 16;

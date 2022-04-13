@@ -17,8 +17,10 @@
 #include <QFontDialog>
 #include <QSignalBlocker>
 #include <QStandardItem>
+#include <QStandardPaths>
 #include <QWindow>
 #include "Translation.h"
+#include "constants.h"
 #include "logo/logo_svg.h"
 #include <iostream>
 #include <QScrollBar>
@@ -66,14 +68,21 @@ MainWindow::MainWindow(QWidget *parent)
     updateLocalModels();
 
     // If we have preferred model, but it no longer exists on disk, reset it to empty
-    if (!settings_.translationModel().isEmpty() && !models_.getModelForPath(settings_.translationModel()).isLocal())
-        settings_.translationModel.setValue("");
+    if (!settings_.translationModel().isEmpty()) {
+        auto model = models_.getModelForPath(settings_.translationModel());
+        if (!model || !model->isLocal())
+            settings_.translationModel.setValue("");
+    }
 
     // If no model is preferred, load the first available one.
     if (settings_.translationModel().isEmpty() && !models_.getInstalledModels().empty())
         settings_.translationModel.setValue(models_.getInstalledModels().at(0).path);
 
     // Attach slots
+    
+    // As soon as we've started up, try to register this application as a native messaging host
+    connect(this, &MainWindow::launched, this, &MainWindow::registerNativeMessagingAppManifest);
+
     connect(&models_, &ModelManager::error, this, &MainWindow::popupError); // All errors from the model class will be propagated to the GUI
     // Update when new models are discovered
     connect(&models_, &ModelManager::localModelsChanged, this, &MainWindow::updateLocalModels);
@@ -238,6 +247,8 @@ MainWindow::MainWindow(QWidget *parent)
         if (settings_.syncScrolling())
             ::copyScrollPosition(ui_->inputBox, ui_->outputBox);
     }, Qt::QueuedConnection);
+
+    emit launched();
 }
 
 void MainWindow::showEvent(QShowEvent *ev) {
@@ -293,9 +304,9 @@ void MainWindow::showDownloadPane(bool visible)
 }
 
 void MainWindow::handleDownload(QFile *file, QString filename) {
-    Model model = models_.writeModel(file, filename);
-    if (model.isLocal()) // if writeModel fails, model will be empty (and not local)
-        settings_.translationModel.setValue(model.path, Setting::AlwaysEmit);
+    auto model = models_.writeModel(file, filename);
+    if (model) // if writeModel didn't fail
+        settings_.translationModel.setValue(model->path, Setting::AlwaysEmit);
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
@@ -504,4 +515,47 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
     } else {
         alignmentWorker_->query(Translation(), Translation::translation_to_source, 0, 0);
     }
+}
+
+bool MainWindow::registerNativeMessagingAppManifest() {
+    using translateLocally::kNativeMessagingClients;
+
+    // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
+    // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
+    QString name = "translatelocally";
+
+    QJsonDocument manifest({
+        {"name", name},
+        {"description", "Fast and secure translation on your local machine, powered by marian and Bergamot."},
+        {"type", "stdio"},
+        {"path", QCoreApplication::applicationFilePath()},
+        {"allowed_extensions", QJsonArray::fromStringList(kNativeMessagingClients.values())}
+    });
+
+#if defined(Q_OS_MACOS)
+    QString manifestPath = QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
+#elif defined (Q_OS_LINUX)
+    QString manifestPath = QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
+#elif defined (Q_OS_WIN)
+    // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
+    QString manifestPath = QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
+    QSettings registry(QSettings::NativeFormat, QSettings::UserScope, "Mozilla", "NativeMessagingHosts");
+    registry.setValue(QString("%1/Default").arg(name), manifestPath);
+#else
+    return false;
+#endif
+
+    QFileInfo manifestInfo(manifestPath);
+
+    if (!manifestInfo.dir().exists()) {
+        if (!QDir().mkpath(manifestInfo.absolutePath())) {
+            qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
+            return false;
+        }
+    }
+
+    QFile manifestFile(manifestPath);
+    manifestFile.open(QFile::WriteOnly);
+    manifestFile.write(manifest.toJson());
+    return true;
 }
