@@ -130,6 +130,9 @@ cat /tmp/es.in | ./translateLocally -m es-en-tiny | ./translateLocally -m en-de-
 # NativeMessaging interface
 translateLocally can integrate with other applications and browser extensions using [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging). This functionality is similar to using pipes on the command line, except that the message format is JSON which allows you to specify options per input fragment, and the translated fragments are returned when they become available as opposed to the input order.
 
+## Limitations
+Right now there is a 10MB message limit for incoming messages. This matches the limitations of Firefox. Responses are limited to about 4GB due to the native messaging message format.
+
 ## Using NativeMessaging from Python
 Start translateLocally in a subprocess with the `-p` option, and pass it messages [formatted as described here](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#app_side) to its stdin. All supported messages are described in the [NativeMsgIface.h](src/cli/NativeMsgIface.h) file.
 
