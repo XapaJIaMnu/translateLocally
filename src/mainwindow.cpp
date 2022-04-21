@@ -524,38 +524,60 @@ bool MainWindow::registerNativeMessagingAppManifest() {
     // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
     QString name = "translatelocally";
 
+    QStringList origins;
+    for (QString const &extension : kNativeMessagingClients.values())
+        origins << QString("chrome-extension://%1/").arg(extension);
+
     QJsonDocument manifest({
         {"name", name},
         {"description", "Fast and secure translation on your local machine, powered by marian and Bergamot."},
         {"type", "stdio"},
         {"path", QCoreApplication::applicationFilePath()},
-        {"allowed_extensions", QJsonArray::fromStringList(kNativeMessagingClients.values())}
+        {"allowed_extensions", QJsonArray::fromStringList(kNativeMessagingClients.values())}, // For Firefox-based
+        {"allowed_origins", QJsonArray::fromStringList(origins)} // For Chromium-based
     });
 
+    QStringList manifestPaths;
+
 #if defined(Q_OS_MACOS)
-    QString manifestPath = QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
+    manifestPaths << QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
+    manifestPaths << QString("%1/Google/Chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
+    manifestPaths << QString("%1/Chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
 #elif defined (Q_OS_LINUX)
-    QString manifestPath = QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
+    manifestPaths << QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
+    manifestPaths << QString("%1/.config/google-chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
+    manifestPaths << QString("%1/.config/chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
 #elif defined (Q_OS_WIN)
     // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
-    QString manifestPath = QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
-    QSettings registry(QSettings::NativeFormat, QSettings::UserScope, "Mozilla", "NativeMessagingHosts");
-    registry.setValue(QString("%1/Default").arg(name), manifestPath);
+    manifestPaths << QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
 #else
     return false;
 #endif
 
-    QFileInfo manifestInfo(manifestPath);
+    for (QString const &manifestPath : manifestPaths) {
+        QFileInfo manifestInfo(manifestPath);
 
-    if (!manifestInfo.dir().exists()) {
-        if (!QDir().mkpath(manifestInfo.absolutePath())) {
-            qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
-            return false;
+        if (!manifestInfo.dir().exists()) {
+            if (!QDir().mkpath(manifestInfo.absolutePath())) {
+                qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
+                return false;
+            }
         }
+
+        QFile manifestFile(manifestPath);
+        manifestFile.open(QFile::WriteOnly);
+        manifestFile.write(manifest.toJson());
     }
 
-    QFile manifestFile(manifestPath);
-    manifestFile.open(QFile::WriteOnly);
-    manifestFile.write(manifest.toJson());
+#if defined (Q_OS_WIN)
+    QStringList registryKeys;
+    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Mozilla\\NativeMessagingHosts\\%1").arg(name);
+    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Google\\Chrome\\NativeMessagingHosts\\%1").arg(name);
+    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Chromium\\NativeMessagingHosts\\%1").arg(name);
+
+    for (QString const &key : registryKeys)
+        QSettings(key, QSettings::NativeFormat).setValue("Default", manifestPath);
+#endif
+
     return true;
 }

@@ -139,7 +139,7 @@ Start translateLocally in a subprocess with the `-p` option, and pass it message
 There is an example, [native_client.py](scripts/native_client.py), that demonstrates how to use translateLocally as an async Python API.
 
 ## Using NativeMessaging from browser extensions
-Right now, the functionality is only automatically available to Firefox.
+Right now, the functionality is only automatically available to Firefox and Chrome.
 
 translateLocally automatically registers itself with Firefox when you start translateLocally in GUI mode. Then you can install the [Firefox translation addon](https://github.com/jelmervdl/firefox-translations/releases). After installation of the addon, go into the addon settings and pick "translateLocally" as translation provider.
 
