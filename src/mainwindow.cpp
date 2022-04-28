@@ -567,17 +567,18 @@ bool MainWindow::registerNativeMessagingAppManifest() {
         QFile manifestFile(manifestPath);
         manifestFile.open(QFile::WriteOnly);
         manifestFile.write(manifest.toJson());
-    }
-
+    
 #if defined (Q_OS_WIN)
-    QStringList registryKeys;
-    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Mozilla\\NativeMessagingHosts\\%1").arg(name);
-    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Google\\Chrome\\NativeMessagingHosts\\%1").arg(name);
-    registryKeys << QString("HKEY_CURRENT_USER\\Software\\Chromium\\NativeMessagingHosts\\%1").arg(name);
+        // For windows, we make the registry keys for all browsers point to this manifest file.
+        QStringList registryKeys;
+        registryKeys << QString("HKEY_CURRENT_USER\\Software\\Mozilla\\NativeMessagingHosts\\%1").arg(name);
+        registryKeys << QString("HKEY_CURRENT_USER\\Software\\Google\\Chrome\\NativeMessagingHosts\\%1").arg(name);
+        registryKeys << QString("HKEY_CURRENT_USER\\Software\\Chromium\\NativeMessagingHosts\\%1").arg(name);
 
-    for (QString const &key : registryKeys)
-        QSettings(key, QSettings::NativeFormat).setValue("Default", manifestPath);
+        for (QString const &key : registryKeys)
+            QSettings(key, QSettings::NativeFormat).setValue("Default", manifestPath);
 #endif
+    }
 
     return true;
 }
