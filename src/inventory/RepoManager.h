@@ -1,40 +1,33 @@
 #pragma once
-#include <QAbstractTableModel>
+#include <QObject>
 #include "settings/Settings.h"
 
 constexpr const char* kDefaultRepositoryName = "Bergamot";
 
 constexpr const char* kDefaultRepositoryURL = "https://translatelocally.com/models.json";
 
-class RepoManager : public QAbstractTableModel {
+struct Repository {
+    QString name;
+    QString url;
+    bool isDefault;
+};
+
+class RepoManager : public QObject {
     Q_OBJECT
 public:
-    RepoManager(QObject * parent, Settings *);
+    RepoManager(QObject * parent);
     /**
-     * @brief getRepos getsAll currently available repos
-     * @return QStringList of URLs
+     * @brief getRepos gets all currently available repos, including default ones
+     * @return List of repository objects
      */
-    QStringList getRepos();
-    bool canRemove(QModelIndex index) const;
-    void insert(QStringList new_model);
-    void removeRow(int index, QModelIndex const &parent = QModelIndex());
-    void removeRows(QList<QModelIndex> rows);
+    QList<Repository> getRepos() const;
+    QString getName(QString url) const;
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
+    /**
+     * @Brief Fills list using data from Setting.
+     */
+    void load(QList<QStringList> stored);
 
-    enum RepoColumn {
-        RepoName,
-        URL
-    };
-
-    Q_ENUM(RepoColumn);
-
-signals:
-    void warning(QString warn);
 private:
-    Settings * settings_;
-
+    QMap<QString,Repository> repositories_;
 };

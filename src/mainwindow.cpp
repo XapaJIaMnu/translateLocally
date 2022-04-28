@@ -106,7 +106,6 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
-    connect(models_.getRepoManager(), &RepoManager::warning, this, &MainWindow::popupWarning);
 
     // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI

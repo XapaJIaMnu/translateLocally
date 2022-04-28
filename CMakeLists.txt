@@ -158,6 +158,8 @@ set(PROJECT_SOURCES
         src/settings/NewRepoDialog.cpp
         src/settings/NewRepoDialog.h
         src/settings/NewRepoDialog.ui
+        src/settings/RepositoryTableModel.cpp
+        src/settings/RepositoryTableModel.h
         src/settings/Settings.cpp
         src/settings/Settings.h
         src/settings/TranslatorSettingsDialog.cpp

@@ -1,5 +1,6 @@
 #include "ModelManager.h"
 #include "Network.h"
+#include "inventory/RepoManager.h"
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -70,7 +71,7 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
     , isFetchingRemoteModels_(false)
-    , repositories_(this, settings)
+    , repositories_(this)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -82,9 +83,15 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
             QDir().mkpath(configDir_.absolutePath());
         }
     }
+    
+    // Update RepoManager with data from settings (also reload on update of setting)
+    repositories_.load(settings->externalRepos.value());
+    connect(&(settings->externalRepos), &Setting::valueChanged, [&]{
+        repositories_.load(settings->externalRepos.value());
+        fetchRemoteModels(); // Are we sure we want to do this on update?
+    });
+
     startupLoad();
-    // Fetch remote models after new a new entry was added. Lambda wrapped to use the new syntax without explicit slot.
-    connect(&repositories_, &RepoManager::rowsInserted, this, [&](){fetchRemoteModels();});
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
@@ -572,22 +579,22 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
-    QStringList repos = repositories_.getRepos();
+    auto repos = repositories_.getRepos();
     QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
-    for (auto&& urlString : repos) {
+    for (auto &&repo : repos) {
         isFetchingRemoteModels_ = true;
         emit fetchingRemoteModels();
 
-        QUrl url(urlString);
+        QUrl url(repo.url);
         QNetworkRequest request(url);
         QNetworkReply *reply = network_->get(request);
         connect(reply, &QNetworkReply::finished, this, [=] {
             switch (reply->error()) {
                 case QNetworkReply::NoError:
-                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object(), urlString);
+                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object(), repo.url);
                     break;
                 default:
-                    QString errstr = QString("Error fetching remote repository: ") + urlString +
+                    QString errstr = QString("Error fetching remote repository: ") + repo.url +
                             QString("\nError code: ") + reply->errorString() +
                             QString("\nPlease double check that the address is reachable.");
                     emit error(errstr);
@@ -734,7 +741,7 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
         case Column::Repository:
             switch (role) {
                 case Qt::DisplayRole:
-                    return model.repositoryUrl;
+                    return repositories_.getName(model.repositoryUrl);
                 default:
                     return QVariant();
             }
