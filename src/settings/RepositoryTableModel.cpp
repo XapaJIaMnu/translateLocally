@@ -1,4 +1,5 @@
 #include "RepositoryTableModel.h"
+#include <QSet>
 
 RepositoryTableModel::RepositoryTableModel(QObject * parent)
 : QAbstractTableModel(parent) {
@@ -61,7 +62,7 @@ void RepositoryTableModel::removeRow(int index, QModelIndex const &parent) {
     Q_UNUSED(parent);
     beginRemoveRows(QModelIndex(), index, index);
     urls_.remove(repositories_.at(index).url);
-    repositories_.remove(index);
+    repositories_.removeAt(index);
     endRemoveRows();
 }
 
@@ -86,7 +87,7 @@ void RepositoryTableModel::removeRows(QList<QModelIndex> rows) {
     for (int i = first; i < last;) {
         if (toDelete.contains(repositories_.at(i).url)) {
             urls_.remove(repositories_.at(i).url);
-            repositories_.remove(i);
+            repositories_.removeAt(i);
             --last; // No ++i since we removed i (so next round row[i] will be the next one) but our list has become 1 shorter.
         } else {
             ++i; // E.g. default repo we need to skip

@@ -1,5 +1,6 @@
 #pragma once
 #include <QAbstractTableModel>
+#include <QSet>
 #include "settings/Settings.h"
 #include "inventory/RepoManager.h"
 
