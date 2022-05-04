@@ -224,6 +224,17 @@ void NativeMsgIface::handleRequest(ListRequest request)  {
     writeResponse(request, modelsJson);
 }
 
+void NativeMsgIface::handleRequest(ConfigureRequest request)  {
+    marian::bergamot::AsyncService::Config serviceConfig;
+    serviceConfig.numWorkers = request.threads;
+    serviceConfig.cacheSize = request.cacheSize;
+    service_.reset();
+    service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
+    
+    QJsonObject response{}; // I don't know...
+    writeResponse(request, response);
+}
+
 void NativeMsgIface::handleRequest(DownloadRequest request)  {
     // Edge case: client issued a DownloadRequest before fetching the list of
     // remote models because it knows the model ID from a previous run. We still
@@ -284,7 +295,7 @@ request_variant NativeMsgIface::parseJsonInput(QByteArray input) {
 
     // Define what are mandatory and what are optional request keys
     static const QStringList mandatoryKeys({"command", "id", "data"}); // Expected in every message
-    static const QSet<QString> commandTypes({"ListModels", "DownloadModel", "Translate"});
+    static const QSet<QString> commandTypes({"ListModels", "DownloadModel", "Translate", "Configure"});
     // Json doesn't have schema validation, so validate here, in place:
     QString command;
     int id;
@@ -359,12 +370,20 @@ request_variant NativeMsgIface::parseJsonInput(QByteArray input) {
         ret.id = id;
         for (auto&& key : mandatoryKeysDownload) {
             QJsonValueRef val = data[key];
-            if (val.isNull()) {
+            if (val.isNull() || val.isUndefined()) {
                 return MalformedRequest{id, QString("data field key %1 cannot be null!").arg(key)};
             } else {
                 ret.modelID = val.toString();
             }
         }
+        return ret;
+    } else if (command == "Configure") {
+        ConfigureRequest ret;
+        ret.id = id;
+        if (!data["threads"].isUndefined())
+            ret.threads = data["threads"].toInt();
+        if (!data["cacheSize"].isUndefined())
+            ret.cacheSize = data["cacheSize"].toInt();
         return ret;
     } else {
         return MalformedRequest{id, QString("Developer error. We shouldn't ever be here! Command: %1").arg(command)};
