@@ -390,8 +390,10 @@ void MainWindow::updateLocalModels() {
     } else if (models_.getNewModels().empty()) {
         ui_->localModels->addItem(tr("No other models available online"));
     } else {
-        for (auto &&model : models_.getNewModels())
-            ui_->localModels->addItem(model.modelName, QVariant::fromValue(model));
+        for (auto &&model : models_.getNewModels()) {
+            QString label = tr("%1 (from %2)").arg(model.modelName).arg(models_.getRepoManager()->getName(model.repositoryUrl));
+            ui_->localModels->addItem(label, QVariant::fromValue(model));
+        }
         ui_->localModels->insertSeparator(ui_->localModels->count()); //@TODO some indication when no new models were fetched.
         ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     }
