@@ -83,7 +83,7 @@ void RepositoryTableModel::removeRows(QList<QModelIndex> rows) {
     }
 
     beginRemoveRows(QModelIndex(), first, last);
-    for (int i = first; i < last;) {
+    for (int i = first; i <= last;) {
         if (toDelete.contains(repositories_.at(i).url)) {
             urls_.remove(repositories_.at(i).url);
             repositories_.removeAt(i);
