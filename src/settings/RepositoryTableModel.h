@@ -10,7 +10,7 @@ public:
     RepositoryTableModel(QObject * parent);
     
     bool canRemove(QModelIndex index) const;
-    void insert(QString url, QString name);
+    void insert(QString name, QString url);
     void removeRow(int index, QModelIndex const &parent = QModelIndex());
     void removeRows(QList<QModelIndex> rows);
 

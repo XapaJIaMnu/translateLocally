@@ -17,10 +17,10 @@ void RepoManager::load(QList<QStringList> data) {
     for (auto &&pair : data) {
         // Future proofing: make sure we don't load repositories that already exist
         // as default repositories.
-        if (repositories_.contains(pair.first()))
+        if (repositories_.contains(pair.back()))
             continue;
 
-        repositories_.insert(pair.first(), {pair.first(), pair.back(), false});
+        repositories_.insert(pair.back(), {pair.first(), pair.back(), false});
     }
 }
 

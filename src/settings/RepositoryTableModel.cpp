@@ -25,14 +25,13 @@ void RepositoryTableModel::load(QList<QStringList> data) {
     urls_.insert(kDefaultRepositoryURL);
     
     for (auto &&pair : data) {
-        // Future proofing: make sure we don't load repositories that already exist
-        // as default repositories.
+        // pair: [name, ..., url] where ... is currently [].
 
-        if (urls_.contains(pair.first()))
+        if (urls_.contains(pair.back()))
             continue;
 
         repositories_ << Repository{pair.first(), pair.back(), false};
-        urls_.insert(pair.first());
+        urls_.insert(pair.back());
     }
         
     // TODO: I'm lying here, it has already happened. Will Qt be okay with that?
@@ -44,7 +43,7 @@ bool RepositoryTableModel::canRemove(QModelIndex index) const {
     return !repositories_.at(index.row()).isDefault;
 }
 
-void RepositoryTableModel::insert(QString url, QString name) {
+void RepositoryTableModel::insert(QString name, QString url) {
     if (urls_.contains(url)) {
         // TODO: update name instead?
         emit warning("This repository is already in the list.");
