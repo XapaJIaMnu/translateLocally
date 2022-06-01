@@ -89,7 +89,16 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     repositories_.load(settings_->externalRepos.value());
     connect(&(settings_->externalRepos), &Setting::valueChanged, [&]{
         repositories_.load(settings_->externalRepos.value());
-        fetchRemoteModels(); // Are we sure we want to do this on update?
+        // I disabled the call to fetch the remote models because I'm not
+        // certain that the internet access is expected (and permitted) by the
+        // end user at this point.
+       // fetchRemoteModels();
+
+        // We do clear the remoteModels list so that it is clear that it is
+        // outdated and/or incomplete. Now users can click the "download model
+        // list" again and make an informed decision to access the internet.
+        remoteModels_.clear();
+        updateAvailableModels();
     });
 
     startupLoad();
