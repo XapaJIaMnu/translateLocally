@@ -5,5 +5,5 @@
 
 class NativeMsgManager : public QObject {
 public:
-    bool registerNativeMessagingAppManifests(QSet<QString> nativeMessagingClients);
+    bool writeNativeMessagingAppManifests(QSet<QString> nativeMessagingClients);
 };

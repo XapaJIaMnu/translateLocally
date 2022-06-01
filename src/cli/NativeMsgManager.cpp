@@ -9,7 +9,7 @@
 #include <QJsonDocument>
 #include <QStandardPaths>
 
-bool NativeMsgManager::registerNativeMessagingAppManifests(QSet<QString> nativeMessagingClients) {
+bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMessagingClients) {
     // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
     // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
     QString name = "translatelocally";

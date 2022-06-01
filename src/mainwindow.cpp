@@ -519,5 +519,5 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
 
 bool MainWindow::registerNativeMessagingAppManifest() {
     NativeMsgManager manager;
-    return manager.registerNativeMessagingAppManifests(settings_.nativeMessagingClients());
+    return manager.writeNativeMessagingAppManifests(settings_.nativeMessagingClients());
 }
