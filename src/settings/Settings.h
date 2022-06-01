@@ -9,6 +9,8 @@
 
 Q_DECLARE_METATYPE(QList<QStringList>);
 
+Q_DECLARE_METATYPE(QSet<QString>);
+
 /**
  * Settings:
  * Class that houses all the invidividual settings. Also responsible
@@ -120,4 +122,5 @@ public:
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
     SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
+    SettingImpl<QSet<QString>> nativeMessagingClients;
 };

@@ -1,8 +1,8 @@
 #pragma once
-#include "constants.h"
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QRegularExpression>
+#include "../settings/Settings.h"
 
 namespace translateLocally {
 
@@ -59,17 +59,19 @@ static AppType runType(QCommandLineParser& parser) {
     // the native messaging APIs of Firefox and Chrome have in common. See also:
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
 
+    Settings settings;
+
     QRegularExpression re("^chrome-extension://(.+?)/$");
 
     for (auto&& path : parser.positionalArguments()) {
         // Matches anything Firefox based
-        if (kNativeMessagingClients.contains(path)) {
+        if (settings.nativeMessagingClients().contains(path)) {
             return NativeMsg;
         }
 
         // Matching anything Chromium based
         auto match = re.match(path);
-        if (match.hasMatch() && kNativeMessagingClients.contains(match.captured(1))) {
+        if (match.hasMatch() && settings.nativeMessagingClients().contains(match.captured(1))) {
             return NativeMsg;
         }
     }

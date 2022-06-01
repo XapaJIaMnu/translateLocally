@@ -18,7 +18,11 @@ Settings::Settings(QObject *parent)
 , syncScrolling(backing_, "sync_scrolling", true)
 , windowGeometry(backing_, "window_geometry")
 , cacheTranslations(backing_, "cache_translations", true)
-, externalRepos(backing_, "external_repos", QList<QStringList>()) {
+, externalRepos(backing_, "external_repos", QList<QStringList>())
+, nativeMessagingClients(backing_, "native_messaging_clients", {
+    // Firefox browser extension: https://github.com/jelmervdl/firefox-translations
+    "{c9cdf885-0431-4eed-8e18-967b1758c951}"
+}) {
     //
 }
 
