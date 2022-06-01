@@ -14,7 +14,7 @@ static QRegularExpression firefoxExtensionPattern("^\\{[0-9a-f]{8}-[0-9a-f]{4}-[
 bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMessagingClients) {
     // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
     // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
-    QString name = "org.translatelocally.translatelocally";
+    QString name = "translatelocally";
 
     QJsonObject manifest({
         {"name", name},
