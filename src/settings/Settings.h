@@ -71,6 +71,26 @@ public:
         emitValueChanged(name_, backing_.value(name_)); // not using value() because we *want* the QVariant
     }
 
+    // Here for compatibility. Will be removed once #102 is merged.
+    template<typename Val>
+    void appendToValue(Val newValue) {
+        if constexpr (std::is_same_v<QList<Val>, T>) {
+            QList<Val> values = value();
+            values.append(newValue);
+            setValue(values);
+        }
+    }
+
+    // Here for compatibility. Will be removed once #102 is merged.
+    template <typename Val>
+    void removeFromValue(Val needle) {
+        if constexpr (std::is_same_v<QList<Val>, T>) {
+            QList<Val> values = value();
+            values.removeAll(needle);
+            setValue(values);
+        }
+    } 
+
     // Alias for value() to make Settings make look more like a normal Qt class.
     T operator()() const {
         return value();
