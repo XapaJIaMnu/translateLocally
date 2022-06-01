@@ -39,8 +39,8 @@ private:
     void downloadRemoteModel(QString modelID);
     inline QString &fetchData(QString &);
 
-    int allowNativeMessagingClient(QString id);
-    int removeNativeMessagingClient(QString id);
+    int allowNativeMessagingClient(QStringList ids);
+    int removeNativeMessagingClient(QStringList ids);
     int listNativeMessagingClients();
     int updateNativeMessagingManifests();
 

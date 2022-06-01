@@ -129,9 +129,9 @@ int CommandLineIface::run(QCommandLineParser const &parser) {
         doTranslation();
         return 0;
     } else if (parser.isSet("allow-client")) {
-        return allowNativeMessagingClient(parser.value("allow-client"));
+        return allowNativeMessagingClient(parser.positionalArguments());
     } else if (parser.isSet("remove-client")) {
-        return removeNativeMessagingClient(parser.value("remove-client"));
+        return removeNativeMessagingClient(parser.positionalArguments());
     } else if (parser.isSet("list-clients")) {
         return listNativeMessagingClients();
     } else if (parser.isSet("update-manifests")) {
@@ -255,16 +255,26 @@ void CommandLineIface::outputTranslation(Translation output) {
     eventLoop_.exit(); // Unblock the main thread
 }
 
-int CommandLineIface::allowNativeMessagingClient(QString id) {
+int CommandLineIface::allowNativeMessagingClient(QStringList ids) {
+    if (ids.isEmpty()) {
+        qCritical().noquote() << "No client ids specified";
+        return 1;
+    }
+
     auto clients = settings_.nativeMessagingClients();
-    clients.insert(id);
+    clients += QSet<QString>(ids.begin(), ids.end());
     settings_.nativeMessagingClients.setValue(clients);
     return updateNativeMessagingManifests();
 }
 
-int CommandLineIface::removeNativeMessagingClient(QString id) {
+int CommandLineIface::removeNativeMessagingClient(QStringList ids) {
+    if (ids.isEmpty()) {
+        qCritical().noquote() << "No client ids specified";
+        return 1;
+    }
+
     auto clients = settings_.nativeMessagingClients();
-    clients.remove(id);
+    clients.subtract(QSet<QString>(ids.begin(), ids.end()));
     settings_.nativeMessagingClients.setValue(clients);
     return updateNativeMessagingManifests();
 }
