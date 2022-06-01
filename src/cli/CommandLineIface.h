@@ -39,6 +39,11 @@ private:
     void downloadRemoteModel(QString modelID);
     inline QString &fetchData(QString &);
 
+    int allowNativeMessagingClient(QString id);
+    int removeNativeMessagingClient(QString id);
+    int listNativeMessagingClients();
+    int updateNativeMessagingManifests();
+
 public:
     explicit CommandLineIface(QObject * parent = nullptr);
     int run(QCommandLineParser const &);

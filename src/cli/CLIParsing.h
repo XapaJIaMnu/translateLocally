@@ -31,6 +31,10 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
     parser.addOption({{"i", "input"}, QObject::tr("Source translation file (or just used stdin)."), "input", ""});
     parser.addOption({{"o", "output"}, QObject::tr("Target translation file (or just used stdout)."), "output", ""});
     parser.addOption({{"p", "plugin"}, QObject::tr("Start native message server to use for a browser plugin.")});
+    parser.addOption({"allow-client", QObject::tr("Add a native messaging client id that is allowed to use Native Messaging in the browser.")});
+    parser.addOption({"remove-client", QObject::tr("Remove a native messaging client id.")});
+    parser.addOption({"list-clients", QObject::tr("List allowed native messaging clients")});
+    parser.addOption({"update-manifests", QObject::tr("Register native messaging clients with user profile.")});
     parser.process(translateLocallyApp);
 }
 
@@ -41,7 +45,7 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
  */
 
 static AppType runType(QCommandLineParser& parser) {
-    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o"};
+    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o", "allow-client", "remove-client", "update-manifests", "list-clients"};
     QList<QString> nativemsgflags = {"p"};
     for (auto&& flag : nativemsgflags) {
         if (parser.isSet(flag)) {
@@ -75,6 +79,13 @@ static AppType runType(QCommandLineParser& parser) {
             return NativeMsg;
         }
     }
+
+    // TODO: if this program is started as a browser's native messaging client,
+    // but it is not registered (i.e. above code doesn't catch it) will this
+    // cause the program to pop up with GUI and everything? Or will it just
+    // properly error out? (This should never happen as the browser first looks
+    // for allowed clients in the json file, but what if the json file is out
+    // of sync with the settings?)
 
     return GUI;
 }
