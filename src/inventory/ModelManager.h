@@ -340,6 +340,7 @@ private:
     QList<Model> updatedModels_;
 
     Network *network_;
+    Settings *settings_;
     RepoManager repositories_;
     bool isFetchingRemoteModels_;
 

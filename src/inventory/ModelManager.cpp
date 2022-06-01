@@ -70,6 +70,7 @@ namespace {
 ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
+    , settings_(settings)
     , isFetchingRemoteModels_(false)
     , repositories_(this)
 {
@@ -85,9 +86,9 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     }
     
     // Update RepoManager with data from settings (also reload on update of setting)
-    repositories_.load(settings->externalRepos.value());
-    connect(&(settings->externalRepos), &Setting::valueChanged, [&]{
-        repositories_.load(settings->externalRepos.value());
+    repositories_.load(settings_->externalRepos.value());
+    connect(&(settings_->externalRepos), &Setting::valueChanged, [&]{
+        repositories_.load(settings_->externalRepos.value());
         fetchRemoteModels(); // Are we sure we want to do this on update?
     });
 
