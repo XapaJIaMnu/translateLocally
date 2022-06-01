@@ -9,6 +9,8 @@
 #include <QJsonDocument>
 #include <QStandardPaths>
 
+static QRegularExpression firefoxExtensionPattern("^\\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\}$|^[a-z0-9-._]*@[a-z0-9-._]+$", QRegularExpression::CaseInsensitiveOption);
+
 bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMessagingClients) {
     // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
     // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
@@ -29,8 +31,16 @@ bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMess
     QMap<ManifestVariant, QJsonObject> manifests;
 
     // For Firefox-based browsers (they do not like seeing "allowed_origins")
+    // only add the ones that match Firefox' schema definition. Otherwise it will
+    // fail to parse the manifest JSON.
+    // See https://searchfox.org/mozilla-central/rev/3419858c997f422e3e70020a46baae7f0ec6dacc/toolkit/components/extensions/schemas/manifest.json#571-583
+    QStringList extensions;
+    for (QString const &extension : nativeMessagingClients.values())
+        if (firefoxExtensionPattern.match(extension).hasMatch())
+            extensions << extension;
+
     manifests.insert(Firefox, manifest);
-    manifests[Firefox]["allowed_extensions"] = QJsonArray::fromStringList(nativeMessagingClients.values());
+    manifests[Firefox]["allowed_extensions"] = QJsonArray::fromStringList(extensions);
 
     // Chromium-based browsers look for full url origins
     QStringList origins;
