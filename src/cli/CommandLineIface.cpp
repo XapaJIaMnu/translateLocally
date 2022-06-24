@@ -262,7 +262,11 @@ int CommandLineIface::allowNativeMessagingClient(QStringList ids) {
     }
 
     auto clients = settings_.nativeMessagingClients();
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    clients += ids.toSet();
+#else
     clients += QSet<QString>(ids.begin(), ids.end());
+#endif
     settings_.nativeMessagingClients.setValue(clients);
     return updateNativeMessagingManifests();
 }
@@ -274,7 +278,11 @@ int CommandLineIface::removeNativeMessagingClient(QStringList ids) {
     }
 
     auto clients = settings_.nativeMessagingClients();
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    clients += ids.toSet();
+#else
     clients.subtract(QSet<QString>(ids.begin(), ids.end()));
+#endif
     settings_.nativeMessagingClients.setValue(clients);
     return updateNativeMessagingManifests();
 }
