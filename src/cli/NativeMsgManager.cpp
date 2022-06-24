@@ -1,5 +1,6 @@
 #include "NativeMsgManager.h"
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -60,17 +61,17 @@ bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMess
     QList<QPair<ManifestVariant,QString>> manifestPaths;
 
 #if defined(Q_OS_MACOS)
-    manifestPaths.emplaceBack(Firefox,  QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
-    manifestPaths.emplaceBack(Chromium, QString("%1/Google/Chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
-    manifestPaths.emplaceBack(Chromium, QString("%1/Chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
+    manifestPaths << qMakePair(Firefox,  QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
+    manifestPaths << qMakePair(Chromium, QString("%1/Google/Chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
+    manifestPaths << qMakePair(Chromium, QString("%1/Chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name));
 #elif defined (Q_OS_LINUX)
-    manifestPaths.emplaceBack(Firefox,  QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
-    manifestPaths.emplaceBack(Chromium, QString("%1/.config/google-chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
-    manifestPaths.emplaceBack(Chromium, QString("%1/.config/chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
+    manifestPaths << qMakePair(Firefox,  QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
+    manifestPaths << qMakePair(Chromium, QString("%1/.config/google-chrome/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
+    manifestPaths << qMakePair(Chromium, QString("%1/.config/chromium/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name));
 #elif defined (Q_OS_WIN)
     // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
-    manifestPaths.emplaceBack(Firefox,  QString("%1/%2-firefox.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
-    manifestPaths.emplaceBack(Chromium, QString("%1/%2-chromium.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
+    manifestPaths << qMakePair(Firefox,  QString("%1/%2-firefox.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
+    manifestPaths << qMakePair(Chromium, QString("%1/%2-chromium.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
 #else
     return false;
 #endif
@@ -80,7 +81,7 @@ bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMess
 
         if (!manifestInfo.dir().exists()) {
             if (!QDir().mkpath(manifestInfo.absolutePath())) {
-                qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
+                qWarning() << "Cannot create directory:" << manifestInfo.absolutePath();
                 return false;
             }
         }
