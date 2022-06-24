@@ -105,9 +105,9 @@ bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMess
                 registryKeys << QString("HKEY_CURRENT_USER\\Software\\Chromium\\NativeMessagingHosts\\%1").arg(name);
                 break;    
         }
-        
+
         for (QString const &key : registryKeys)
-            QSettings(key, QSettings::NativeFormat).setValue("Default", manifestPath);
+            QSettings(key, QSettings::NativeFormat).setValue("Default", manifestPath.second);
 #endif
     }
 
