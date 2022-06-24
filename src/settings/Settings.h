@@ -4,7 +4,7 @@
 #include <QStringList>
 #include <QSettings>
 #include <QColor>
-#include <QMessageBox>
+#include <QSet>
 #include "types.h"
 
 Q_DECLARE_METATYPE(QList<QStringList>);
