@@ -91,7 +91,7 @@ public:
             values.removeAll(needle);
             setValue(values);
         }
-    } 
+    }
 
     // Alias for value() to make Settings make look more like a normal Qt class.
     T operator()() const {

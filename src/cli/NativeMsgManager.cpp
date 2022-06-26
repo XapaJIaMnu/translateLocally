@@ -1,6 +1,6 @@
 #include "NativeMsgManager.h"
 #include <QCoreApplication>
-#include <QDebug>
+#include <QDebug> // For qWarning()
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -17,6 +17,9 @@
 #include <QStringList>
 
 
+// Firefox has a strict pattern extension IDs have to match, and these are
+// checked when Firefox parses the manifest file. Chrome extension IDs don't
+// match this pattern, nor does Chrome care much about the pattern of the IDs.
 static QRegularExpression firefoxExtensionPattern("^\\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\}$|^[a-z0-9-._]*@[a-z0-9-._]+$", QRegularExpression::CaseInsensitiveOption);
 
 bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMessagingClients) {
@@ -71,6 +74,7 @@ bool NativeMsgManager::writeNativeMessagingAppManifests(QSet<QString> nativeMess
 #elif defined (Q_OS_WIN)
     // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
     manifestPaths << qMakePair(Firefox,  QString("%1/%2-firefox.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
+    // All Chromium based browsers can understand the same file but we'll write different registry keys for each of them.
     manifestPaths << qMakePair(Chromium, QString("%1/%2-chromium.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name));
 #else
     return false;
