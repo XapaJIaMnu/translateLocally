@@ -4,6 +4,7 @@
 #include "Translation.h"
 
 #include <QApplication>
+#include <QLoggingCategory>
 #include <QTimer>
 #include "cli/CLIParsing.h"
 #include "cli/CommandLineIface.h"
