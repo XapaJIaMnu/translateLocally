@@ -133,18 +133,18 @@ struct Model : ModelMeta {
     }
 
     // Debug
-    inline void print() const {
-        qDebug() << "shortName:" << shortName
-                 << "modelName:" << modelName
-                 << "url:" << url
-                 << "path:" << path
-                 << "src:" << src
-                 << "trg:" << trg
-                 << "type:" << type
-                 << "localversion" << localversion
-                 << "localAPI" << localAPI
-                 << "remoteversion:" << remoteversion
-                 << "remoteAPI" << remoteAPI;
+    friend inline QDebug operator<<(QDebug out, Model const &model) {
+        return out << "shortName:" << model.shortName
+                   << "modelName:" << model.modelName
+                   << "url:" << model.url
+                   << "path:" << model.path
+                   << "src:" << model.src
+                   << "trg:" << model.trg
+                   << "type:" << model.type
+                   << "localversion" << model.localversion
+                   << "localAPI" << model.localAPI
+                   << "remoteversion:" << model.remoteversion
+                   << "remoteAPI" << model.remoteAPI;
     }
     /**
      * @brief toJson Returns a json representation of the model. The only difference between the struct is that url and path will not be part of the json.

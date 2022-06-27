@@ -326,8 +326,7 @@ void MainWindow::downloadModel(Model model) {
     meta.modelUrl = model.url;
     meta.repositoryUrl = model.repositoryUrl;
 
-    qDebug() << "Downloading:";
-    model.print();
+    qDebug() << "Downloading:" << model;
 
     QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, QVariant::fromValue(meta));
     // If downloadFile could not create a temporary file, abort. network_ will
