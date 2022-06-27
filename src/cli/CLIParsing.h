@@ -1,6 +1,7 @@
 #pragma once
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDebug>
 #include <QRegularExpression>
 #include "../settings/Settings.h"
 
@@ -39,6 +40,34 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
 }
 
 /**
+ * @bief Will get the native messaging ID from the command line args if there is one. If not, will return empty string.
+ * @param parser The command line parser.
+ * @return client id or empty string
+ */
+static QString getNativeMessagingClientId(QCommandLineParser& parser) {
+    auto const &args = parser.positionalArguments();
+
+    // On Firefox, the first argument is path to a manifest file, and the second is the extension id. I'm intentionally
+    // not checking for known full paths, just for the common suffix shared by all browser implementations, so people
+    // with Firefox forks or weird Firefox installations can still use this functionality as long as they copy the
+    // manifest file into the right folder by themselves.
+    QRegularExpression manifestPattern("NativeMessagingHosts/([^/]+)\\.json$");
+    if (args.size() >= 2 && manifestPattern.match(args[0]).hasMatch())
+        return args[1];
+
+    // On Chrome, the first argument is the extension origin, which is chrome's internal url pattern for
+    // anything related to a specific extension.
+    QRegularExpression chromeOriginPattern("^chrome-extension://(.+?)/$");
+    if (args.size() >= 1) {
+        auto match = chromeOriginPattern.match(args[0]);
+        if (match.hasMatch())
+            return match.captured(1);
+    }
+
+    return QString();
+}
+
+/**
  * @brief runType Checks whether to run in CLI, GUI or native message interface server
  * @param parser The command line parser.
  * @return the launched main type
@@ -59,33 +88,25 @@ static AppType runType(QCommandLineParser& parser) {
         }
     }
 
-    // Search for the extension ID among the start-up arguments. This is the only thing
-    // the native messaging APIs of Firefox and Chrome have in common. See also:
+    // Look at the positional command line arguments to check whether we're being called from Firefox or Chromium.
+    // See also:
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
+    // Call site for Firefox, which passes path to manifest.json + extension id:
+    // https://searchfox.org/mozilla-central/rev/bf6f194694c9d1ae92847f3d4e4c15c2486f3200/toolkit/components/extensions/NativeMessaging.jsm#101
+    // Call site for Chrome, which just gives you extension origin with some additional args on Windows:
+    // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/extensions/api/messaging/native_process_launcher.cc;l=235-239;drc=83230694ec1e53e8e53458f502f0adf1eade0408
 
-    Settings settings;
-
-    QRegularExpression re("^chrome-extension://(.+?)/$");
-
-    for (auto&& path : parser.positionalArguments()) {
-        // Matches anything Firefox based
-        if (settings.nativeMessagingClients().contains(path)) {
+    QString nativeClientId = getNativeMessagingClientId(parser);
+    if (!nativeClientId.isEmpty()) {
+        if (Settings().nativeMessagingClients().contains(nativeClientId)) {
             return NativeMsg;
-        }
-
-        // Matching anything Chromium based
-        auto match = re.match(path);
-        if (match.hasMatch() && settings.nativeMessagingClients().contains(match.captured(1))) {
-            return NativeMsg;
+        } else {
+            qCritical() << "The command line args matched that of a browser trying to start a native messaging host, "
+                           "but the extension id provided is not known to translateLocally. Did you register it using "
+                           "`translateLocally --allow-client" << nativeClientId << "`?";
+            exit(128); // Exiting because possibly security issue.
         }
     }
-
-    // TODO: if this program is started as a browser's native messaging client,
-    // but it is not registered (i.e. above code doesn't catch it) will this
-    // cause the program to pop up with GUI and everything? Or will it just
-    // properly error out? (This should never happen as the browser first looks
-    // for allowed clients in the json file, but what if the json file is out
-    // of sync with the settings?)
 
     return GUI;
 }
