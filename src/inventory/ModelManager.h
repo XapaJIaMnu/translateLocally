@@ -295,9 +295,9 @@ private:
     void scanForModels(QString path);
     bool extractTarGz(QFile *file, QDir const &destination, QStringList &files);
     bool extractTarGzInCurrentPath(QFile *file, QStringList &files);
-    std::optional<Model> parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local, QStringList *missingKeys = nullptr);
+    std::optional<Model> parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local, QString *error = nullptr);
     void parseRemoteModels(QJsonObject obj, QString repositoryUrl);
-    QJsonObject getModelInfoJsonFromDir(QString dir);
+    QJsonObject getModelInfoJsonFromDir(QString dir, QString *error = nullptr);
 
     /**
      * @Brief gets model metadata from an installed model

@@ -109,15 +109,17 @@ bool ModelManager::isManagedModel(Model const &model) const {
 }
 
 bool ModelManager::validateModel(QString path) {
-    QJsonObject obj = getModelInfoJsonFromDir(path);
+    QString errorMsg;
+
+    auto obj = getModelInfoJsonFromDir(path, &errorMsg);
     if (obj.isEmpty()) {
-        emit error(tr("Failed to find, open or parse the model_info.json in %1.").arg(path));
+        emit error(errorMsg);
         return false;
     }
 
-    QStringList missingKeys;
-    if (!parseModelInfo(obj, translateLocally::models::Location::Local, &missingKeys)) {
-        emit error(tr("The model_info.json in %1 is missing critical keys: %2").arg(path).arg(missingKeys.join(',')));
+    auto model = parseModelInfo(obj, translateLocally::models::Location::Local, &errorMsg);
+    if (!model) {
+        emit error(tr("The model_info.json in %1 contains errors: %2").arg(path).arg(errorMsg));
         return false;
     }
 
@@ -215,11 +217,11 @@ std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QStri
     // attempt anything if we moved the whole directory itself.
     tempDir.setAutoRemove(prefix != tempDir.path());
 
-    QJsonObject obj = getModelInfoJsonFromDir(newModelDirPath);
-    if (obj.isEmpty()) return std::nullopt; // getModelInfoJsonFromDir emits errors already
+    auto obj = getModelInfoJsonFromDir(newModelDirPath);
+    if (obj.isEmpty()) return std::nullopt; // validateModel() has already emitted an error in this case
     
-    auto model = parseModelInfo(obj);
-    if (!model) return std::nullopt;
+    auto model = parseModelInfo(obj, translateLocally::models::Local);
+    if (!model) return std::nullopt; // same, validateModel will have raised an issue.
 
     model->path = newModelDirPath;
 
@@ -296,27 +298,35 @@ bool ModelManager::insertLocalModel(Model model) {
     return true;
 }
 
-QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
+QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir, QString *error) {
     // Check if we can find a model_info.json in the directory. If so, record it as part of the model
     QFileInfo modelInfo(dir + "/model_info.json");
-    if (!modelInfo.exists())
+    if (!modelInfo.exists()) {
+        if (error) *error = tr("File %1 does not exist").arg(modelInfo.filePath());
         return QJsonObject();
+    }
 
     QFile modelInfoFile(modelInfo.absoluteFilePath());
-    if (!modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (!modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (error) *error = tr("File %1 cannot be opened for reading").arg(modelInfo.filePath());
         return QJsonObject();
+    }
     
     QByteArray bytes = modelInfoFile.readAll();
     modelInfoFile.close();
     
     // Parse the Json
-    QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
-    QJsonObject obj = jsonResponse.object();
-    
-    return obj;
+    QJsonParseError parseError;
+    QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes, &parseError);
+    if (jsonResponse.isNull()) {
+        if (error) *error = tr("%1 in file %2").arg(parseError.errorString(), modelInfo.filePath());
+        return QJsonObject();
+    }
+
+    return jsonResponse.object();
 }
 
-std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::Location type, QStringList *missingKeys) {
+std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::Location type, QString *error) {
     using namespace translateLocally::models;
     std::vector<QString> keysSTR = {QString{"shortName"},
                                     QString{"modelName"},
@@ -328,6 +338,8 @@ std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLoc
                                     QString{"checksum"}};
     std::vector<QString> keysINT{QString("version"), QString("API")};
     
+    QStringList missingKeys;
+
     Model model = {};
     // Non critical keys. Some of them might be missing from old model versions but we don't care
     for (auto&& key : keysSTR) {
@@ -369,13 +381,14 @@ std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLoc
     }
 
     // TODO do these checks for more keys that we really need
-    if (obj.value("shortName").toString().isEmpty()) {
-        if (missingKeys) *missingKeys << "shortName";
-        return std::nullopt;
-    }
+    if (obj.value("shortName").toString().isEmpty())
+        missingKeys << "shortName";
 
-    if (type == Remote && obj.value("url").toString().isEmpty()) {
-        if (missingKeys) *missingKeys << "url";
+    if (type == Remote && obj.value("url").toString().isEmpty())
+        missingKeys << "url";
+
+    if (!missingKeys.isEmpty()) {
+        if (error) *error = tr("Model info is missing keys: %1").arg(missingKeys.join(' '));
         return std::nullopt;
     }
 
@@ -394,15 +407,18 @@ void ModelManager::scanForModels(QString path) {
             if (f.baseName().startsWith("extracting-"))
                 continue;
 
-            QJsonObject obj = getModelInfoJsonFromDir(current);
+            // Possible parse error, useful for debugging
+            QString errorMsg;
+
+            QJsonObject obj = getModelInfoJsonFromDir(current, &errorMsg);
             
             // We have a folder in our models directory that doesn't contain a model. This is ok.
             if (obj.empty())
                 continue;
-            
-            auto model = parseModelInfo(obj);
+
+            auto model = parseModelInfo(obj, translateLocally::models::Local, &errorMsg);
             if (!model) {
-                emit error(tr("Corrupted json file: %1/model_info.json. Delete or redownload.").arg(current));
+                emit error(tr("Invalid json file: %1/model_info.json: %2").arg(current).arg(errorMsg));
                 continue;
             }
 
@@ -623,19 +639,25 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
 void ModelManager::parseRemoteModels(QJsonObject obj, QString repositoryUrl) {
     using namespace translateLocally::models;
     
+    QString errorMsg;
     bool empty = true;
+    size_t i = 0;
     for (auto&& arrobj : obj["models"].toArray()) {
+        ++i;
         empty = false;
         QJsonObject obj = arrobj.toObject();
-        auto remoteModel = parseModelInfo(obj, Remote);
-        if (!remoteModel) continue;
+        auto remoteModel = parseModelInfo(obj, Remote, &errorMsg);
+        if (!remoteModel) {
+            qDebug() << QString("Error while parsing model %1 of %2: %3").arg(i).arg(repositoryUrl).arg(errorMsg);
+            continue;
+        }
         remoteModel->repositoryUrl = repositoryUrl;
         if (!remoteModels_.contains(*remoteModel)) { // This costs O(n). Not happy, is there a better way?
             remoteModels_.append(std::move(*remoteModel));
         }
     }
     if (empty) {
-        emit error("No models found in the repository. Please double check that the repository address is correct.");
+        emit error(tr("No models found in the repository at %1. Please double check that the repository address is correct.").arg(repositoryUrl));
     }
 
     std::sort(remoteModels_.begin(), remoteModels_.end());
