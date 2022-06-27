@@ -3,7 +3,7 @@
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QRegularExpression>
-#include "../settings/Settings.h"
+#include "settings/Settings.h"
 
 namespace translateLocally {
 
