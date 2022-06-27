@@ -25,8 +25,8 @@ namespace translateLocally {
 }
 
 /**
- * @Brief outside info about a model that it cannot about itself in a shipped
- * json file like where did we get it from, when did we get it, etc.
+ * @Brief outside info about a model that it cannot know about itself in a
+ * shipped json file like where did we get it from, when did we get it, etc.
  */
 struct ModelMeta {
     QString path;          // local path to model directory
