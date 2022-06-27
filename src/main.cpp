@@ -32,6 +32,11 @@ int main(int argc, char *argv[])
         QCommandLineParser parser;
         translateLocally::CLIArgumentInit(translateLocally, parser);
 
+        // Hide debug messages by default, unless `--debug` is passed in or if the user has defined the
+        // QT_LOGGING_CONF or the QT_LOGGING_RULES environment variable.
+        if (!parser.isSet("debug"))
+             QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
+
         // Launch application unless we're supposed to be in CLI mode
         translateLocally::AppType runtime = translateLocally::runType(parser);
         switch (runtime) {
