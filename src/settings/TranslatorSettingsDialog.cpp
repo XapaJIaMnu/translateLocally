@@ -44,7 +44,7 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->repoTable->setModel(&repositoryModel_);
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::Name, QHeaderView::ResizeToContents);
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::URL, QHeaderView::Stretch);
-    connect(&repositoryModel_, &RepositoryTableModel::warning, [&](QString warning) {
+    connect(&repositoryModel_, &RepositoryTableModel::warning, this, [&](QString warning) {
         QMessageBox::warning(this, tr("Warning"), warning);
     });
 
