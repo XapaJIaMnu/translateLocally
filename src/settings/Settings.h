@@ -55,9 +55,7 @@ public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
     : backing_(backing)
     , name_(name)
-    , default_(QVariant::fromValue(defaultValue)) {
-        //
-    }
+    , default_(QVariant::fromValue(defaultValue)) {}
 
     T value() const {
         return backing_.value(name_, default_).template value<T>();

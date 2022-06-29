@@ -87,7 +87,7 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     
     // Update RepoManager with data from settings (also reload on update of setting)
     repositories_.load(settings_->externalRepos.value());
-    connect(&(settings_->externalRepos), &Setting::valueChanged, [&]{
+    connect(&(settings_->externalRepos), &Setting::valueChanged, this, [&]{
         repositories_.load(settings_->externalRepos.value());
         // I disabled the call to fetch the remote models because I'm not
         // certain that the internet access is expected (and permitted) by the
@@ -119,7 +119,7 @@ bool ModelManager::validateModel(QString path) {
 
     auto model = parseModelInfo(obj, translateLocally::models::Location::Local, &errorMsg);
     if (!model) {
-        emit error(tr("The model_info.json in %1 contains errors: %2").arg(path).arg(errorMsg));
+        emit error(tr("The model_info.json in %1 contains errors: %2").arg(path, errorMsg));
         return false;
     }
 
@@ -418,7 +418,7 @@ void ModelManager::scanForModels(QString path) {
 
             auto model = parseModelInfo(obj, translateLocally::models::Local, &errorMsg);
             if (!model) {
-                emit error(tr("Invalid json file: %1/model_info.json: %2").arg(current).arg(errorMsg));
+                emit error(tr("Invalid json file: %1/model_info.json: %2").arg(current, errorMsg));
                 continue;
             }
 
@@ -441,7 +441,8 @@ void ModelManager::scanForModels(QString path) {
 bool ModelManager::readModelMetaFromDir(ModelMeta &model, QString dir) const {
     QFile metaFile(dir + "/.modelMeta.json");
     if (!metaFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Could not parse model meta file" << metaFile.fileName() << ": file cannot be opened for reading";
+        qDebug() << "Could not parse model meta file" << metaFile.fileName() << ": file cannot be opened for reading.\n"
+                 << "The model is either in the current working directory or downloaded before metadata was added to translateLocally.";
         return false; // Cannot open file, might not exist
     }
     
@@ -648,7 +649,7 @@ void ModelManager::parseRemoteModels(QJsonObject obj, QString repositoryUrl) {
         QJsonObject obj = arrobj.toObject();
         auto remoteModel = parseModelInfo(obj, Remote, &errorMsg);
         if (!remoteModel) {
-            qDebug() << QString("Error while parsing model %1 of %2: %3").arg(i).arg(repositoryUrl).arg(errorMsg);
+            qDebug() << QString("Error while parsing model %1 of %2: %3").arg(i).arg(repositoryUrl, errorMsg);
             continue;
         }
         remoteModel->repositoryUrl = repositoryUrl;
