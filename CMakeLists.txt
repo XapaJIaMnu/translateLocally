@@ -153,8 +153,6 @@ set(PROJECT_SOURCES
         src/cli/NativeMsgIface.h
         src/inventory/ModelManager.cpp
         src/inventory/ModelManager.h
-        src/inventory/RepoManager.cpp
-        src/inventory/RepoManager.h
         src/settings/NewRepoDialog.cpp
         src/settings/NewRepoDialog.h
         src/settings/NewRepoDialog.ui

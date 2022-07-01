@@ -1,5 +1,10 @@
 #include "RepositoryTableModel.h"
+#include "types.h"
+#include "constants.h"
 #include <QSet>
+
+// TODO resolve this namespace situation
+using namespace translateLocally;
 
 RepositoryTableModel::RepositoryTableModel(QObject * parent)
 : QAbstractTableModel(parent) {
@@ -21,6 +26,7 @@ void RepositoryTableModel::load(QList<QStringList> data) {
     urls_.clear();
     endRemoveRows();
 
+    // Just here for display, you can't alter it through the table.
     repositories_ << Repository{kDefaultRepositoryName,kDefaultRepositoryURL, true};
     urls_.insert(kDefaultRepositoryURL);
     

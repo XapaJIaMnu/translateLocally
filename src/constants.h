@@ -8,4 +8,8 @@ const QSet<QString> kNativeMessagingClients{
     "{c9cdf885-0431-4eed-8e18-967b1758c951}"
 };
 
+constexpr const char* kDefaultRepositoryName = "Bergamot";
+
+constexpr const char* kDefaultRepositoryURL = "https://translatelocally.com/models.json";
+
 }

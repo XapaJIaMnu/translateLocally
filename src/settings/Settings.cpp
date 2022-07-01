@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "constants.h"
 #include <thread>
 
 void Setting::emitValueChanged(QString name, QVariant value) {
@@ -28,4 +29,25 @@ translateLocally::marianSettings Settings::marianSettings() const {
         workspace.value(),
         cacheTranslations.value()
     };
+}
+
+QMap<QString,translateLocally::Repository> Settings::repos() const {
+    QMap<QString,translateLocally::Repository> repositories;
+
+    repositories.insert(translateLocally::kDefaultRepositoryURL, {
+        translateLocally::kDefaultRepositoryName,
+        translateLocally::kDefaultRepositoryURL,
+        true
+    });
+    
+    for (auto &&pair : externalRepos()) {
+        // Future proofing: make sure we don't load repositories that already exist
+        // as default repositories.
+        if (repositories.contains(pair.back()))
+            continue;
+
+        repositories.insert(pair.back(), {pair.first(), pair.back(), false});
+    }
+
+    return repositories;
 }

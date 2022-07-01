@@ -13,7 +13,6 @@
 #include "Network.h"
 #include "types.h"
 #include "settings/Settings.h"
-#include "RepoManager.h"
 
 namespace translateLocally {
     namespace models {
@@ -23,6 +22,9 @@ namespace translateLocally {
         };
     }
 }
+
+// TODO: our inconsistent use of the translateLocally namespace is really an issue.
+using translateLocally::Repository;
 
 /**
  * @Brief outside info about a model that it cannot know about itself in a
@@ -191,6 +193,11 @@ public:
     std::optional<Model> getModel(QString const &id) const;
 
     /**
+     * @Brief get name of repository based on model's repo url
+     */
+    std::optional<Repository> getRepository(Model const &model) const;
+
+    /**
      * @Brief find model to translate directly from src to trg language.
      */
     std::optional<Model> getModelForLanguagePair(QString src, QString trg) const;
@@ -254,8 +261,6 @@ public:
 
     const QList<Model>& getNewModels() const;
 
-    RepoManager * getRepoManager();
-    
     /**
      * @brief whether or not fetchRemoteModels is in progress
      */
@@ -339,9 +344,13 @@ private:
     QList<Model> newModels_;
     QList<Model> updatedModels_;
 
+    /**
+     * local copy of Settings::repos() because of key lookups.
+     */
+    QMap<QString,translateLocally::Repository> repositories_;
+
     Network *network_;
     Settings *settings_;
-    RepoManager repositories_;
     bool isFetchingRemoteModels_;
 
 signals:

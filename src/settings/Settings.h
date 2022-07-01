@@ -98,4 +98,8 @@ public:
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
     SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
+
+    // Accessor for externalRepos() + default repos, keyed by url since that's
+    // useful for lookups, and we need to dedup on url anyway.
+    QMap<QString,translateLocally::Repository> repos() const;
 };

@@ -2,7 +2,7 @@
 #include <QAbstractTableModel>
 #include <QSet>
 #include "settings/Settings.h"
-#include "inventory/RepoManager.h"
+#include "types.h"
 
 class RepositoryTableModel : public QAbstractTableModel {
     Q_OBJECT
@@ -39,7 +39,7 @@ public:
 signals:
     void warning(QString warn);
 private:
-    Repository* findByUrl(QString url);
-    QList<Repository> repositories_;
+    translateLocally::Repository* findByUrl(QString url);
+    QList<translateLocally::Repository> repositories_;
     QSet<QString> urls_;
 };
