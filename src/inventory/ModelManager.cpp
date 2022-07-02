@@ -743,7 +743,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
     switch (section) {
         case Column::Name:
             return tr("Name", "translation model name");
-        case Column::Repository:
+        case Column::Repo:
             return tr("Repository", "repository from which the translation model originated");
         case Column::Version:
             return tr("Version", "translation model version");
@@ -770,7 +770,7 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     return QVariant();
             }
 
-        case Column::Repository:
+        case Column::Repo:
             switch (role) {
                 case Qt::DisplayRole: {
                     auto repo = getRepository(model);

@@ -270,7 +270,7 @@ public:
 
     enum Column {
         Name,
-        Repository,
+        Repo,
         Version
     };
 
