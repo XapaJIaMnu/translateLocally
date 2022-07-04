@@ -1,5 +1,6 @@
 #include "ModelManager.h"
 #include "Network.h"
+#include "types.h"
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -69,8 +70,9 @@ namespace {
 ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
+    , settings_(settings)
+    , repositories_(settings->repos())
     , isFetchingRemoteModels_(false)
-    , repositories_(this, settings)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
     // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
@@ -82,9 +84,22 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
             QDir().mkpath(configDir_.absolutePath());
         }
     }
+    
+    connect(&(settings_->externalRepos), &Setting::valueChanged, this, [&]{
+        repositories_ = settings_->repos();
+        // I disabled the call to fetch the remote models because I'm not
+        // certain that the internet access is expected (and permitted) by the
+        // end user at this point.
+       // fetchRemoteModels();
+
+        // We do clear the remoteModels list so that it is clear that it is
+        // outdated and/or incomplete. Now users can click the "download model
+        // list" again and make an informed decision to access the internet.
+        remoteModels_.clear();
+        updateAvailableModels();
+    });
+
     startupLoad();
-    // Fetch remote models after new a new entry was added. Lambda wrapped to use the new syntax without explicit slot.
-    connect(&repositories_, &RepoManager::rowsInserted, this, [&](){fetchRemoteModels();});
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
@@ -92,14 +107,19 @@ bool ModelManager::isManagedModel(Model const &model) const {
 }
 
 bool ModelManager::validateModel(QString path) {
-    QJsonObject obj = getModelInfoJsonFromDir(path);
-    if (obj.find("path") == obj.end()) {
-        emit error(tr("Failed to find, open or parse the model_info.json in %1").arg(path));
+    QString errorMsg;
+
+    auto obj = getModelInfoJsonFromDir(path, &errorMsg);
+    if (obj.isEmpty()) {
+        emit error(errorMsg);
         return false;
     }
 
-    if (!parseModelInfo(obj).isLocal()) // parseModelInfo emits its own error signals
+    auto model = parseModelInfo(obj, translateLocally::models::Location::Local, &errorMsg);
+    if (!model) {
+        emit error(tr("The model_info.json in %1 contains errors: %2").arg(path, errorMsg));
         return false;
+    }
 
     return true;
 }
@@ -139,7 +159,7 @@ std::optional<ModelPair> ModelManager::getModelPairForLanguagePair(QString src, 
     return ModelPair{*sourceModel, *pivotModel};
 }
 
-std::optional<Model> ModelManager::writeModel(QFile *file, QString filename) {
+std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QString filename) {
     // Default value for filename is the basename of the file.
     if (filename.isEmpty())
         filename = QFileInfo(*file).fileName();
@@ -174,6 +194,8 @@ std::optional<Model> ModelManager::writeModel(QFile *file, QString filename) {
         return std::nullopt;
     }
 
+    // Assume the prefix is at least tempDir. If not, something shady is
+    // happening, like the tar.gz file writing to an absolute path?
     Q_ASSERT(prefix.startsWith(tempDir.path()));
 
     // Try determining whether the model is any good before we continue to safe
@@ -193,10 +215,15 @@ std::optional<Model> ModelManager::writeModel(QFile *file, QString filename) {
     // attempt anything if we moved the whole directory itself.
     tempDir.setAutoRemove(prefix != tempDir.path());
 
-    QJsonObject obj = getModelInfoJsonFromDir(newModelDirPath);
-    Q_ASSERT(obj.find("path") != obj.end());
+    auto obj = getModelInfoJsonFromDir(newModelDirPath);
+    if (obj.isEmpty()) return std::nullopt; // validateModel() has already emitted an error in this case
+    
+    auto model = parseModelInfo(obj, translateLocally::models::Local);
+    if (!model) return std::nullopt; // same, validateModel will have raised an issue.
 
-    Model model = parseModelInfo(obj);
+    model->path = newModelDirPath;
+
+    writeModelMetaToDir(meta, model->path);
 
     // Upgrade behaviour: remove any older versions of this model. At least if
     // the older model is part of the models managed by us. We don't delete
@@ -205,10 +232,10 @@ std::optional<Model> ModelManager::writeModel(QFile *file, QString filename) {
     // is called, it either was called from the upgrade path, or the user
     // intentionally installing an older model through the model manager UI.
     for (auto &&installed : localModels_)
-        if (installed.isSameModel(model) && isManagedModel(installed))
+        if (installed.isSameModel(*model) && isManagedModel(installed))
             removeModel(installed);
 
-    insertLocalModel(model);
+    insertLocalModel(*model);
     updateAvailableModels();
     
     return model;
@@ -269,32 +296,35 @@ bool ModelManager::insertLocalModel(Model model) {
     return true;
 }
 
-QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir) {
+QJsonObject ModelManager::getModelInfoJsonFromDir(QString dir, QString *error) {
     // Check if we can find a model_info.json in the directory. If so, record it as part of the model
     QFileInfo modelInfo(dir + "/model_info.json");
-    if (modelInfo.exists()) {
-        QFile modelInfoFile(modelInfo.absoluteFilePath());
-        bool isOpen = modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text);
-        if (isOpen) {
-            QByteArray bytes = modelInfoFile.readAll();
-            modelInfoFile.close();
-            // Parse the Json
-            QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes);
-            QJsonObject obj = jsonResponse.object();
-            // Populate the json with path
-            obj.insert(QString("path"), QJsonValue(dir));
-            return obj;
-        } else {
-            emit error(tr("Failed to open json config file: %1").arg(modelInfo.absoluteFilePath()));
-            return QJsonObject();
-        }
-    } else {
-        // Model info doesn't exist or a configuration file is not found. Handle the error elsewhere.
+    if (!modelInfo.exists()) {
+        if (error) *error = tr("File %1 does not exist").arg(modelInfo.filePath());
         return QJsonObject();
     }
+
+    QFile modelInfoFile(modelInfo.absoluteFilePath());
+    if (!modelInfoFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (error) *error = tr("File %1 cannot be opened for reading").arg(modelInfo.filePath());
+        return QJsonObject();
+    }
+    
+    QByteArray bytes = modelInfoFile.readAll();
+    modelInfoFile.close();
+    
+    // Parse the Json
+    QJsonParseError parseError;
+    QJsonDocument jsonResponse = QJsonDocument::fromJson(bytes, &parseError);
+    if (jsonResponse.isNull()) {
+        if (error) *error = tr("%1 in file %2").arg(parseError.errorString(), modelInfo.filePath());
+        return QJsonObject();
+    }
+
+    return jsonResponse.object();
 }
 
-Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::Location type) {
+std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::Location type, QString *error) {
     using namespace translateLocally::models;
     std::vector<QString> keysSTR = {QString{"shortName"},
                                     QString{"modelName"},
@@ -302,10 +332,11 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
                                     QString{"trg"},
                                     QString("trgTag"),
                                     QString{"type"},
-                                    QString("repository"),
+                                    QString("url"),
                                     QString{"checksum"}};
     std::vector<QString> keysINT{QString("version"), QString("API")};
-    QString criticalKey = type==Local ? QString("path") : QString("url");
+    
+    QStringList missingKeys;
 
     Model model = {};
     // Non critical keys. Some of them might be missing from old model versions but we don't care
@@ -335,6 +366,7 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
     }
 
     // Fill in srcTags based on model name if it is an old-style model_info.json
+    // Note: this has to happen after all the parsing bits.
     {
         // split 'eng-ukr-tiny11' into 'eng', 'ukr', and the rest.
         auto parts = model.shortName.split('-');
@@ -346,17 +378,19 @@ Model ModelManager::parseModelInfo(QJsonObject& obj, translateLocally::models::L
         }
     }
 
-    // Critical key. If this key is missing the json is completely invalid and needs to be discarded
-    // it's either the path to the model or the url to its download location
-    auto iter = obj.find(criticalKey);
-    if (iter != obj.end()) {
-        model.set(criticalKey, iter.value().toString());
-    } else {
-        emit error(tr("The json file provided is missing '%1' or is corrupted. Please redownload the model. "
-                      "If the path variable is missing, it is added automatically, so please file a bug report at: https://github.com/XapaJIaMnu/translateLocally/issues").arg(criticalKey));
-        return Model{};
+    // TODO do these checks for more keys that we really need
+    if (obj.value("shortName").toString().isEmpty())
+        missingKeys << "shortName";
+
+    if (type == Remote && obj.value("url").toString().isEmpty())
+        missingKeys << "url";
+
+    if (!missingKeys.isEmpty()) {
+        if (error) *error = tr("Model info is missing keys: %1").arg(missingKeys.join(' '));
+        return std::nullopt;
     }
-    return model;
+
+    return std::make_optional(model);
 }
 
 void ModelManager::scanForModels(QString path) {
@@ -371,18 +405,26 @@ void ModelManager::scanForModels(QString path) {
             if (f.baseName().startsWith("extracting-"))
                 continue;
 
-            QJsonObject obj = getModelInfoJsonFromDir(current);
-            if (!obj.empty()) {
-                Model model = parseModelInfo(obj);
-                if (model.path != "") {
-                    insertLocalModel(model);
-                } else {
-                    emit error(tr("Corrupted json file: %1/model_info.json. Delete or redownload.").arg(current));
-                }
-            } else {
-                // We have a folder in our models directory that doesn't contain a model. This is ok.
+            // Possible parse error, useful for debugging
+            QString errorMsg;
+
+            QJsonObject obj = getModelInfoJsonFromDir(current, &errorMsg);
+            
+            // We have a folder in our models directory that doesn't contain a model. This is ok.
+            if (obj.empty())
+                continue;
+
+            auto model = parseModelInfo(obj, translateLocally::models::Local, &errorMsg);
+            if (!model) {
+                emit error(tr("Invalid json file: %1/model_info.json: %2").arg(current, errorMsg));
                 continue;
             }
+
+            model->path = current;
+
+            readModelMetaFromDir(*model, current);
+            
+            insertLocalModel(*model);
         } else {
             // Check if this an existing archive
             if (f.completeSuffix() == QString("tar.gz")) {
@@ -392,6 +434,51 @@ void ModelManager::scanForModels(QString path) {
     }
 
     updateAvailableModels();
+}
+
+bool ModelManager::readModelMetaFromDir(ModelMeta &model, QString dir) const {
+    QFile metaFile(dir + "/.modelMeta.json");
+    if (!metaFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Could not parse model meta file" << metaFile.fileName() << ": file cannot be opened for reading.\n"
+                 << "The model is either in the current working directory or downloaded before metadata was added to translateLocally.";
+        return false; // Cannot open file, might not exist
+    }
+    
+    QByteArray bytes = metaFile.readAll();
+    metaFile.close();
+    
+    // Parse the Json
+    QJsonParseError error;
+    QJsonDocument json = QJsonDocument::fromJson(bytes, &error);
+    if (json.isNull()) {
+        qDebug() << "Could not parse model meta file" << metaFile.fileName() << ":" << error.errorString();
+        return false; // Broken meta file, probably 
+    }
+    
+    QJsonObject obj = json.object();
+    model.modelUrl = obj.value("modelUrl").toString();
+    model.repositoryUrl = obj.value("repositoryUrl").toString();
+    model.installedOn = QDateTime::fromString(obj.value("installedOn").toString(), Qt::ISODate);
+    return true;
+}
+
+bool ModelManager::writeModelMetaToDir(ModelMeta const &model, QString dir) const {
+    QJsonDocument json{QJsonObject{
+        {"modelUrl", model.modelUrl},
+        {"repositoryUrl", model.repositoryUrl},
+        {"installedOn", model.installedOn.toString(Qt::ISODate)},
+    }};
+
+    QFile metaFile(dir + "/.modelMeta.json");
+    if (!metaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qDebug() << "Could not write model meta file" << metaFile.fileName() << ": file cannot be opened for writing";
+        return false; // Cannot open file, might not exist
+    }
+
+    metaFile.write(json.toJson());
+    metaFile.close();
+    
+    return true;
 }
 
 void ModelManager::startupLoad() {
@@ -517,22 +604,20 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
-    QStringList repos = repositories_.getRepos();
-    QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
-    for (auto&& urlString : repos) {
+    QSharedPointer<int> num_repos(new int(repositories_.size())); // Keep track of how many repos have been fetched
+    for (QString url : repositories_.keys()) {
         isFetchingRemoteModels_ = true;
         emit fetchingRemoteModels();
 
-        QUrl url(urlString);
         QNetworkRequest request(url);
         QNetworkReply *reply = network_->get(request);
         connect(reply, &QNetworkReply::finished, this, [=] {
             switch (reply->error()) {
                 case QNetworkReply::NoError:
-                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object());
+                    parseRemoteModels(QJsonDocument::fromJson(reply->readAll()).object(), url);
                     break;
                 default:
-                    QString errstr = QString("Error fetching remote repository: ") + urlString +
+                    QString errstr = QString("Error fetching remote repository: ") + url +
                             QString("\nError code: ") + reply->errorString() +
                             QString("\nPlease double check that the address is reachable.");
                     emit error(errstr);
@@ -548,20 +633,28 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
     }
 }
 
-void ModelManager::parseRemoteModels(QJsonObject obj) {
+void ModelManager::parseRemoteModels(QJsonObject obj, QString repositoryUrl) {
     using namespace translateLocally::models;
     
+    QString errorMsg;
     bool empty = true;
+    size_t i = 0;
     for (auto&& arrobj : obj["models"].toArray()) {
+        ++i;
         empty = false;
         QJsonObject obj = arrobj.toObject();
-        Model remoteModel = parseModelInfo(obj, Remote);
-        if (!remoteModels_.contains(remoteModel)) { // This costs O(n). Not happy, is there a better way?
-            remoteModels_.append(std::move(remoteModel));
+        auto remoteModel = parseModelInfo(obj, Remote, &errorMsg);
+        if (!remoteModel) {
+            qDebug() << QString("Error while parsing model %1 of %2: %3").arg(i).arg(repositoryUrl, errorMsg);
+            continue;
+        }
+        remoteModel->repositoryUrl = repositoryUrl;
+        if (!remoteModels_.contains(*remoteModel)) { // This costs O(n). Not happy, is there a better way?
+            remoteModels_.append(std::move(*remoteModel));
         }
     }
     if (empty) {
-        emit error("No models found in the repository. Please double check that the repository address is correct.");
+        emit error(tr("No models found in the repository at %1. Please double check that the repository address is correct.").arg(repositoryUrl));
     }
 
     std::sort(remoteModels_.begin(), remoteModels_.end());
@@ -590,6 +683,13 @@ std::optional<Model> ModelManager::getModelForPath(QString path) const {
             return model;
 
     return std::nullopt;
+}
+
+std::optional<Repository> ModelManager::getRepository(const Model &model) const {
+    auto it = repositories_.find(model.repositoryUrl);
+    if (it == repositories_.end())
+        return std::nullopt;
+    return *it;
 }
 
 void ModelManager::updateAvailableModels() {
@@ -621,10 +721,6 @@ void ModelManager::updateAvailableModels() {
     emit localModelsChanged();
 }
 
-RepoManager * ModelManager::getRepoManager() {
-    return &repositories_;
-}
-
 int ModelManager::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
@@ -647,7 +743,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
     switch (section) {
         case Column::Name:
             return tr("Name", "translation model name");
-        case Column::Repository:
+        case Column::Repo:
             return tr("Repository", "repository from which the translation model originated");
         case Column::Version:
             return tr("Version", "translation model version");
@@ -674,10 +770,12 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     return QVariant();
             }
 
-        case Column::Repository:
+        case Column::Repo:
             switch (role) {
-                case Qt::DisplayRole:
-                    return model.repository;
+                case Qt::DisplayRole: {
+                    auto repo = getRepository(model);
+                    return repo ? repo->name : model.repositoryUrl;
+                }
                 default:
                     return QVariant();
             }

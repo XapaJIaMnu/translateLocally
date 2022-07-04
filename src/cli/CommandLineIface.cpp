@@ -234,7 +234,7 @@ void CommandLineIface::downloadRemoteModel(QString modelID) {
     connect(&network_, &Network::downloadComplete, this, [&](QFile *file, QString filename) {
         // We use cout here, as QTextStream out gives a warning about being lamda captured.
         std::cout << "\nModel downloaded successfully! You can now invoke it with -m " << modelID.toStdString() << std::endl;
-        models_.writeModel(file, filename);
+        models_.writeModel(file, ModelMeta{}, filename); // TODO: ModelMeta
         eventLoop_.exit();
     });
     QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum);

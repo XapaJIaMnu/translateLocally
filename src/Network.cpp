@@ -68,7 +68,7 @@ QNetworkReply* Network::downloadFile(QUrl url, QFile *dest, QCryptographicHash::
                 break;
             
             default:
-                emit error(reply->errorString(), extradata);
+                emit error(tr("An error occurred while downloading %1: %2").arg(url.toString(), reply->errorString()), extradata);
                 break;
         }
 

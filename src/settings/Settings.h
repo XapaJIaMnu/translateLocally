@@ -57,9 +57,7 @@ public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
     : backing_(backing)
     , name_(name)
-    , default_(QVariant::fromValue(defaultValue)) {
-        //
-    }
+    , default_(QVariant::fromValue(defaultValue)) {}
 
     T value() const {
         return backing_.value(name_, default_).template value<T>();
@@ -73,32 +71,11 @@ public:
         emitValueChanged(name_, backing_.value(name_)); // not using value() because we *want* the QVariant
     }
 
-    // Here for compatibility. Will be removed once #102 is merged.
-    template<typename Val>
-    void appendToValue(Val newValue) {
-        if constexpr (std::is_same_v<QList<Val>, T>) {
-            QList<Val> values = value();
-            values.append(newValue);
-            setValue(values);
-        }
-    }
-
-    // Here for compatibility. Will be removed once #102 is merged.
-    template <typename Val>
-    void removeFromValue(Val needle) {
-        if constexpr (std::is_same_v<QList<Val>, T>) {
-            QList<Val> values = value();
-            values.removeAll(needle);
-            setValue(values);
-        }
-    }
-
     // Alias for value() to make Settings make look more like a normal Qt class.
     T operator()() const {
         return value();
     }
 };
-
 
 
 class Settings : public QObject  {
@@ -123,4 +100,8 @@ public:
     SettingImpl<bool> cacheTranslations;
     SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
     SettingImpl<QSet<QString>> nativeMessagingClients;
+
+    // Accessor for externalRepos() + default repos, keyed by url since that's
+    // useful for lookups, and we need to dedup on url anyway.
+    QMap<QString,translateLocally::Repository> repos() const;
 };

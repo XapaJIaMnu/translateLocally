@@ -5,6 +5,7 @@
 #include <QItemSelection>
 #include "Settings.h"
 #include "inventory/ModelManager.h"
+#include "settings/RepositoryTableModel.h"
 
 namespace Ui {
 class TranslatorSettingsDialog;
@@ -38,6 +39,7 @@ private:
     Ui::TranslatorSettingsDialog *ui_;
     Settings *settings_;
     ModelManager *modelManager_;
+    RepositoryTableModel repositoryModel_;
 };
 
 #endif // TRANSLATORSETTINGS_H

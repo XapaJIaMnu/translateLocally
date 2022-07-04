@@ -1,4 +1,6 @@
 #include "TranslatorSettingsDialog.h"
+#include "Translation.h"
+#include "settings/RepositoryTableModel.h"
 #include "ui_TranslatorSettingsDialog.h"
 #include "NewRepoDialog.h"
 #include <thread>
@@ -14,6 +16,7 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
 , ui_(new Ui::TranslatorSettingsDialog())
 , settings_(settings)
 , modelManager_(modelManager)
+, repositoryModel_(this)
 {
     ui_->setupUi(this);
     
@@ -38,12 +41,14 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
 
-    ui_->repoTable->setModel(modelManager_->getRepoManager());
-    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::RepoName, QHeaderView::ResizeToContents);
-    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepoManager::RepoColumn::URL, QHeaderView::Stretch);
+    ui_->repoTable->setModel(&repositoryModel_);
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::Name, QHeaderView::ResizeToContents);
+    ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::URL, QHeaderView::Stretch);
+    connect(&repositoryModel_, &RepositoryTableModel::warning, this, [&](QString warning) {
+        QMessageBox::warning(this, tr("Warning"), warning);
+    });
 
     connect(ui_->localModelTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateModelActions);
-    connect(ui_->buttonBox, &QDialogButtonBox::accepted, this, &TranslatorSettingsDialog::applySettings);
     connect(ui_->actionRevealModel, &QAction::triggered, this, &TranslatorSettingsDialog::revealSelectedModels);
     connect(ui_->actionDeleteModel, &QAction::triggered, this, &TranslatorSettingsDialog::deleteSelectedModels);
     connect(ui_->deleteModelButton, &QPushButton::clicked, this, &TranslatorSettingsDialog::deleteSelectedModels);
@@ -51,6 +56,8 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     // Repository actions
     connect(ui_->actionDeleteRepo, &QAction::triggered, this, &TranslatorSettingsDialog::on_deleteRepo_clicked);
     connect(ui_->repoTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateRepoActions);
+
+    connect(this, &QDialog::accepted, this, &TranslatorSettingsDialog::applySettings);
 
     // Update context menu state on start-up
     updateModelActions();
@@ -71,6 +78,7 @@ void TranslatorSettingsDialog::updateSettings()
     ui_->alignmentColorButton->setColor(settings_->alignmentColor());
     ui_->syncScrollingCheckbox->setChecked(settings_->syncScrolling());
     ui_->cacheTranslationsCheckbox->setChecked(settings_->cacheTranslations());
+    repositoryModel_.load(settings_->externalRepos.value());
 }
 
 void TranslatorSettingsDialog::applySettings()
@@ -82,6 +90,7 @@ void TranslatorSettingsDialog::applySettings()
     settings_->alignmentColor.setValue(ui_->alignmentColorButton->color());
     settings_->syncScrolling.setValue(ui_->syncScrollingCheckbox->isChecked());
     settings_->cacheTranslations.setValue(ui_->cacheTranslationsCheckbox->isChecked());
+    settings_->externalRepos.setValue(repositoryModel_.dump());
 }
 
 void TranslatorSettingsDialog::revealSelectedModels()
@@ -155,7 +164,7 @@ void TranslatorSettingsDialog::updateRepoActions()
     bool containsDeletableRepo = false;
 
     for (auto&& index : ui_->repoTable->selectionModel()->selectedIndexes()) {
-        if (modelManager_->getRepoManager()->canRemove(index)) {
+        if (repositoryModel_.canRemove(index)) {
             containsDeletableRepo = true;
             break;
         }
@@ -170,8 +179,7 @@ void TranslatorSettingsDialog::on_importRepo_clicked()
     AddNewRepoDialog prompt(this);
     if (prompt.exec() == QDialog::Accepted) {
         if (!prompt.getURL().isEmpty()) {
-            QStringList new_entry({prompt.getName(), prompt.getURL()});
-            modelManager_->getRepoManager()->insert(new_entry);
+            repositoryModel_.insert(prompt.getName(), prompt.getURL());
         }
     }
 }
@@ -187,6 +195,6 @@ void TranslatorSettingsDialog::on_deleteRepo_clicked()
         ) != QMessageBox::Yes)
         return;
 
-    modelManager_->getRepoManager()->removeRows(selection);
+    repositoryModel_.removeRows(selection);
 }
 

@@ -13,7 +13,6 @@
 #include "Network.h"
 #include "types.h"
 #include "settings/Settings.h"
-#include "RepoManager.h"
 
 namespace translateLocally {
     namespace models {
@@ -24,17 +23,31 @@ namespace translateLocally {
     }
 }
 
-struct Model {
+// TODO: our inconsistent use of the translateLocally namespace is really an issue.
+using translateLocally::Repository;
+
+/**
+ * @Brief outside info about a model that it cannot know about itself in a
+ * shipped json file like where did we get it from, when did we get it, etc.
+ */
+struct ModelMeta {
+    QString path;          // local path to model directory
+    QString modelUrl;         // url the model was downloaded from
+    QString repositoryUrl;    // url of repository the model was mentioned by
+    QDateTime installedOn; // utc datetime of the model's installation
+};
+
+Q_DECLARE_METATYPE(ModelMeta);
+
+struct Model : ModelMeta {
     QString shortName; // Unique model identifier eg en-es-tiny
     QString modelName; // Long name, to be displayed in a single line
-    QString url;  // This is the url to the model. Only available if we connected to the server
-    QString path; // This is full path to the directory. Only available if the model is local
+    QString url;
     QString src;
     QString trg;
     QMap<QString, QVariant> srcTags; // The second QVariant is a QString. This is done so that we can have direct toJson and fromJson conversion.
     QString trgTag;
     QString type; // Base or tiny
-    QString repository = QObject::tr("unknown"); // Repository that the model belongs to. If we don't have that information, default to unknown.
     QByteArray checksum;
     int localversion  = -1;
     int localAPI = -1;
@@ -51,8 +64,6 @@ struct Model {
                 modelName = val;
             } else if (key == "url") {
                 url = val;
-            } else if (key == "path") {
-                path = val;
             } else if (key == "src") {
                 src = val;
             } else if (key == "trg") {
@@ -61,12 +72,10 @@ struct Model {
                 trgTag = val;
             } else if (key == "type") {
                 type = val;
-            } else if (key == "repository") {
-                repository = val;
             } else if (key == "checksum") {
                 checksum = QByteArray::fromHex(val.toUtf8());
             } else {
-                parseError = true;
+                parseError = true; // TODO: this is just an unknown key in the json, that's not so bad is it?
             }
         } else if constexpr (std::is_same_v<int, T>) {
             if (key == "localversion") {
@@ -78,24 +87,24 @@ struct Model {
             } else if (key == "remoteAPI") {
                 remoteAPI = val;
             } else {
-                parseError = true;
+                parseError = true; // TODO Idem.
             }
         } else if constexpr (std::is_same_v<QJsonObject, T>) {
             if (key == "srcTags") {
                 srcTags = val.toVariantMap();
             } else {
-               parseError = true;
+               parseError = true; // TODO Again
             }
         }
         if (parseError) {
-            std::cerr << "Unknown key type. " << key.toStdString() << " Something is very wrong!" << std::endl;
+            qDebug() << "Model::set() was called with an unknown key type for key" << key;
         }
     }
 
     inline QString id() const {
         // @TODO make this something globally unique (so not just depended on what is in the JSON)
         // but also something that stays the same before/after downloading the model.
-        return QString("%1%2").arg(shortName).arg(qHash(repository));
+        return QString("%1%2").arg(shortName).arg(qHash(repositoryUrl));
     }
 
     inline bool isLocal() const {
@@ -126,16 +135,23 @@ struct Model {
     }
 
     // Debug
-    inline void print() const {
-        std::cerr << "shortName: " << shortName.toStdString() << " modelName: " << modelName.toStdString() <<
-                     " url: " << url.toStdString() << " path " << path.toStdString() << " src " << src.toStdString() << " trg " << trg.toStdString() <<
-                     " type: " << type.toStdString() << " localversion " << localversion << " localAPI " << localAPI <<
-                     " remoteversion: " << remoteversion << " remoteAPI " << remoteAPI << std::endl;
+    friend inline QDebug operator<<(QDebug out, Model const &model) {
+        return out << "shortName:" << model.shortName
+                   << "modelName:" << model.modelName
+                   << "url:" << model.url
+                   << "path:" << model.path
+                   << "src:" << model.src
+                   << "trg:" << model.trg
+                   << "type:" << model.type
+                   << "localversion" << model.localversion
+                   << "localAPI" << model.localAPI
+                   << "remoteversion:" << model.remoteversion
+                   << "remoteAPI" << model.remoteAPI;
     }
     /**
      * @brief toJson Returns a json representation of the model. The only difference between the struct is that url and path will not be part of the json.
      *               Instead, we will have one bool that says "Is it local, or is it remote". We also don't report checksums and API versions as those
-     *               should be handled by the backend.
+     *               should be handled by the backend. Used by NativeMessaging interface to describe available models.
      * @return Json representation of a model
      */
      QJsonObject toJson() const {
@@ -149,7 +165,7 @@ struct Model {
         ret["srcTags"] = QJsonObject::fromVariantMap(srcTags);
         ret["trgTag"] = trgTag;
         ret["type"] = type;
-        ret["repository"] = repository;
+        ret["repositoryUrl"] = repositoryUrl;
         return ret;
     }
 };
@@ -177,6 +193,11 @@ public:
     std::optional<Model> getModel(QString const &id) const;
 
     /**
+     * @Brief get name of repository based on model's repo url
+     */
+    std::optional<Repository> getRepository(Model const &model) const;
+
+    /**
      * @Brief find model to translate directly from src to trg language.
      */
     std::optional<Model> getModelForLanguagePair(QString src, QString trg) const;
@@ -194,7 +215,7 @@ public:
      * and the function will return the filled in model instance. On failure, an
      * empty Model object is returned (i.e. model.isLocal() returns false).
      */
-    std::optional<Model> writeModel(QFile *file, QString filename = QString());
+    std::optional<Model> writeModel(QFile *file, ModelMeta meta = ModelMeta(), QString filename = QString());
 
     /**
      * @Brief Tries to delete a model from the getInstalledModels() list. Also
@@ -240,8 +261,6 @@ public:
 
     const QList<Model>& getNewModels() const;
 
-    RepoManager * getRepoManager();
-    
     /**
      * @brief whether or not fetchRemoteModels is in progress
      */
@@ -251,7 +270,7 @@ public:
 
     enum Column {
         Name,
-        Repository,
+        Repo,
         Version
     };
 
@@ -281,9 +300,19 @@ private:
     void scanForModels(QString path);
     bool extractTarGz(QFile *file, QDir const &destination, QStringList &files);
     bool extractTarGzInCurrentPath(QFile *file, QStringList &files);
-    Model parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local);
-    void parseRemoteModels(QJsonObject obj);
-    QJsonObject getModelInfoJsonFromDir(QString dir);
+    std::optional<Model> parseModelInfo(QJsonObject& obj, translateLocally::models::Location type=translateLocally::models::Location::Local, QString *error = nullptr);
+    void parseRemoteModels(QJsonObject obj, QString repositoryUrl);
+    QJsonObject getModelInfoJsonFromDir(QString dir, QString *error = nullptr);
+
+    /**
+     * @Brief gets model metadata from an installed model
+     */
+    bool readModelMetaFromDir(ModelMeta &model, QString dir) const;
+
+    /**
+     * @Brief writes a model's metadata to an installed model.
+     */
+    bool writeModelMetaToDir(ModelMeta const &model, QString dir) const;
     
     /**
      * @Brief insert a local model in the localModels_ list. Keeps it sorted and
@@ -315,8 +344,13 @@ private:
     QList<Model> newModels_;
     QList<Model> updatedModels_;
 
+    /**
+     * local copy of Settings::repos() because of key lookups.
+     */
+    QMap<QString,translateLocally::Repository> repositories_;
+
     Network *network_;
-    RepoManager repositories_;
+    Settings *settings_;
     bool isFetchingRemoteModels_;
 
 signals:

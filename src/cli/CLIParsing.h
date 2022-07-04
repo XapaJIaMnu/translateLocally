@@ -36,6 +36,8 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
     parser.addOption({"remove-client", QObject::tr("Remove a native messaging client id.")});
     parser.addOption({"list-clients", QObject::tr("List allowed native messaging clients")});
     parser.addOption({"update-manifests", QObject::tr("Register native messaging clients with user profile.")});
+    parser.addOption({"debug", QObject::tr("Print debug messages")});
+
     parser.process(translateLocallyApp);
 }
 
