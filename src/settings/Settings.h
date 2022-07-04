@@ -47,59 +47,26 @@ signals:
 template <typename T>
 class SettingImpl : public Setting {
 private:
+    QSettings &backing_;
     QString name_;
-    T value_;
+    QVariant default_;
 
 public:
     SettingImpl(QSettings &backing, QString name, T defaultValue = T())
-    : name_(name) {
-        if constexpr (std::is_same_v<QList<QStringList>, T>) {
-            value_ = backing.value(name, QVariant::fromValue<QList<QStringList>>(QList<QStringList>())).value<QList<QStringList>>();
-        } else {
-            value_ = backing.value(name, defaultValue).template value<T>();
-        }
-        // When the value changes, also store it in QSettings
-        connect(this, &Setting::valueChanged, &backing, &QSettings::setValue);
-    }
+    : backing_(backing)
+    , name_(name)
+    , default_(QVariant::fromValue(defaultValue)) {}
 
     T value() const {
-        return value_;
+        return backing_.value(name_, default_).template value<T>();
     }
 
-    void setValue(T value, Behavior behavior = EmitWhenChanged) {
-        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
-            // Don't emit when the value doesn't change
-            if (behavior == EmitWhenChanged && value == value_)
-                return;
+    void setValue(T newValue, Behavior behavior = EmitWhenChanged) {
+        if (behavior == EmitWhenChanged && newValue == value())
+            return;
 
-            value_ = value;
-            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
-        } else {
-            // Don't emit when the value doesn't change
-            if (behavior == EmitWhenChanged && value == value_)
-                return;
-
-            value_ = value;
-            emitValueChanged(name_, value_);
-        }
-    }
-
-    void appendToValue(QStringList entry, Behavior behavior = EmitWhenChanged) {
-        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
-            value_.append(entry);
-            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
-        } else {
-            Q_ASSERT_X(true, "appendToValue", (std::string("Developer error: Attempted to append a setting entry to a non-appendable type: ") + std::string(typeid(T).name())).c_str());
-        }
-    }
-
-    void removeFromValue(int index, Behavior behavior = EmitWhenChanged) {
-        if  constexpr (std::is_same_v<QList<QStringList>, T>) {
-            value_.removeAt(index);
-            emitValueChanged(name_, QVariant::fromValue<QList<QStringList>>(value_));
-        } else {
-            Q_ASSERT_X(true, "removeFromValue", (std::string("Developer error: Attempted to remove a setting entry to a non-removable type") + std::string(typeid(T).name())).c_str());
-        }
+        backing_.setValue(name_, QVariant::fromValue(newValue));
+        emitValueChanged(name_, backing_.value(name_)); // not using value() because we *want* the QVariant
     }
 
     // Alias for value() to make Settings make look more like a normal Qt class.
@@ -131,4 +98,8 @@ public:
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
     SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
+
+    // Accessor for externalRepos() + default repos, keyed by url since that's
+    // useful for lookups, and we need to dedup on url anyway.
+    QMap<QString,translateLocally::Repository> repos() const;
 };

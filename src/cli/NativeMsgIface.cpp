@@ -100,7 +100,7 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
 
     connect(&network_, &Network::downloadComplete, this, [this](QFile *file, QString filename, QVariant data) {
         ABORT_UNLESS(data.canConvert<DownloadRequest>(), "Model download completed without DownloadRequest data");
-        auto model = models_.writeModel(file, filename);
+        auto model = models_.writeModel(file, ModelMeta{}, filename); // TODO get modelmeta from data
         if (model) {
             DownloadRequest request = data.value<DownloadRequest>();
             writeResponse(request, model->toJson());

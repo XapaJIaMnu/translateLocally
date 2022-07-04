@@ -30,6 +30,7 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
     parser.addOption({{"i", "input"}, QObject::tr("Source translation file (or just used stdin)."), "input", ""});
     parser.addOption({{"o", "output"}, QObject::tr("Target translation file (or just used stdout)."), "output", ""});
     parser.addOption({{"p", "plugin"}, QObject::tr("Start native message server to use for a browser plugin.")});
+    parser.addOption({"debug", QObject::tr("Print debug messages")});
     parser.process(translateLocallyApp);
 }
 

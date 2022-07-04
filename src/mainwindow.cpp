@@ -106,7 +106,6 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
-    connect(models_.getRepoManager(), &RepoManager::warning, this, &MainWindow::popupWarning);
 
     // Network is only used for downloading models
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
@@ -303,8 +302,10 @@ void MainWindow::showDownloadPane(bool visible)
     ui_->modelPane->setVisible(!visible);
 }
 
-void MainWindow::handleDownload(QFile *file, QString filename) {
-    auto model = models_.writeModel(file, filename);
+void MainWindow::handleDownload(QFile *file, QString filename, QVariant extra) {
+    ModelMeta meta = extra.value<ModelMeta>();
+    meta.installedOn = QDateTime::currentDateTimeUtc();
+    auto model = models_.writeModel(file, meta, filename);
     if (model) // if writeModel didn't fail
         settings_.translationModel.setValue(model->path, Setting::AlwaysEmit);
 }
@@ -320,7 +321,14 @@ void MainWindow::downloadModel(Model model) {
     ui_->cancelDownloadButton->setEnabled(true);
     showDownloadPane(true);
 
-    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum);
+    // Pass on meta info about the model so we remember once we've downloaded it
+    ModelMeta meta;
+    meta.modelUrl = model.url;
+    meta.repositoryUrl = model.repositoryUrl;
+
+    qDebug() << "Downloading:" << model;
+
+    QNetworkReply *reply = network_.downloadFile(model.url, QCryptographicHash::Sha256, model.checksum, QVariant::fromValue(meta));
     // If downloadFile could not create a temporary file, abort. network_ will
     // have emitted an error(QString) already so no need to notify.
     if (reply == nullptr) {
@@ -381,8 +389,11 @@ void MainWindow::updateLocalModels() {
     } else if (models_.getNewModels().empty()) {
         ui_->localModels->addItem(tr("No other models available online"));
     } else {
-        for (auto &&model : models_.getNewModels())
-            ui_->localModels->addItem(model.modelName + " (" + model.repository + ")", QVariant::fromValue(model));
+        for (auto &&model : models_.getNewModels()) {
+            auto repo = models_.getRepository(model);
+            QString label = tr("%1 (from %2)").arg(model.modelName).arg(repo ? repo->name : model.repositoryUrl);
+            ui_->localModels->addItem(label, QVariant::fromValue(model));
+        }
         ui_->localModels->insertSeparator(ui_->localModels->count()); //@TODO some indication when no new models were fetched.
         ui_->localModels->addItem(tr("Download models…"), Action::FetchRemoteModels);
     }
