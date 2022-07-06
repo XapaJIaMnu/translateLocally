@@ -20,7 +20,7 @@
 #include <QStandardPaths>
 #include <QWindow>
 #include "Translation.h"
-#include "constants.h"
+#include "cli/NativeMsgManager.h"
 #include "logo/logo_svg.h"
 #include <iostream>
 #include <QScrollBar>
@@ -529,44 +529,6 @@ void MainWindow::on_outputBox_cursorPositionChanged() {
 }
 
 bool MainWindow::registerNativeMessagingAppManifest() {
-    using translateLocally::kNativeMessagingClients;
-
-    // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests
-    // Intentionally lower case to avoid any issues/confusion with case-sensitive filesystems
-    QString name = "translatelocally";
-
-    QJsonDocument manifest({
-        {"name", name},
-        {"description", "Fast and secure translation on your local machine, powered by marian and Bergamot."},
-        {"type", "stdio"},
-        {"path", QCoreApplication::applicationFilePath()},
-        {"allowed_extensions", QJsonArray::fromStringList(kNativeMessagingClients.values())}
-    });
-
-#if defined(Q_OS_MACOS)
-    QString manifestPath = QString("%1/Mozilla/NativeMessagingHosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).arg(name);
-#elif defined (Q_OS_LINUX)
-    QString manifestPath = QString("%1/.mozilla/native-messaging-hosts/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)).arg(name);
-#elif defined (Q_OS_WIN)
-    // On Windows, we write the manifest to some safe directory, and then point to it from the Registry.
-    QString manifestPath = QString("%1/%2.json").arg(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)).arg(name);
-    QSettings registry(QSettings::NativeFormat, QSettings::UserScope, "Mozilla", "NativeMessagingHosts");
-    registry.setValue(QString("%1/Default").arg(name), manifestPath);
-#else
-    return false;
-#endif
-
-    QFileInfo manifestInfo(manifestPath);
-
-    if (!manifestInfo.dir().exists()) {
-        if (!QDir().mkpath(manifestInfo.absolutePath())) {
-            qDebug() << "Cannot create directory:" << manifestInfo.absolutePath();
-            return false;
-        }
-    }
-
-    QFile manifestFile(manifestPath);
-    manifestFile.open(QFile::WriteOnly);
-    manifestFile.write(manifest.toJson());
-    return true;
+    NativeMsgManager manager;
+    return manager.writeNativeMessagingAppManifests(settings_.nativeMessagingClients());
 }

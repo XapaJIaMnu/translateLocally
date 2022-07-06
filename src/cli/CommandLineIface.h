@@ -15,15 +15,14 @@
 class CommandLineIface : public QObject {
     Q_OBJECT
 private:
-    ModelManager models_;
-    
-    // Settings, network and translator:
-    Settings settings_;
-    Network network_;
-    QPointer<MarianInterface> translator_;
-
     // Event loop that would wait until translation completes
     QEventLoop eventLoop_;
+
+    // Settings, network and translator:
+    Network network_;
+    Settings settings_;
+    ModelManager models_;
+    QPointer<MarianInterface> translator_;
 
     // do_once file in and file out
     QFile infile_;
@@ -38,6 +37,11 @@ private:
     void doTranslation();
     void downloadRemoteModel(QString modelID);
     inline QString &fetchData(QString &);
+
+    int allowNativeMessagingClient(QStringList ids);
+    int removeNativeMessagingClient(QStringList ids);
+    int listNativeMessagingClients();
+    int updateNativeMessagingManifests();
 
 public:
     explicit CommandLineIface(QObject * parent = nullptr);

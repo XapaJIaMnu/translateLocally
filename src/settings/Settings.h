@@ -4,10 +4,12 @@
 #include <QStringList>
 #include <QSettings>
 #include <QColor>
-#include <QMessageBox>
+#include <QSet>
 #include "types.h"
 
 Q_DECLARE_METATYPE(QList<QStringList>);
+
+Q_DECLARE_METATYPE(QSet<QString>);
 
 /**
  * Settings:
@@ -76,7 +78,6 @@ public:
 };
 
 
-
 class Settings : public QObject  {
     Q_OBJECT
 private:
@@ -98,6 +99,7 @@ public:
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
     SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
+    SettingImpl<QSet<QString>> nativeMessagingClients;
 
     // Accessor for externalRepos() + default repos, keyed by url since that's
     // useful for lookups, and we need to dedup on url anyway.

@@ -1,4 +1,5 @@
 #include "CommandLineIface.h"
+#include "cli/NativeMsgManager.h"
 #include <QFile>
 #include <QProcessEnvironment>
 
@@ -127,6 +128,14 @@ int CommandLineIface::run(QCommandLineParser const &parser) {
         translator_->setModel(modelpath, settings_.marianSettings());
         doTranslation();
         return 0;
+    } else if (parser.isSet("allow-client")) {
+        return allowNativeMessagingClient(parser.positionalArguments());
+    } else if (parser.isSet("remove-client")) {
+        return removeNativeMessagingClient(parser.positionalArguments());
+    } else if (parser.isSet("list-clients")) {
+        return listNativeMessagingClients();
+    } else if (parser.isSet("update-manifests")) {
+        return updateNativeMessagingManifests();
     } else {
         qCritical() << "We are in command line mode, but there's nothing for us to do. Some control flow mistake maybe?";
         return 2;
@@ -244,4 +253,49 @@ void CommandLineIface::outputTranslation(Translation output) {
     outstream_ << output.translation();
     outstream_.flush();
     eventLoop_.exit(); // Unblock the main thread
+}
+
+int CommandLineIface::allowNativeMessagingClient(QStringList ids) {
+    if (ids.isEmpty()) {
+        qCritical().noquote() << "No client ids specified";
+        return 1;
+    }
+
+    auto clients = settings_.nativeMessagingClients();
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    clients += ids.toSet();
+#else
+    clients += QSet<QString>(ids.begin(), ids.end());
+#endif
+    settings_.nativeMessagingClients.setValue(clients);
+    return updateNativeMessagingManifests();
+}
+
+int CommandLineIface::removeNativeMessagingClient(QStringList ids) {
+    if (ids.isEmpty()) {
+        qCritical().noquote() << "No client ids specified";
+        return 1;
+    }
+
+    auto clients = settings_.nativeMessagingClients();
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    clients -= ids.toSet();
+#else
+    clients -= QSet<QString>(ids.begin(), ids.end());
+#endif
+    settings_.nativeMessagingClients.setValue(clients);
+    return updateNativeMessagingManifests();
+}
+
+int CommandLineIface::listNativeMessagingClients() {
+    QTextStream out(stdout);
+    auto clients = settings_.nativeMessagingClients();
+    for (auto &&client : clients)
+        out << client << "\n";
+    return 0;
+}
+
+int CommandLineIface::updateNativeMessagingManifests() {
+    NativeMsgManager manager;
+    return manager.writeNativeMessagingAppManifests(settings_.nativeMessagingClients()) ? 0 : 1;
 }

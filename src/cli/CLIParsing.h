@@ -1,7 +1,9 @@
 #pragma once
-#include "constants.h"
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDebug>
+#include <QRegularExpression>
+#include "settings/Settings.h"
 
 namespace translateLocally {
 
@@ -30,8 +32,41 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
     parser.addOption({{"i", "input"}, QObject::tr("Source translation file (or just used stdin)."), "input", ""});
     parser.addOption({{"o", "output"}, QObject::tr("Target translation file (or just used stdout)."), "output", ""});
     parser.addOption({{"p", "plugin"}, QObject::tr("Start native message server to use for a browser plugin.")});
+    parser.addOption({"allow-client", QObject::tr("Add a native messaging client id that is allowed to use Native Messaging in the browser.")});
+    parser.addOption({"remove-client", QObject::tr("Remove a native messaging client id.")});
+    parser.addOption({"list-clients", QObject::tr("List allowed native messaging clients")});
+    parser.addOption({"update-manifests", QObject::tr("Register native messaging clients with user profile.")});
     parser.addOption({"debug", QObject::tr("Print debug messages")});
+
     parser.process(translateLocallyApp);
+}
+
+/**
+ * @bief Will get the native messaging ID from the command line args if there is one. If not, will return empty string.
+ * @param parser The command line parser.
+ * @return client id or empty string
+ */
+static QString getNativeMessagingClientId(QCommandLineParser& parser) {
+    auto const &args = parser.positionalArguments();
+
+    // On Firefox, the first argument is path to a manifest file, and the second is the extension id. I'm intentionally
+    // not checking for known full paths, just for the common suffix shared by all browser implementations, so people
+    // with Firefox forks or weird Firefox installations can still use this functionality as long as they copy the
+    // manifest file into the right folder by themselves.
+    QRegularExpression manifestPattern("NativeMessagingHosts/([^/]+)\\.json$");
+    if (args.size() >= 2 && manifestPattern.match(args[0]).hasMatch())
+        return args[1];
+
+    // On Chrome, the first argument is the extension origin, which is chrome's internal url pattern for
+    // anything related to a specific extension.
+    QRegularExpression chromeOriginPattern("^chrome-extension://(.+?)/$");
+    if (args.size() >= 1) {
+        auto match = chromeOriginPattern.match(args[0]);
+        if (match.hasMatch())
+            return match.captured(1);
+    }
+
+    return QString();
 }
 
 /**
@@ -41,7 +76,7 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
  */
 
 static AppType runType(QCommandLineParser& parser) {
-    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o"};
+    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o", "allow-client", "remove-client", "update-manifests", "list-clients"};
     QList<QString> nativemsgflags = {"p"};
     for (auto&& flag : nativemsgflags) {
         if (parser.isSet(flag)) {
@@ -55,12 +90,23 @@ static AppType runType(QCommandLineParser& parser) {
         }
     }
 
-    // Search for the extension ID among the start-up arguments. This is the only thing
-    // the native messaging APIs of Firefox and Chrome have in common. See also:
+    // Look at the positional command line arguments to check whether we're being called from Firefox or Chromium.
+    // See also:
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
-    for (auto&& path : parser.positionalArguments()) {
-        if (kNativeMessagingClients.contains(path)) {
+    // Call site for Firefox, which passes path to manifest.json + extension id:
+    // https://searchfox.org/mozilla-central/rev/bf6f194694c9d1ae92847f3d4e4c15c2486f3200/toolkit/components/extensions/NativeMessaging.jsm#101
+    // Call site for Chrome, which just gives you extension origin with some additional args on Windows:
+    // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/extensions/api/messaging/native_process_launcher.cc;l=235-239;drc=83230694ec1e53e8e53458f502f0adf1eade0408
+
+    QString nativeClientId = getNativeMessagingClientId(parser);
+    if (!nativeClientId.isEmpty()) {
+        if (Settings().nativeMessagingClients().contains(nativeClientId)) {
             return NativeMsg;
+        } else {
+            qCritical() << "The command line args matched that of a browser trying to start a native messaging host, "
+                           "but the extension id provided is not known to translateLocally. Did you register it using "
+                           "`translateLocally --allow-client" << nativeClientId << "`?";
+            exit(128); // Exiting because possibly security issue.
         }
     }
 
