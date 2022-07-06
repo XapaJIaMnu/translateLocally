@@ -125,12 +125,17 @@ void NativeMsgIface::run() {
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
+    cout_.open(stdout, QIODevice::WriteOnly);
+
     iothread_ = std::thread([this](){
+        QFile cin;
+        cin.open(stdin, QIODevice::ReadOnly);
+
         for (;;) {
             // First part of the message: Find how long the input is. If that
             // read fails, we're probably at EOF.
             char len[4];
-            if (!std::cin.read(len, 4))
+            if (!cin.read(len, 4))
                 break;
 
             int ilen = *reinterpret_cast<unsigned int *>(len);
@@ -141,7 +146,7 @@ void NativeMsgIface::run() {
 
             //  Read in the message into Json
             QByteArray input(ilen, 0);
-            if (!std::cin.read(input.data(), ilen)) {
+            if (!cin.read(input.data(), ilen)) {
                 std::cerr << "Error while reading input message of length " << ilen << ". Shutting down." << std::endl;
                 break;
             }
@@ -376,11 +381,14 @@ request_variant NativeMsgIface::parseJsonInput(QByteArray input) {
 
 void NativeMsgIface::lockAndWriteJsonHelper(QJsonDocument&& document) {
     QByteArray arr = document.toJson();
-    std::lock_guard<std::mutex> lock(coutmutex_);
     size_t outputSize = arr.size();
-    std::cout.write(reinterpret_cast<char*>(&outputSize), 4);
-    std::cout.write(arr.data(), outputSize);
-    std::cout.flush();
+
+    // Lock for writing to stdout
+    std::lock_guard<std::mutex> lock(coutmutex_);
+    
+    cout_.write(reinterpret_cast<char*>(&outputSize), 4);
+    cout_.write(arr);
+    cout_.flush();
 }
 
 // Fills in the TranslationRequest.{model,pivot} parameters if src + trg are specified.
