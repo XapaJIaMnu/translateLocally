@@ -43,25 +43,31 @@ static void CLIArgumentInit(QAppType& translateLocallyApp, QCommandLineParser& p
 
 /**
  * @bief Will get the native messaging ID from the command line args if there is one. If not, will return empty string.
- * @param parser The command line parser.
  * @return client id or empty string
  */
-static QString getNativeMessagingClientId(QCommandLineParser& parser) {
-    auto const &args = parser.positionalArguments();
+static QString getNativeMessagingClientId() {
+    // Look at the positional command line arguments to check whether we're being called from Firefox or Chromium.
+    // See also:
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
+    // Call site for Firefox, which passes path to manifest.json + extension id:
+    // https://searchfox.org/mozilla-central/rev/bf6f194694c9d1ae92847f3d4e4c15c2486f3200/toolkit/components/extensions/NativeMessaging.jsm#101
+    // Call site for Chrome, which just gives you extension origin with some additional args on Windows:
+    // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/extensions/api/messaging/native_process_launcher.cc;l=235-239;drc=83230694ec1e53e8e53458f502f0adf1eade0408
+    auto const &args = QCoreApplication::arguments();
 
     // On Firefox, the first argument is path to a manifest file, and the second is the extension id. I'm intentionally
     // not checking for known full paths, just for the common suffix shared by all browser implementations, so people
     // with Firefox forks or weird Firefox installations can still use this functionality as long as they copy the
     // manifest file into the right folder by themselves.
-    QRegularExpression manifestPattern("NativeMessagingHosts/([^/]+)\\.json$");
-    if (args.size() >= 2 && manifestPattern.match(args[0]).hasMatch())
-        return args[1];
+    if (args.size() == 3 && args[1].endsWith(".json"))
+        return args[2];
 
     // On Chrome, the first argument is the extension origin, which is chrome's internal url pattern for
-    // anything related to a specific extension.
+    // anything related to a specific extension. Chrome can pass in additional
+    // arguments on windows, so no specific check on size() here.
     QRegularExpression chromeOriginPattern("^chrome-extension://(.+?)/$");
-    if (args.size() >= 1) {
-        auto match = chromeOriginPattern.match(args[0]);
+    if (args.size() > 2) {
+        auto match = chromeOriginPattern.match(args[1]);
         if (match.hasMatch())
             return match.captured(1);
     }
@@ -76,29 +82,8 @@ static QString getNativeMessagingClientId(QCommandLineParser& parser) {
  */
 
 static AppType runType(QCommandLineParser& parser) {
-    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o", "allow-client", "remove-client", "update-manifests", "list-clients"};
-    QList<QString> nativemsgflags = {"p"};
-    for (auto&& flag : nativemsgflags) {
-        if (parser.isSet(flag)) {
-            return NativeMsg;
-        }
-    }
-
-    for (auto&& flag : cmdonlyflags) {
-        if (parser.isSet(flag)) {
-            return CLI;
-        }
-    }
-
-    // Look at the positional command line arguments to check whether we're being called from Firefox or Chromium.
-    // See also:
-    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#extension_side
-    // Call site for Firefox, which passes path to manifest.json + extension id:
-    // https://searchfox.org/mozilla-central/rev/bf6f194694c9d1ae92847f3d4e4c15c2486f3200/toolkit/components/extensions/NativeMessaging.jsm#101
-    // Call site for Chrome, which just gives you extension origin with some additional args on Windows:
-    // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/extensions/api/messaging/native_process_launcher.cc;l=235-239;drc=83230694ec1e53e8e53458f502f0adf1eade0408
-
-    QString nativeClientId = getNativeMessagingClientId(parser);
+    // Native messaging called from a browser
+    QString nativeClientId = getNativeMessagingClientId();
     if (!nativeClientId.isEmpty()) {
         if (Settings().nativeMessagingClients().contains(nativeClientId)) {
             return NativeMsg;
@@ -110,6 +95,20 @@ static AppType runType(QCommandLineParser& parser) {
         }
     }
 
+    // Manual native messaging mode through -p or --plugin flag
+    if (parser.isSet("plugin")) {
+        return NativeMsg;
+    }
+
+    // Cli mode
+    QList<QString> cmdonlyflags = {"l", "a", "d", "r", "m", "i", "o", "allow-client", "remove-client", "update-manifests", "list-clients"};
+    for (auto&& flag : cmdonlyflags) {
+        if (parser.isSet(flag)) {
+            return CLI;
+        }
+    }
+
+    // Non-argument mode
     return GUI;
 }
 
