@@ -129,7 +129,16 @@ def get_build():
     """Instantiate an asyncio TranslateLocally client that connects to
     tranlateLocally in your local build directory.
     """
-    return TranslateLocally(Path(__file__).resolve().parent / Path("../build/translateLocally"), "-p")
+    paths = [
+        Path("./translateLocally"),
+        Path(__file__).resolve().parent / Path("../build/translateLocally")
+    ];
+
+    for path in paths:
+        if path.exists():
+            return TranslateLocally(path.resolve(), "-p", "--debug")
+    raise RuntimeError("Could not find translateLocally binary")
+
 
 
 async def download_with_progress(tl, model, position):
