@@ -81,6 +81,10 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     // Disable synchronisation with C style streams. That should make IO faster
     std::ios_base::sync_with_stdio(false);
 
+    // Decouple cin from cout so we can read and write (and flush) them
+    // independently.
+    std::cin.tie(NULL);
+
     // Init the marian translation service:
     marian::bergamot::AsyncService::Config serviceConfig;
     serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
