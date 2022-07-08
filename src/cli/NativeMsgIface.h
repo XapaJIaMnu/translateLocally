@@ -1,5 +1,6 @@
 #pragma once
-#include <QFile>
+#include <iostream>
+
 #include <QPair>
 #include <mutex>
 #include <optional>
@@ -291,7 +292,6 @@ private:
     std::thread iothread_;
     //QEventLoop eventLoop_;
     std::mutex coutmutex_;
-    QFile cout_;
     
     // Sadly we don't have C++20 on ubuntu 18.04, otherwise could use std::atomic<T>::wait
     std::atomic<int> operations_; // Keeps track of all operations. So that we know when to quit
