@@ -15,9 +15,11 @@ inline bool operator==(const QMap<QString, translateLocally::Repository>& lhs, c
 }
 }
 
-Q_DECLARE_METATYPE(QList<QStringList>);
-
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
+typedef QMap<QString,translateLocally::Repository> QSettingsMap
+Q_DECLARE_METATYPE(QSettingsMap);
 Q_DECLARE_METATYPE(QSet<QString>);
+#endif
 
 /**
  * Settings:
