@@ -58,18 +58,21 @@ void RepositoryTableModel::removeRow(int index, QModelIndex const &parent) {
 }
 
 void RepositoryTableModel::removeRows(QList<QModelIndex> rows) {
-    QList<QModelIndex> toRemoveRows;
+    QList<QString> toRemoveKeys;
+    int first = rowCount(), last = 0;
     for (auto&& idx : rows) {
         if (!canRemove(idx)) {
             emit warning("Unable to remove the builtin repository.");
             continue;
         }
-        toRemoveRows.push_back(idx);
+        if (idx.row() < first) first = idx.row();
+        if (idx.row() > last) last = idx.row();
+        toRemoveKeys.push_back(getKey(idx.row()));
     }
-    std::sort(toRemoveRows.begin(), toRemoveRows.end(), [](QModelIndex a, QModelIndex b) {return a.row() < b.row();});
-    beginRemoveRows(QModelIndex(), toRemoveRows.begin()->row(), toRemoveRows.back().row());
-    for (auto&& idx : toRemoveRows) {
-        repositories_.remove(getKey(idx.row()));
+
+    beginRemoveRows(QModelIndex(), first, last);
+    for (auto&& key : toRemoveKeys) {
+        repositories_.remove(key);
     }
     endRemoveRows();
 }
