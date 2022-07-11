@@ -2,6 +2,7 @@
 #include "types.h"
 #include "constants.h"
 #include <QSet>
+#include <iostream>
 
 // TODO resolve this namespace situation
 using namespace translateLocally;
@@ -11,46 +12,32 @@ RepositoryTableModel::RepositoryTableModel(QObject * parent)
     load({});
 }
 
-QList<QStringList> RepositoryTableModel::dump() const {
-    QList<QStringList> out;
-    for (auto &&repo : repositories_) {
-        if (repo.isDefault) continue;
-        out << QStringList{repo.name, repo.url};
-    }
-    return out;
+QString RepositoryTableModel::getKey(int rowindex) const {
+    QModelIndex myidx = this->createIndex(rowindex, 1); // Select the key, which is the URL
+    return myidx.data().toString();
 }
 
-void RepositoryTableModel::load(QList<QStringList> data) {
+QMap<QString, translateLocally::Repository> RepositoryTableModel::dump() const {
+    return repositories_;
+}
+
+void RepositoryTableModel::load(QMap<QString, translateLocally::Repository> data) {
     beginRemoveRows(QModelIndex(), 0, repositories_.size());
     repositories_.clear();
-    urls_.clear();
     endRemoveRows();
 
-    // Just here for display, you can't alter it through the table.
-    repositories_ << Repository{kDefaultRepositoryName,kDefaultRepositoryURL, true};
-    urls_.insert(kDefaultRepositoryURL);
-    
-    for (auto &&pair : data) {
-        // pair: [name, ..., url] where ... is currently [].
-
-        if (urls_.contains(pair.back()))
-            continue;
-
-        repositories_ << Repository{pair.first(), pair.back(), false};
-        urls_.insert(pair.back());
-    }
-        
-    // TODO: I'm lying here, it has already happened. Will Qt be okay with that?
-    beginInsertRows(QModelIndex(), 0, repositories_.size());
+    beginInsertRows(QModelIndex(), 0, data.size());
+    repositories_ = data;
     endInsertRows();
 }
 
 bool RepositoryTableModel::canRemove(QModelIndex index) const {
-    return !repositories_.at(index.row()).isDefault;
+    QString mykey = getKey(index.row());
+    return !repositories_[mykey].isDefault;
 }
 
 void RepositoryTableModel::insert(QString name, QString url) {
-    if (urls_.contains(url)) {
+    if (repositories_.contains(url)) {
         // TODO: update name instead?
         emit warning("This repository is already in the list.");
         return;
@@ -58,45 +45,31 @@ void RepositoryTableModel::insert(QString name, QString url) {
 
     int position = repositories_.size();
     beginInsertRows(QModelIndex(),position, position);
-    repositories_ << Repository{name, url, false};
-    urls_.insert(url);
+    repositories_.insert(url, Repository{name, url, false});
     endInsertRows();
 }
 
 void RepositoryTableModel::removeRow(int index, QModelIndex const &parent) {
     Q_UNUSED(parent);
+    QString mykey = getKey(index);
     beginRemoveRows(QModelIndex(), index, index);
-    urls_.remove(repositories_.at(index).url);
-    repositories_.removeAt(index);
+    repositories_.remove(mykey);
     endRemoveRows();
 }
 
 void RepositoryTableModel::removeRows(QList<QModelIndex> rows) {
-    // If we delete multiple repositories, indexes will change during deletion.
-    // Instead make a list of urls (which are unique) to delete.
-    QSet<QString> toDelete;
-    int first = rowCount(), last = 0;
-
-    for (auto &&index : rows) {
-        if (!canRemove(index)) {
+    QList<QModelIndex> toRemoveRows;
+    for (auto&& idx : rows) {
+        if (!canRemove(idx)) {
             emit warning("Unable to remove the builtin repository.");
-            continue; // TODO this could be trouble if it appeared in the middle of the unremovable rows
+            continue;
         }
-
-        if (index.row() < first) first = index.row();
-        if (index.row() > last) last = index.row();
-        toDelete << repositories_.at(index.row()).url;
+        toRemoveRows.push_back(idx);
     }
-
-    beginRemoveRows(QModelIndex(), first, last);
-    for (int i = first; i <= last;) {
-        if (toDelete.contains(repositories_.at(i).url)) {
-            urls_.remove(repositories_.at(i).url);
-            repositories_.removeAt(i);
-            --last; // No ++i since we removed i (so next round row[i] will be the next one) but our list has become 1 shorter.
-        } else {
-            ++i; // E.g. default repo we need to skip
-        }
+    std::sort(toRemoveRows.begin(), toRemoveRows.end(), [](QModelIndex a, QModelIndex b) {return a.row() < b.row();});
+    beginRemoveRows(QModelIndex(), toRemoveRows.begin()->row(), toRemoveRows.back().row());
+    for (auto&& idx : toRemoveRows) {
+        repositories_.remove(getKey(idx.row()));
     }
     endRemoveRows();
 }
@@ -129,16 +102,18 @@ QVariant RepositoryTableModel::headerData(int section, Qt::Orientation orientati
 }
 
 QVariant RepositoryTableModel::data(const QModelIndex &index, int role) const {
-    if (index.row() >= repositories_.size())
+    if (!index.isValid() || index.row() >= repositories_.size() || role != Qt::DisplayRole)
         return QVariant();
 
-    Repository const *repo = &repositories_.at(index.row());
+    auto it = repositories_.cbegin();
+    std::advance(it, index.row());
+    Repository const& repo = it.value();
 
     switch (index.column()) {
         case Column::Name:
             switch (role) {
                 case Qt::DisplayRole:
-                    return repo->name;
+                    return repo.name;
                 default:
                     return QVariant();
             }
@@ -146,7 +121,7 @@ QVariant RepositoryTableModel::data(const QModelIndex &index, int role) const {
         case Column::URL:
             switch (role) {
                 case Qt::DisplayRole:
-                    return repo->url;
+                    return repo.url;
                 default:
                     return QVariant();
             }
