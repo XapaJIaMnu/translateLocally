@@ -21,7 +21,6 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QVector<WordAlignment>>("QVector<WordAlignment>");
     qRegisterMetaType<Translation::Direction>("Translation::Direction");
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
-    qRegisterMetaTypeStreamOperators<QList<QStringList>>("QList<QStringList>");
     qRegisterMetaTypeStreamOperators<translateLocally::Repository>("translateLocally::Repository");
 #endif
 

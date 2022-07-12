@@ -2,7 +2,6 @@
 #include "types.h"
 #include "constants.h"
 #include <QSet>
-#include <iostream>
 
 // TODO resolve this namespace situation
 using namespace translateLocally;

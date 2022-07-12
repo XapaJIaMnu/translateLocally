@@ -1,7 +1,6 @@
 #pragma once
 #include <type_traits>
 #include <QObject>
-#include <QStringList>
 #include <QSettings>
 #include <QColor>
 #include <QSet>
