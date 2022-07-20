@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="behaviorTab">
       <attribute name="title">
@@ -215,6 +215,36 @@ of memory.</string>
            </property>
            <property name="text">
             <string>Delete</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="downloadButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Download</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="updateButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Update</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="getMoreButton">
+           <property name="toolTip">
+            <string>Connect to the Internet to get a list of remote models from available repositories.</string>
+           </property>
+           <property name="text">
+            <string>Get more...</string>
            </property>
           </widget>
          </item>

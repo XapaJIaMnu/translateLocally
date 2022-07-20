@@ -12,6 +12,8 @@
 #include <QJsonArray>
 #include <QNetworkReply>
 #include <QTemporaryDir>
+#include <QtGui>
+#include <QColor>
 #include <iostream>
 // libarchive
 #include <archive.h>
@@ -100,6 +102,15 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     });
 
     startupLoad();
+}
+
+std::optional<Model> ModelManager::findModelForUpdate(Model const& model) {
+    for (auto&& newmodel : getUpdatedModels()) {
+        if (newmodel.id() == model.id()) {
+            return newmodel;
+         }
+    }
+    return std::nullopt;
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
@@ -693,7 +704,10 @@ std::optional<Repository> ModelManager::getRepository(const Model &model) const 
 }
 
 void ModelManager::updateAvailableModels() {
+    // Reset the newModels.
+    beginRemoveRows(QModelIndex(), localModels_.size(), localModels_.size() + newModels_.size() - 1);
     newModels_.clear();
+    endRemoveRows();
     updatedModels_.clear();
 
     for (auto &&model : remoteModels_) {
@@ -718,19 +732,23 @@ void ModelManager::updateAvailableModels() {
         }
     }
 
+    // We have changed available models, so insert remotes. Insert only once everything is processed
+    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size() + newModels_.size() - 1);
+    endInsertRows();
+
     emit localModelsChanged();
 }
 
 int ModelManager::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return localModels_.size();
+    return localModels_.size() + newModels_.size();
 } 
 
 int ModelManager::columnCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return 3;
+    return 7;
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -741,34 +759,92 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         return QVariant();
 
     switch (section) {
-        case Column::Name:
-            return tr("Name", "translation model name");
+        case Column::Source:
+            return tr("Source", "Source language for the translation model.");
+        case Column::Target:
+            return tr("Target", "Target language for the translation model.");
+        case Column::Type:
+            return tr("Type", "The model type, affects speed.");
         case Column::Repo:
-            return tr("Repository", "repository from which the translation model originated");
-        case Column::Version:
-            return tr("Version", "translation model version");
+            return tr("Repository", "repository from which the translation model originated.");
+        case Column::LocalVer:
+            return tr("Local Version", "Version of the locally installed model.");
+        case Column::RemoteVer:
+            return tr("Remote Version", "Version of the remote model.");
+        case Column::Installed:
+            return tr("Installed", "Whether the model is available locally, remotely or is out of date.");
         default:
             return QVariant();
     }
 }
 
 QVariant ModelManager::data(const QModelIndex &index, int role) const {
-    if (index.row() >= localModels_.size())
+    if (index.row() >= localModels_.size() + newModels_.size())
         return QVariant();
 
-    Model model = localModels_[index.row()];
+    Model model; // Make sure we have all local models before the remote ones
+    if (index.row() < localModels_.size())
+        model = localModels_[index.row()];
+    else if (index.row() < localModels_.size() + newModels_.size())
+        model = newModels_[index.row() - localModels_.size()];
 
     if (role == Qt::UserRole)
         return QVariant::fromValue(model);
 
     switch (index.column()) {
-        case Column::Name:
+        case Column::Source:
             switch (role) {
                 case Qt::DisplayRole:
-                    return model.modelName;
+                    return model.src;
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
                 default:
                     return QVariant();
             }
+
+        case Column::Target:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.trg;
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
+                default:
+                    return QVariant();
+            }
+
+        case Column::Type:
+        switch (role) {
+            case Qt::DisplayRole:
+                return model.type;
+            case Qt::BackgroundRole:
+                if (model.isLocal()) {
+                    return QColor(0xD8, 0xF1, 0xBF);
+                } else {
+                    return QColor(0xE7, 0xE8, 0xE6);
+                }
+            case Qt::ForegroundRole:
+                if (model.outdated()) {
+                    return QColor(0xFD, 0x25, 0x58);
+                }
+            default:
+                return QVariant();
+        }
 
         case Column::Repo:
             switch (role) {
@@ -776,11 +852,21 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     auto repo = getRepository(model);
                     return repo ? repo->name : model.repositoryUrl;
                 }
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
                 default:
                     return QVariant();
             }
 
-        case Column::Version:
+        case Column::LocalVer:
             switch (role) {
                 case Qt::DisplayRole:
                     return model.localversion;
@@ -789,6 +875,62 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     // Error is "can't convert the result to QVariant."
                     // return Qt::AlignRight | Qt::AlignBaseline;
                     return Qt::AlignCenter;
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
+                default:
+                    return QVariant();
+            }
+
+        case Column::RemoteVer:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return model.remoteversion;
+                case Qt::TextAlignmentRole:
+                    // @TODO figure out how to compile combined flag as below.
+                    // Error is "can't convert the result to QVariant."
+                    // return Qt::AlignRight | Qt::AlignBaseline;
+                    return Qt::AlignCenter;
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
+                default:
+                    return QVariant();
+            }
+
+        case Column::Installed:
+            switch (role) {
+                case Qt::DisplayRole:
+                    return QVariant::fromValue(model.isLocal()).toString();
+                case Qt::TextAlignmentRole:
+                    // @TODO figure out how to compile combined flag as below.
+                    // Error is "can't convert the result to QVariant."
+                    // return Qt::AlignRight | Qt::AlignBaseline;
+                    return Qt::AlignCenter;
+                case Qt::BackgroundRole:
+                    if (model.isLocal()) {
+                        return QColor(0xD8, 0xF1, 0xBF);
+                    } else {
+                        return QColor(0xE7, 0xE8, 0xE6);
+                    }
+                case Qt::ForegroundRole:
+                    if (model.outdated()) {
+                        return QColor(0xFD, 0x25, 0x58);
+                    }
                 default:
                     return QVariant();
             }

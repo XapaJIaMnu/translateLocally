@@ -124,7 +124,11 @@ struct Model : ModelMeta {
     }
 
     inline bool outdated() const {
-        return localversion < remoteversion || localAPI < remoteAPI;
+        if (localversion == -1 || localAPI == -1) {
+            return false;
+        } else {
+            return localversion < remoteversion || localAPI < remoteAPI;
+        }
     }
 
     // Is-equal operator for removing models from list
@@ -224,6 +228,14 @@ public:
     bool removeModel(Model const &model);
 
     /**
+     * @brief findModelForUpdate finds the remote model corresponding to the local outdated model
+     * @param model local outdated model
+     * @return remote model to be downloaded or nullopt
+     */
+
+    std::optional<Model> findModelForUpdate(Model const& model);
+
+    /**
      * @Brief is this model managed by ModelManager (i.e. created with 
      * writeModel()).
      */
@@ -262,6 +274,13 @@ public:
     const QList<Model>& getNewModels() const;
 
     /**
+     * @Brief updates getNewModels() and getUpdatedModels() lists. Emits the
+     * localModelsChanged() signal. Possibly also the dataChanged() signal if
+     * an installed model appears to be outdated.
+     */
+     void updateAvailableModels();
+
+    /**
      * @brief whether or not fetchRemoteModels is in progress
      */
     inline bool isFetchingRemoteModels() const {
@@ -269,9 +288,13 @@ public:
     }
 
     enum Column {
-        Name,
+        Source,
+        Target,
+        Type,
         Repo,
-        Version
+        LocalVer,
+        RemoteVer,
+        Installed
     };
 
     Q_ENUM(Column);
@@ -328,13 +351,6 @@ private:
      * encountered, it will emit error(QString) signals with error messages.
      */
     bool validateModel(QString path);
-
-    /**
-     * @Brief updates getNewModels() and getUpdatedModels() lists. Emits the
-     * localModelsChanged() signal. Possibly also the dataChanged() signal if
-     * an installed model appears to be outdated.
-     */
-     void updateAvailableModels();
 
     QDir configDir_;
 

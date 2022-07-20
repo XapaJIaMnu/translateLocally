@@ -34,6 +34,15 @@ private slots:
     void on_importRepo_clicked();
     void on_deleteRepo_clicked();
 
+    void on_downloadButton_clicked();
+
+    void on_getMoreButton_clicked();
+
+    void on_updateButton_clicked();
+
+signals:
+    void downloadModel(Model model);
+
 private:
 
     Ui::TranslatorSettingsDialog *ui_;

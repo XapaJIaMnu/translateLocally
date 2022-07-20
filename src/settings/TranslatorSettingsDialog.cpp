@@ -38,8 +38,12 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
         ui_->coresBox->addItem(QString("%1").arg(option), option);
 
     ui_->localModelTable->setModel(modelManager_);
-    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Name, QHeaderView::Stretch);
-    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Version, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Source, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Target, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Repo, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::LocalVer, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Installed, QHeaderView::ResizeToContents);
 
     ui_->repoTable->setModel(&repositoryModel_);
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::Name, QHeaderView::ResizeToContents);
@@ -56,6 +60,9 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     // Repository actions
     connect(ui_->actionDeleteRepo, &QAction::triggered, this, &TranslatorSettingsDialog::on_deleteRepo_clicked);
     connect(ui_->repoTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateRepoActions);
+
+    // Connections with the modelManager: Re-enable the button after fetching the remote models
+    connect(modelManager_, &ModelManager::fetchedRemoteModels, this, [&](){ui_->getMoreButton->setEnabled(true);});
 
     connect(this, &QDialog::accepted, this, &TranslatorSettingsDialog::applySettings);
 
@@ -143,6 +150,8 @@ void TranslatorSettingsDialog::updateModelActions()
 {
     bool containsLocalModel = false;
     bool containsDeletableModel = false;
+    bool containsOutdatedModel = false;
+    bool containsDownloadableModel = false;
 
     for (auto&& index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
         Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
@@ -152,11 +161,19 @@ void TranslatorSettingsDialog::updateModelActions()
 
         if (modelManager_->isManagedModel(model))
             containsDeletableModel = true;
+
+        if (model.outdated())
+            containsOutdatedModel = true;
+
+        if (model.isRemote())
+            containsDownloadableModel = true;
     }
 
     ui_->actionRevealModel->setEnabled(containsLocalModel);
     ui_->actionDeleteModel->setEnabled(containsDeletableModel);
     ui_->deleteModelButton->setEnabled(containsDeletableModel);
+    ui_->updateButton->setEnabled(containsOutdatedModel);
+    ui_->downloadButton->setEnabled(containsDownloadableModel);
 }
 
 void TranslatorSettingsDialog::updateRepoActions()
@@ -196,5 +213,48 @@ void TranslatorSettingsDialog::on_deleteRepo_clicked()
         return;
 
     repositoryModel_.removeRows(selection);
+}
+
+
+void TranslatorSettingsDialog::on_downloadButton_clicked()
+{
+    if (ui_->localModelTable->selectionModel()->selectedRows().size() != 1) {
+        // Can only download one model at a time for now
+        QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
+    } else {
+        Model model = modelManager_->data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
+        emit downloadModel(model);
+        this->setVisible(false); // Hide the settings window so we can see the download.
+    }
+}
+
+
+void TranslatorSettingsDialog::on_getMoreButton_clicked()
+{
+    modelManager_->fetchRemoteModels();
+    ui_->getMoreButton->setEnabled(false);
+}
+
+
+void TranslatorSettingsDialog::on_updateButton_clicked()
+{
+    if (ui_->localModelTable->selectionModel()->selectedRows().size() != 1) {
+        // Can only download one model at a time for now
+        QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
+    } else {
+        Model oldmodel = modelManager_->data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
+        // Find the model in the updated models list
+        auto todownload = modelManager_->findModelForUpdate(oldmodel);
+
+        if (todownload) {
+            emit downloadModel(todownload.value());
+            this->setVisible(false); // Hide the settings window so we can see the download.
+        } else {
+            // We shouldn't ever be here, as the update button is only active if there's a model identified for update
+            // We should tell the user to submit a bug report
+            QMessageBox::warning(this, tr("Error"), "Seems like we can't find a model to update. Submit a bug please :(.");
+        }
+    }
+
 }
 
