@@ -779,14 +779,13 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
 }
 
 QVariant ModelManager::data(const QModelIndex &index, int role) const {
-    if (index.row() >= localModels_.size() + newModels_.size())
-        return QVariant();
-
     Model model; // Make sure we have all local models before the remote ones
     if (index.row() < localModels_.size())
         model = localModels_[index.row()];
     else if (index.row() < localModels_.size() + newModels_.size())
         model = newModels_[index.row() - localModels_.size()];
+    else if (index.row() >= localModels_.size() + newModels_.size()) // Return if we run overshoot the index.
+        return QVariant();
 
     if (role == Qt::UserRole)
         return QVariant::fromValue(model);
