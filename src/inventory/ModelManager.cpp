@@ -448,7 +448,7 @@ void ModelManager::scanForModels(QString path) {
 }
 
 bool ModelManager::readModelMetaFromDir(ModelMeta &model, QString dir) const {
-    QFile metaFile(dir + "/.modelMeta.json");
+    QFile metaFile(dir + "/modelMeta.json");
     if (!metaFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Could not parse model meta file" << metaFile.fileName() << ": file cannot be opened for reading.\n"
                  << "The model is either in the current working directory or downloaded before metadata was added to translateLocally.";
@@ -480,7 +480,7 @@ bool ModelManager::writeModelMetaToDir(ModelMeta const &model, QString dir) cons
         {"installedOn", model.installedOn.toString(Qt::ISODate)},
     }};
 
-    QFile metaFile(dir + "/.modelMeta.json");
+    QFile metaFile(dir + "/modelMeta.json");
     if (!metaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qDebug() << "Could not write model meta file" << metaFile.fileName() << ": file cannot be opened for writing";
         return false; // Cannot open file, might not exist
