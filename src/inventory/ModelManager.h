@@ -40,6 +40,10 @@ struct ModelMeta {
 Q_DECLARE_METATYPE(ModelMeta);
 
 struct Model : ModelMeta {
+private:
+    QString repo; // Models could come with their own repository in model_info.json fallback to that if we can't get it otherwise
+
+public:
     QString shortName; // Unique model identifier eg en-es-tiny
     QString modelName; // Long name, to be displayed in a single line
     QString url;
@@ -64,6 +68,8 @@ struct Model : ModelMeta {
                 modelName = val;
             } else if (key == "url") {
                 url = val;
+            } else if (key == "repository") {
+                repo = val;
             } else if (key == "src") {
                 src = val;
             } else if (key == "trg") {
@@ -107,6 +113,14 @@ struct Model : ModelMeta {
         return QString("%1%2").arg(shortName).arg(qHash(repositoryUrl));
     }
 
+    inline QString getReportedRepo() const {
+        // Models could come with their own repository specified in model_info.json
+        // However it is more reliable to remember where one model came from, by setting the
+        // repository URL when downloading. That being sad, sometimes it is useful to specify this
+        // for builtin models so that we remember that this is a self managed model
+        return repo;
+    }
+
     inline bool isLocal() const {
         return !path.isEmpty();
     }
@@ -140,22 +154,29 @@ struct Model : ModelMeta {
 
     // Debug
     friend inline QDebug operator<<(QDebug out, Model const &model) {
-        return out << "shortName:" << model.shortName
-                   << "modelName:" << model.modelName
-                   << "url:" << model.url
-                   << "path:" << model.path
-                   << "src:" << model.src
-                   << "trg:" << model.trg
-                   << "type:" << model.type
-                   << "localversion" << model.localversion
-                   << "localAPI" << model.localAPI
-                   << "remoteversion:" << model.remoteversion
-                   << "remoteAPI" << model.remoteAPI;
+        return out << "modelName:" << model.modelName
+                   << "\nshortName:" << model.shortName
+                   << "\nurl:" << model.url
+                   << "\nReported repo:" << model.getReportedRepo()
+                   << "\npath:" << model.path
+                   << "\nsrc:" << model.src
+                   << "\ntrg:" << model.trg
+                   << "\ntype:" << model.type
+                   << "\nlocalversion" << model.localversion
+                   << "\nlocalAPI" << model.localAPI
+                   << "\nremoteversion:" << model.remoteversion
+                   << "\nremoteAPI" << model.remoteAPI
+                   << "\nID" << model.id()
+                   << "\nRepository URL" << model.repositoryUrl
+                   << "\nDownload URL" << model.modelUrl
+                   << "\nInstalled ON" << model.installedOn
+                   << "\n"; // Final new line makes it more readable when priting multiple of those
     }
     /**
      * @brief toJson Returns a json representation of the model. The only difference between the struct is that url and path will not be part of the json.
      *               Instead, we will have one bool that says "Is it local, or is it remote". We also don't report checksums and API versions as those
-     *               should be handled by the backend. Used by NativeMessaging interface to describe available models.
+     *               should be handled by the backend. Used by NativeMessaging interface to describe available models. Finally, we don't include the self reported
+     *               repository from model_info.json
      * @return Json representation of a model
      */
      QJsonObject toJson() const {

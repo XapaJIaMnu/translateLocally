@@ -310,8 +310,6 @@ void MainWindow::handleDownload(QFile *file, QString filename, QVariant extra) {
     auto model = models_.writeModel(file, meta, filename);
     if (model) { // if writeModel didn't fail
         settings_.translationModel.setValue(model->path, Setting::AlwaysEmit);
-        models_.updateAvailableModels(); // @TODO This doesn't remove the newly downloaded model from the the list of
-                                         // of available models for downloading at this time. Need to fix it.
     }
 }
 

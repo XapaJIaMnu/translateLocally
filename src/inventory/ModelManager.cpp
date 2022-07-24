@@ -235,6 +235,11 @@ std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QStri
     model->path = newModelDirPath;
 
     writeModelMetaToDir(meta, model->path);
+    // We need to update the current model with the metadata that we have.
+    // I could have written 4 lines that do something like model.x = meta.x
+    // But if we change the metalfile format, I'd have to change that here as well.
+    // Instead I will abuse the readModelMetaFromDir function to avoid code duplication. Sue me.
+    readModelMetaFromDir(*model, model->path);
 
     // Upgrade behaviour: remove any older versions of this model. At least if
     // the older model is part of the models managed by us. We don't delete
@@ -344,6 +349,7 @@ std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLoc
                                     QString("trgTag"),
                                     QString{"type"},
                                     QString("url"),
+                                    QString("repository"),
                                     QString{"checksum"}};
     std::vector<QString> keysINT{QString("version"), QString("API")};
     
@@ -849,7 +855,7 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
             switch (role) {
                 case Qt::DisplayRole: {
                     auto repo = getRepository(model);
-                    return repo ? repo->name : model.repositoryUrl;
+                    return repo ? repo->name : model.getReportedRepo();
                 }
                 case Qt::BackgroundRole:
                     if (model.isLocal()) {
