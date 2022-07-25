@@ -186,6 +186,9 @@ of memory.</string>
          <property name="contextMenuPolicy">
           <enum>Qt::ActionsContextMenu</enum>
          </property>
+         <property name="horizontalScrollBarPolicy">
+          <enum>Qt::ScrollBarAsNeeded</enum>
+        </property>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>
          </property>

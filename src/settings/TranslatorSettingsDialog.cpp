@@ -16,9 +16,12 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
 , ui_(new Ui::TranslatorSettingsDialog())
 , settings_(settings)
 , modelManager_(modelManager)
+, modelProxy_(this)
 , repositoryModel_(this)
 {
     ui_->setupUi(this);
+
+    modelProxy_.setSourceModel(modelManager_);
     
     // Create lists of memory and cores
     QList<unsigned int> memory_options = {64, 128, 256, 512, 768, 1024, 1280, 1536, 1762, 2048};
@@ -37,7 +40,8 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     for (auto option : cores_options)
         ui_->coresBox->addItem(QString("%1").arg(option), option);
 
-    ui_->localModelTable->setModel(modelManager_);
+    ui_->localModelTable->setModel(&modelProxy_);
+    ui_->localModelTable->setSortingEnabled(true);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Source, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Target, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::ResizeToContents);

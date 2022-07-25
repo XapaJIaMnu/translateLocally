@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QItemSelection>
+#include <QSortFilterProxyModel>
 #include "Settings.h"
 #include "inventory/ModelManager.h"
 #include "settings/RepositoryTableModel.h"
@@ -48,6 +49,7 @@ private:
     Ui::TranslatorSettingsDialog *ui_;
     Settings *settings_;
     ModelManager *modelManager_;
+    QSortFilterProxyModel modelProxy_;
     RepositoryTableModel repositoryModel_;
 };
 
