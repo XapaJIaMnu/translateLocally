@@ -602,8 +602,9 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
-    QSharedPointer<int> num_repos(new int(settings_->repos().size())); // Keep track of how many repos have been fetched
-    for (QString url : settings_->repos().keys()) {
+    auto repos = settings_->repos();
+    QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
+    for (QString url : repos.keys()) {
         isFetchingRemoteModels_ = true;
         emit fetchingRemoteModels();
 
@@ -684,8 +685,9 @@ std::optional<Model> ModelManager::getModelForPath(QString path) const {
 }
 
 std::optional<Repository> ModelManager::getRepository(const Model &model) const {
-    auto it = settings_->repos().find(model.repositoryUrl);
-    if (it == settings_->repos().end())
+    auto repos = settings_->repos();
+    auto it = repos.find(model.repositoryUrl);
+    if (it == repos.end())
         return std::nullopt;
     return *it;
 }
