@@ -232,16 +232,6 @@ of memory.</string>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="updateButton">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Update</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QPushButton" name="getMoreButton">
            <property name="toolTip">
             <string>Connect to the Internet to get a list of remote models from available repositories.</string>

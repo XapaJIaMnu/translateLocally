@@ -39,8 +39,6 @@ private slots:
 
     void on_getMoreButton_clicked();
 
-    void on_updateButton_clicked();
-
 signals:
     void downloadModel(Model model);
 

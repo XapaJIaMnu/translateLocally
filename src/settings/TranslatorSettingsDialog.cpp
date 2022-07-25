@@ -184,8 +184,7 @@ void TranslatorSettingsDialog::updateModelActions()
     ui_->actionRevealModel->setEnabled(containsLocalModel);
     ui_->actionDeleteModel->setEnabled(containsDeletableModel);
     ui_->deleteModelButton->setEnabled(containsDeletableModel);
-    ui_->updateButton->setEnabled(containsOutdatedModel);
-    ui_->downloadButton->setEnabled(containsDownloadableModel);
+    ui_->downloadButton->setEnabled(containsDownloadableModel || containsOutdatedModel);
 }
 
 void TranslatorSettingsDialog::updateRepoActions()
@@ -235,6 +234,17 @@ void TranslatorSettingsDialog::on_downloadButton_clicked()
         QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
     } else {
         Model model = modelProxy_.data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
+        
+        // If this is a local model, we want to update instead?
+        if (model.isLocal()) {
+            auto update = modelManager_->findModelForUpdate(model);
+            if (!update) {
+                QMessageBox::warning(this, tr("Error"), "Seems like we can't find a model to update. Submit a bug please :(.");
+                return;
+            }
+            model = update.value();
+        }
+
         emit downloadModel(model);
         this->setVisible(false); // Hide the settings window so we can see the download.
     }
@@ -246,27 +256,3 @@ void TranslatorSettingsDialog::on_getMoreButton_clicked()
     modelManager_->fetchRemoteModels();
     ui_->getMoreButton->setEnabled(false);
 }
-
-
-void TranslatorSettingsDialog::on_updateButton_clicked()
-{
-    if (ui_->localModelTable->selectionModel()->selectedRows().size() != 1) {
-        // Can only download one model at a time for now
-        QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
-    } else {
-        Model oldmodel = modelProxy_.data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
-        // Find the model in the updated models list
-        auto todownload = modelManager_->findModelForUpdate(oldmodel);
-
-        if (todownload) {
-            emit downloadModel(todownload.value());
-            this->setVisible(false); // Hide the settings window so we can see the download.
-        } else {
-            // We shouldn't ever be here, as the update button is only active if there's a model identified for update
-            // We should tell the user to submit a bug report
-            QMessageBox::warning(this, tr("Error"), "Seems like we can't find a model to update. Submit a bug please :(.");
-        }
-    }
-
-}
-
