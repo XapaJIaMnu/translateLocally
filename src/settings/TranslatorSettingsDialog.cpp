@@ -48,7 +48,7 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->setSortingEnabled(true);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Source, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Target, QHeaderView::ResizeToContents);
-    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::Stretch);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Repo, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::LocalVer, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::RemoteVer, QHeaderView::ResizeToContents);

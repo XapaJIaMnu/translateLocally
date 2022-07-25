@@ -774,9 +774,9 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         case Column::Repo:
             return tr("Repository", "repository from which the translation model originated.");
         case Column::LocalVer:
-            return tr("Local Version", "Version of the locally installed model.");
+            return tr("Version", "Version of the locally installed model.");
         case Column::RemoteVer:
-            return tr("Available Version", "Version of the model that is available for download.");
+            return tr("Available", "Version of the model that is available for download.");
         default:
             return QVariant();
     }
