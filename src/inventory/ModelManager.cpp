@@ -1,6 +1,7 @@
 #include "ModelManager.h"
 #include "Network.h"
 #include "types.h"
+#include <QApplication>
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -14,6 +15,7 @@
 #include <QTemporaryDir>
 #include <QtGui>
 #include <QColor>
+#include <QStyle>
 #include <iostream>
 // libarchive
 #include <archive.h>
@@ -782,6 +784,19 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
     }
 }
 
+/**
+ * Fake colour science! Dirty hack to give background colour a hint of the 
+ * `hint` colour.
+ * TODO: Improve this because although it is functional the colours are ugly.
+ */
+static QColor tint(QColor background, QColor hint) {
+    auto bg = background.toHsv();
+    auto fg = hint.toHsv();
+    auto sat = (bg.saturation() + fg.saturation()) / 2.f;
+    auto val = (bg.value() + fg.value()) / 2.f;
+    return QColor::fromHsv(fg.hue(), sat, val, bg.alpha()).toRgb();
+}
+
 QVariant ModelManager::data(const QModelIndex &index, int role) const {
     Model model; // Make sure we have all local models before the remote ones
     if (index.row() < localModels_.size())
@@ -838,16 +853,21 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                     return QVariant();
             }
 
+        // TODO: should this colour mixing even be here? It feels odd to
+        // have code for model management but also row colouring in the
+        // same class.
         case Qt::BackgroundRole:
             if (model.isLocal()) {
-                return QColor(0xD8, 0xF1, 0xBF);
+                auto background = QApplication::style()->standardPalette().color(QPalette::Base);
+                return tint(background, QColor(0x0, 0xFF, 0x0));
             } else {
                 return QVariant();
             }
         
         case Qt::ForegroundRole:
             if (model.outdated()) {
-                return QColor(0xFD, 0x25, 0x58);
+                auto background = QApplication::style()->standardPalette().color(QPalette::Base);
+                return tint(background, QColor(0xFF, 0x0, 0x0));
             } else {
                 return QVariant();
             }
