@@ -791,138 +791,68 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
     else if (index.row() >= localModels_.size() + newModels_.size()) // Return if we run overshoot the index.
         return QVariant();
 
-    if (role == Qt::UserRole)
-        return QVariant::fromValue(model);
+    switch (role) {
+        // Used for retrieving the underlying model data in a generic way that
+        // survives e.g. QSortFilterProxyModel.
+        case Qt::UserRole:
+            return QVariant::fromValue(model);
 
-    switch (index.column()) {
-        case Column::Source:
-            switch (role) {
-                case Qt::DisplayRole:
+        case Qt::DisplayRole: {
+            switch (index.column()) {
+                case Column::Source:
                     return model.src;
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
-                    } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
-                    }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
-                default:
-                    return QVariant();
-            }
-
-        case Column::Target:
-            switch (role) {
-                case Qt::DisplayRole:
+                case Column::Target:
                     return model.trg;
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
-                    } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
-                    }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
-                default:
-                    return QVariant();
-            }
-
-        case Column::Type:
-        switch (role) {
-            case Qt::DisplayRole:
-                return model.type;
-            case Qt::BackgroundRole:
-                if (model.isLocal()) {
-                    return QColor(0xD8, 0xF1, 0xBF);
-                } else {
-                    return QColor(0xE7, 0xE8, 0xE6);
-                }
-            case Qt::ForegroundRole:
-                if (model.outdated()) {
-                    return QColor(0xFD, 0x25, 0x58);
-                }
-            default:
-                return QVariant();
-        }
-
-        case Column::Repo:
-            switch (role) {
-                case Qt::DisplayRole: {
+                case Column::Type:
+                    return model.type;
+                case Column::Repo: {
                     auto repo = getRepository(model);
                     return repo ? repo->name : model.getReportedRepo();
                 }
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
-                    } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
-                    }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
-                default:
-                    return QVariant();
-            }
-
-        case Column::LocalVer:
-            switch (role) {
-                case Qt::DisplayRole:
+                case Column::LocalVer:
                     if (model.isLocal()) {
                         return model.localversion;
                     } else {
                         return QVariant();
                     }
-                case Qt::TextAlignmentRole:
-                    // @TODO figure out how to compile combined flag as below. 
-                    // Error is "can't convert the result to QVariant."
-                    // return Qt::AlignRight | Qt::AlignBaseline;
-                    return Qt::AlignCenter;
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
-                    } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
-                    }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
-                default:
-                    return QVariant();
-            }
-
-        case Column::RemoteVer:
-            switch (role) {
-                case Qt::DisplayRole:
+                case Column::RemoteVer:
                     if (model.isRemote()) {
                         return model.remoteversion;
                     } else {
                         return QVariant();
                     }
-                case Qt::TextAlignmentRole:
-                    // @TODO figure out how to compile combined flag as below.
-                    // Error is "can't convert the result to QVariant."
-                    // return Qt::AlignRight | Qt::AlignBaseline;
-                    return Qt::AlignCenter;
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
-                    } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
-                    }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
                 default:
                     return QVariant();
             }
-    }
+        }
 
-    return QVariant();
+        case Qt::TextAlignmentRole:
+            switch (index.column()) {
+                case Column::LocalVer:
+                case Column::RemoteVer:
+                    // @TODO figure out how to compile combined flag as below. 
+                    // Error is "can't convert the result to QVariant."
+                    // return Qt::AlignRight | Qt::AlignBaseline;
+                    return Qt::AlignCenter;
+                default:
+                    return QVariant();
+            }
+
+        case Qt::BackgroundRole:
+            if (model.isLocal()) {
+                return QColor(0xD8, 0xF1, 0xBF);
+            } else {
+                return QVariant();
+            }
+        
+        case Qt::ForegroundRole:
+            if (model.outdated()) {
+                return QColor(0xFD, 0x25, 0x58);
+            } else {
+                return QVariant();
+            }
+
+        default:
+            return QVariant();
+    }
 }
