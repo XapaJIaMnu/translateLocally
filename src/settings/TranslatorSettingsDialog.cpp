@@ -1,4 +1,5 @@
 #include "TranslatorSettingsDialog.h"
+#include "FilterTableView.h"
 #include "Translation.h"
 #include "settings/RepositoryTableModel.h"
 #include "ui_TranslatorSettingsDialog.h"
@@ -21,8 +22,11 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
 {
     ui_->setupUi(this);
 
+    // Set up sorting & filtering proxy for the model table model
     modelProxy_.setSourceModel(modelManager_);
-    
+    modelProxy_.setFilterKeyColumn(-1); // filter rows based on all columns
+    modelProxy_.setFilterCaseSensitivity(Qt::CaseInsensitive);
+
     // Create lists of memory and cores
     QList<unsigned int> memory_options = {64, 128, 256, 512, 768, 1024, 1280, 1536, 1762, 2048};
 
@@ -48,6 +52,10 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Repo, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::LocalVer, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Installed, QHeaderView::ResizeToContents);
+    
+    // Changing filtering text in the table model updates the filter used by the model proxy. This also
+    // sets filterWildcard to '' when the filter text field is hidden.
+    connect(ui_->localModelTable, &FilterTableView::filterTextChanged, &modelProxy_, &QSortFilterProxyModel::setFilterWildcard);
 
     ui_->repoTable->setModel(&repositoryModel_);
     ui_->repoTable->horizontalHeader()->setSectionResizeMode(RepositoryTableModel::Column::Name, QHeaderView::ResizeToContents);

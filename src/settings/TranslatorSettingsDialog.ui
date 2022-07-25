@@ -182,7 +182,7 @@ of memory.</string>
         <number>8</number>
        </property>
        <item>
-        <widget class="QTableView" name="localModelTable">
+        <widget class="FilterTableView" name="localModelTable">
          <property name="contextMenuPolicy">
           <enum>Qt::ActionsContextMenu</enum>
          </property>
@@ -381,6 +381,11 @@ of memory.</string>
    <class>ColorWell</class>
    <extends>QToolButton</extends>
    <header>ColorWell.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FilterTableView</class>
+   <extends>QTableView</extends>
+   <header>FilterTableView.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
