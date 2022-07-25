@@ -51,7 +51,6 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Repo, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::LocalVer, QHeaderView::ResizeToContents);
-    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Installed, QHeaderView::ResizeToContents);
     
     // Changing filtering text in the table model updates the filter used by the model proxy. This also
     // sets filterWildcard to '' when the filter text field is hidden.

@@ -754,7 +754,7 @@ int ModelManager::rowCount(const QModelIndex &parent) const {
 int ModelManager::columnCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return 7;
+    return 6;
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -776,9 +776,7 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         case Column::LocalVer:
             return tr("Local Version", "Version of the locally installed model.");
         case Column::RemoteVer:
-            return tr("Remote Version", "Version of the remote model.");
-        case Column::Installed:
-            return tr("Installed", "Whether the model is available locally, remotely or is out of date.");
+            return tr("Available Version", "Version of the model that is available for download.");
         default:
             return QVariant();
     }
@@ -874,7 +872,11 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
         case Column::LocalVer:
             switch (role) {
                 case Qt::DisplayRole:
-                    return model.localversion;
+                    if (model.isLocal()) {
+                        return model.localversion;
+                    } else {
+                        return QVariant();
+                    }
                 case Qt::TextAlignmentRole:
                     // @TODO figure out how to compile combined flag as below. 
                     // Error is "can't convert the result to QVariant."
@@ -897,30 +899,11 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
         case Column::RemoteVer:
             switch (role) {
                 case Qt::DisplayRole:
-                    return model.remoteversion;
-                case Qt::TextAlignmentRole:
-                    // @TODO figure out how to compile combined flag as below.
-                    // Error is "can't convert the result to QVariant."
-                    // return Qt::AlignRight | Qt::AlignBaseline;
-                    return Qt::AlignCenter;
-                case Qt::BackgroundRole:
-                    if (model.isLocal()) {
-                        return QColor(0xD8, 0xF1, 0xBF);
+                    if (model.isRemote()) {
+                        return model.remoteversion;
                     } else {
-                        return QColor(0xE7, 0xE8, 0xE6);
+                        return QVariant();
                     }
-                case Qt::ForegroundRole:
-                    if (model.outdated()) {
-                        return QColor(0xFD, 0x25, 0x58);
-                    }
-                default:
-                    return QVariant();
-            }
-
-        case Column::Installed:
-            switch (role) {
-                case Qt::DisplayRole:
-                    return QVariant::fromValue(model.isLocal()).toString();
                 case Qt::TextAlignmentRole:
                     // @TODO figure out how to compile combined flag as below.
                     // Error is "can't convert the result to QVariant."
