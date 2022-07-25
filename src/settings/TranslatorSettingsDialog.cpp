@@ -51,6 +51,7 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Type, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::Repo, QHeaderView::ResizeToContents);
     ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::LocalVer, QHeaderView::ResizeToContents);
+    ui_->localModelTable->horizontalHeader()->setSectionResizeMode(ModelManager::Column::RemoteVer, QHeaderView::ResizeToContents);
     
     // Changing filtering text in the table model updates the filter used by the model proxy. This also
     // sets filterWildcard to '' when the filter text field is hidden.
@@ -72,8 +73,14 @@ TranslatorSettingsDialog::TranslatorSettingsDialog(QWidget *parent, Settings *se
     connect(ui_->actionDeleteRepo, &QAction::triggered, this, &TranslatorSettingsDialog::on_deleteRepo_clicked);
     connect(ui_->repoTable->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TranslatorSettingsDialog::updateRepoActions);
 
+    // Hide RemoteVer column if we don't have those available
+    ui_->localModelTable->setColumnHidden(ModelManager::Column::RemoteVer, modelManager_->getRemoteModels().isEmpty());
+
     // Connections with the modelManager: Re-enable the button after fetching the remote models
-    connect(modelManager_, &ModelManager::fetchedRemoteModels, this, [&](){ui_->getMoreButton->setEnabled(true);});
+    connect(modelManager_, &ModelManager::fetchedRemoteModels, this, [&](){
+        ui_->localModelTable->showColumn(ModelManager::Column::RemoteVer);
+        ui_->getMoreButton->setEnabled(true);
+    });
 
     connect(this, &QDialog::accepted, this, &TranslatorSettingsDialog::applySettings);
 
