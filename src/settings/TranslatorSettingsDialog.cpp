@@ -158,7 +158,7 @@ void TranslatorSettingsDialog::updateModelActions()
     bool containsDownloadableModel = false;
 
     for (auto&& index : ui_->localModelTable->selectionModel()->selectedIndexes()) {
-        Model model = modelManager_->data(index, Qt::UserRole).value<Model>();
+        Model model = modelProxy_.data(index, Qt::UserRole).value<Model>();
         
         if (model.isLocal())
             containsLocalModel = true;
@@ -226,7 +226,7 @@ void TranslatorSettingsDialog::on_downloadButton_clicked()
         // Can only download one model at a time for now
         QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
     } else {
-        Model model = modelManager_->data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
+        Model model = modelProxy_.data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
         emit downloadModel(model);
         this->setVisible(false); // Hide the settings window so we can see the download.
     }
@@ -246,7 +246,7 @@ void TranslatorSettingsDialog::on_updateButton_clicked()
         // Can only download one model at a time for now
         QMessageBox::warning(this, tr("Warning"), "Can only download one model at a time for now. Please select just one model.");
     } else {
-        Model oldmodel = modelManager_->data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
+        Model oldmodel = modelProxy_.data(ui_->localModelTable->selectionModel()->selectedIndexes().first(), Qt::UserRole).value<Model>();
         // Find the model in the updated models list
         auto todownload = modelManager_->findModelForUpdate(oldmodel);
 
