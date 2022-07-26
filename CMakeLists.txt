@@ -138,6 +138,8 @@ set(PROJECT_SOURCES
         src/AlignmentWorker.h
         src/ColorWell.cpp
         src/ColorWell.h
+        src/FilterTableView.cpp
+        src/FilterTableView.h
         src/MarianInterface.cpp
         src/MarianInterface.h
         src/Network.cpp

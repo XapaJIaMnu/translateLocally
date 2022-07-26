@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QItemSelection>
+#include <QSortFilterProxyModel>
 #include "Settings.h"
 #include "inventory/ModelManager.h"
 #include "settings/RepositoryTableModel.h"
@@ -34,11 +35,19 @@ private slots:
     void on_importRepo_clicked();
     void on_deleteRepo_clicked();
 
+    void on_downloadButton_clicked();
+
+    void on_getMoreButton_clicked();
+
+signals:
+    void downloadModel(Model model);
+
 private:
 
     Ui::TranslatorSettingsDialog *ui_;
     Settings *settings_;
     ModelManager *modelManager_;
+    QSortFilterProxyModel modelProxy_;
     RepositoryTableModel repositoryModel_;
 };
 

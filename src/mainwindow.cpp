@@ -111,7 +111,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&network_, &Network::error, this, &MainWindow::popupError); // All errors from the network class will be propagated to the GUI
     connect(&network_, &Network::progressBar, this, &MainWindow::downloadProgress);
     connect(&network_, &Network::downloadComplete, this, &MainWindow::handleDownload);
-    
+
+    // Make downloading from the settings window.
+    connect(&translatorSettingsDialog_, &TranslatorSettingsDialog::downloadModel, this, &MainWindow::downloadModelHelperSlot);
     
     // Set up the connection to the translator
     connect(translator_, &MarianInterface::pendingChanged, ui_->pendingIndicator, &QProgressBar::setVisible);
@@ -306,8 +308,9 @@ void MainWindow::handleDownload(QFile *file, QString filename, QVariant extra) {
     ModelMeta meta = extra.value<ModelMeta>();
     meta.installedOn = QDateTime::currentDateTimeUtc();
     auto model = models_.writeModel(file, meta, filename);
-    if (model) // if writeModel didn't fail
+    if (model) { // if writeModel didn't fail
         settings_.translationModel.setValue(model->path, Setting::AlwaysEmit);
+    }
 }
 
 void MainWindow::downloadProgress(qint64 ist, qint64 max) {
@@ -340,6 +343,10 @@ void MainWindow::downloadModel(Model model) {
     connect(reply, &QNetworkReply::finished, this, [&]() {
         showDownloadPane(false);
     });
+}
+
+void MainWindow::downloadModelHelperSlot(Model model) {
+    downloadModel(model);
 }
 
 /**

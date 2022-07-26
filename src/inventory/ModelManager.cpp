@@ -1,6 +1,7 @@
 #include "ModelManager.h"
 #include "Network.h"
 #include "types.h"
+#include <QApplication>
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -12,6 +13,9 @@
 #include <QJsonArray>
 #include <QNetworkReply>
 #include <QTemporaryDir>
+#include <QtGui>
+#include <QColor>
+#include <QStyle>
 #include <iostream>
 // libarchive
 #include <archive.h>
@@ -100,6 +104,15 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     });
 
     startupLoad();
+}
+
+std::optional<Model> ModelManager::findModelForUpdate(Model const& model) {
+    for (auto&& newmodel : getUpdatedModels()) {
+        if (newmodel.id() == model.id()) {
+            return newmodel;
+         }
+    }
+    return std::nullopt;
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
@@ -224,6 +237,11 @@ std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QStri
     model->path = newModelDirPath;
 
     writeModelMetaToDir(meta, model->path);
+    // We need to update the current model with the metadata that we have.
+    // I could have written 4 lines that do something like model.x = meta.x
+    // But if we change the metalfile format, I'd have to change that here as well.
+    // Instead I will abuse the readModelMetaFromDir function to avoid code duplication. Sue me.
+    readModelMetaFromDir(*model, model->path);
 
     // Upgrade behaviour: remove any older versions of this model. At least if
     // the older model is part of the models managed by us. We don't delete
@@ -333,6 +351,7 @@ std::optional<Model> ModelManager::parseModelInfo(QJsonObject& obj, translateLoc
                                     QString("trgTag"),
                                     QString{"type"},
                                     QString("url"),
+                                    QString("repository"),
                                     QString{"checksum"}};
     std::vector<QString> keysINT{QString("version"), QString("API")};
     
@@ -437,7 +456,7 @@ void ModelManager::scanForModels(QString path) {
 }
 
 bool ModelManager::readModelMetaFromDir(ModelMeta &model, QString dir) const {
-    QFile metaFile(dir + "/.modelMeta.json");
+    QFile metaFile(dir + "/modelMeta.json");
     if (!metaFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Could not parse model meta file" << metaFile.fileName() << ": file cannot be opened for reading.\n"
                  << "The model is either in the current working directory or downloaded before metadata was added to translateLocally.";
@@ -469,7 +488,7 @@ bool ModelManager::writeModelMetaToDir(ModelMeta const &model, QString dir) cons
         {"installedOn", model.installedOn.toString(Qt::ISODate)},
     }};
 
-    QFile metaFile(dir + "/.modelMeta.json");
+    QFile metaFile(dir + "/modelMeta.json");
     if (!metaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qDebug() << "Could not write model meta file" << metaFile.fileName() << ": file cannot be opened for writing";
         return false; // Cannot open file, might not exist
@@ -693,7 +712,10 @@ std::optional<Repository> ModelManager::getRepository(const Model &model) const 
 }
 
 void ModelManager::updateAvailableModels() {
+    // Reset the newModels.
+    beginRemoveRows(QModelIndex(), localModels_.size(), localModels_.size() + newModels_.size() - 1);
     newModels_.clear();
+    endRemoveRows();
     updatedModels_.clear();
 
     for (auto &&model : remoteModels_) {
@@ -718,19 +740,23 @@ void ModelManager::updateAvailableModels() {
         }
     }
 
+    // We have changed available models, so insert remotes. Insert only once everything is processed
+    beginInsertRows(QModelIndex(), localModels_.size(), localModels_.size() + newModels_.size() - 1);
+    endInsertRows();
+
     emit localModelsChanged();
 }
 
 int ModelManager::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return localModels_.size();
+    return localModels_.size() + newModels_.size();
 } 
 
 int ModelManager::columnCount(const QModelIndex &parent) const {
     Q_UNUSED(parent);
 
-    return 3;
+    return 6;
 }
 
 QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int role) const {
@@ -741,50 +767,84 @@ QVariant ModelManager::headerData(int section, Qt::Orientation orientation, int 
         return QVariant();
 
     switch (section) {
-        case Column::Name:
-            return tr("Name", "translation model name");
+        case Column::Source:
+            return tr("Source", "Source language for the translation model.");
+        case Column::Target:
+            return tr("Target", "Target language for the translation model.");
+        case Column::Type:
+            return tr("Type", "The model type, affects speed.");
         case Column::Repo:
-            return tr("Repository", "repository from which the translation model originated");
-        case Column::Version:
-            return tr("Version", "translation model version");
+            return tr("Repository", "repository from which the translation model originated.");
+        case Column::LocalVer:
+            return tr("Version", "Version of the locally installed model.");
+        case Column::RemoteVer:
+            return tr("Available", "Version of the model that is available for download.");
         default:
             return QVariant();
     }
 }
 
+/**
+ * Fake colour science! Dirty hack to give background colour a hint of the 
+ * `hint` colour.
+ * TODO: Improve this because although it is functional the colours are ugly.
+ */
+static QColor tint(QColor background, QColor hint) {
+    auto bg = background.toHsv();
+    auto fg = hint.toHsv();
+    auto sat = (bg.saturation() + fg.saturation()) / 2.f;
+    auto val = (bg.value() + fg.value()) / 2.f;
+    return QColor::fromHsv(fg.hue(), sat, val, bg.alpha()).toRgb();
+}
+
 QVariant ModelManager::data(const QModelIndex &index, int role) const {
-    if (index.row() >= localModels_.size())
+    Model model; // Make sure we have all local models before the remote ones
+    if (index.row() < localModels_.size())
+        model = localModels_[index.row()];
+    else if (index.row() < localModels_.size() + newModels_.size())
+        model = newModels_[index.row() - localModels_.size()];
+    else if (index.row() >= localModels_.size() + newModels_.size()) // Return if we run overshoot the index.
         return QVariant();
 
-    Model model = localModels_[index.row()];
+    switch (role) {
+        // Used for retrieving the underlying model data in a generic way that
+        // survives e.g. QSortFilterProxyModel.
+        case Qt::UserRole:
+            return QVariant::fromValue(model);
 
-    if (role == Qt::UserRole)
-        return QVariant::fromValue(model);
-
-    switch (index.column()) {
-        case Column::Name:
-            switch (role) {
-                case Qt::DisplayRole:
-                    return model.modelName;
-                default:
-                    return QVariant();
-            }
-
-        case Column::Repo:
-            switch (role) {
-                case Qt::DisplayRole: {
+        case Qt::DisplayRole: {
+            switch (index.column()) {
+                case Column::Source:
+                    return model.src;
+                case Column::Target:
+                    return model.trg;
+                case Column::Type:
+                    return model.type;
+                case Column::Repo: {
                     auto repo = getRepository(model);
-                    return repo ? repo->name : model.repositoryUrl;
+                    return repo ? repo->name : model.getReportedRepo();
                 }
+                case Column::LocalVer:
+                    if (model.isLocal()) {
+                        return model.localversion;
+                    } else {
+                        return QVariant();
+                    }
+                case Column::RemoteVer:
+                    if (model.isRemote()) {
+                        return model.remoteversion;
+                    } else {
+                        return QVariant();
+                    }
                 default:
                     return QVariant();
             }
+        }
 
-        case Column::Version:
-            switch (role) {
-                case Qt::DisplayRole:
-                    return model.localversion;
-                case Qt::TextAlignmentRole:
+        case Qt::TextAlignmentRole:
+            switch (index.column()) {
+                case Column::LocalVer:
+                case Column::RemoteVer:
                     // @TODO figure out how to compile combined flag as below. 
                     // Error is "can't convert the result to QVariant."
                     // return Qt::AlignRight | Qt::AlignBaseline;
@@ -792,7 +852,27 @@ QVariant ModelManager::data(const QModelIndex &index, int role) const {
                 default:
                     return QVariant();
             }
-    }
 
-    return QVariant();
+        // TODO: should this colour mixing even be here? It feels odd to
+        // have code for model management but also row colouring in the
+        // same class.
+        case Qt::BackgroundRole:
+            if (model.isLocal()) {
+                auto background = QApplication::style()->standardPalette().color(QPalette::Base);
+                return tint(background, QColor(0x0, 0xFF, 0x0));
+            } else {
+                return QVariant();
+            }
+        
+        case Qt::ForegroundRole:
+            if (model.outdated()) {
+                auto background = QApplication::style()->standardPalette().color(QPalette::Base);
+                return tint(background, QColor(0xFF, 0x0, 0x0));
+            } else {
+                return QVariant();
+            }
+
+        default:
+            return QVariant();
+    }
 }
