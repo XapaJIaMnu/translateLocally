@@ -39,7 +39,7 @@ signals:
     void launched();
 
 public slots:
-    
+    void downloadModelHelperSlot(Model model);
 
 private slots:
     void on_inputBox_textChanged();
