@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     qRegisterMetaType<Translation::Direction>("Translation::Direction");
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
     qRegisterMetaTypeStreamOperators<translateLocally::Repository>("translateLocally::Repository");
+    qRegisterMetaTypeStreamOperators<QMap<QString,translateLocally::Repository>>("QMap<QString,translateLocally::Repository>");
 #endif
 
     // Check for CLIOnly mode. In CLIOnly mode we create QCoreApplication that doesn't require a display plugin.
