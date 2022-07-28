@@ -19,7 +19,11 @@ Settings::Settings(QObject *parent)
 , syncScrolling(backing_, "sync_scrolling", true)
 , windowGeometry(backing_, "window_geometry")
 , cacheTranslations(backing_, "cache_translations", true)
-, externalRepos(backing_, "external_repos", QList<QStringList>())
+, repos(backing_, "newrepos", QMap<QString, translateLocally::Repository>{{translateLocally::kDefaultRepositoryURL, translateLocally::Repository{
+                                                                                 translateLocally::kDefaultRepositoryName,
+                                                                                 translateLocally::kDefaultRepositoryURL,
+                                                                                 true
+                                                                             }}})
 , nativeMessagingClients(backing_, "native_messaging_clients", {
     // Firefox browser extension: https://github.com/jelmervdl/firefox-translations
     "{c9cdf885-0431-4eed-8e18-967b1758c951}"
@@ -33,25 +37,4 @@ translateLocally::marianSettings Settings::marianSettings() const {
         workspace.value(),
         cacheTranslations.value()
     };
-}
-
-QMap<QString,translateLocally::Repository> Settings::repos() const {
-    QMap<QString,translateLocally::Repository> repositories;
-
-    repositories.insert(translateLocally::kDefaultRepositoryURL, {
-        translateLocally::kDefaultRepositoryName,
-        translateLocally::kDefaultRepositoryURL,
-        true
-    });
-    
-    for (auto &&pair : externalRepos()) {
-        // Future proofing: make sure we don't load repositories that already exist
-        // as default repositories.
-        if (repositories.contains(pair.back()))
-            continue;
-
-        repositories.insert(pair.back(), {pair.first(), pair.back(), false});
-    }
-
-    return repositories;
 }

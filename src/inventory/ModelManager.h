@@ -381,11 +381,6 @@ private:
     QList<Model> newModels_;
     QList<Model> updatedModels_;
 
-    /**
-     * local copy of Settings::repos() because of key lookups.
-     */
-    QMap<QString,translateLocally::Repository> repositories_;
-
     Network *network_;
     Settings *settings_;
     bool isFetchingRemoteModels_;

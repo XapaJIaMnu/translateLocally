@@ -1,15 +1,24 @@
 #pragma once
 #include <type_traits>
 #include <QObject>
-#include <QStringList>
 #include <QSettings>
 #include <QColor>
 #include <QSet>
 #include "types.h"
 
-Q_DECLARE_METATYPE(QList<QStringList>);
+namespace  {
+inline bool operator==(const QMap<QString, translateLocally::Repository>& lhs, const translateLocally::Repository& rhs) {
+    // QMap Comparison is quite expensive. I suggest update repositories every time so just return that it is
+    // never equal to the old one.
+    return false;
+}
+}
 
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
+typedef QMap<QString,translateLocally::Repository> QSettingsMap;
+Q_DECLARE_METATYPE(QSettingsMap);
 Q_DECLARE_METATYPE(QSet<QString>);
+#endif
 
 /**
  * Settings:
@@ -40,7 +49,6 @@ protected:
 signals:
     void valueChanged(QString name, QVariant value);
 };
-
 
 /**
  * SettingImpl<T>:
@@ -98,10 +106,6 @@ public:
     SettingImpl<bool> syncScrolling;
     SettingImpl<QByteArray> windowGeometry;
     SettingImpl<bool> cacheTranslations;
-    SettingImpl<QList<QStringList>> externalRepos; // Format is {{name, repo}, {name, repo}...}. There are more suitable formats, but this one actually is a QVariant
+    SettingImpl<QMap<QString, translateLocally::Repository>> repos;
     SettingImpl<QSet<QString>> nativeMessagingClients;
-
-    // Accessor for externalRepos() + default repos, keyed by url since that's
-    // useful for lookups, and we need to dedup on url anyway.
-    QMap<QString,translateLocally::Repository> repos() const;
 };

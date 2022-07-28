@@ -103,7 +103,7 @@ void TranslatorSettingsDialog::updateSettings()
     ui_->alignmentColorButton->setColor(settings_->alignmentColor());
     ui_->syncScrollingCheckbox->setChecked(settings_->syncScrolling());
     ui_->cacheTranslationsCheckbox->setChecked(settings_->cacheTranslations());
-    repositoryModel_.load(settings_->externalRepos.value());
+    repositoryModel_.load(settings_->repos.value());
 }
 
 void TranslatorSettingsDialog::applySettings()
@@ -115,7 +115,7 @@ void TranslatorSettingsDialog::applySettings()
     settings_->alignmentColor.setValue(ui_->alignmentColorButton->color());
     settings_->syncScrolling.setValue(ui_->syncScrollingCheckbox->isChecked());
     settings_->cacheTranslations.setValue(ui_->cacheTranslationsCheckbox->isChecked());
-    settings_->externalRepos.setValue(repositoryModel_.dump());
+    settings_->repos.setValue(repositoryModel_.dump());
 }
 
 void TranslatorSettingsDialog::revealSelectedModels()

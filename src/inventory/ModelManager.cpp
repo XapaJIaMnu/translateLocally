@@ -75,7 +75,6 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     : QAbstractTableModel(parent)
     , network_(new Network(this))
     , settings_(settings)
-    , repositories_(settings->repos())
     , isFetchingRemoteModels_(false)
 {
     // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
@@ -89,8 +88,7 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
         }
     }
     
-    connect(&(settings_->externalRepos), &Setting::valueChanged, this, [&]{
-        repositories_ = settings_->repos();
+    connect(&(settings_->repos), &Setting::valueChanged, this, [&]{
         // I disabled the call to fetch the remote models because I'm not
         // certain that the internet access is expected (and permitted) by the
         // end user at this point.
@@ -623,8 +621,9 @@ void ModelManager::fetchRemoteModels(QVariant extradata) {
     if (isFetchingRemoteModels())
         return;
 
-    QSharedPointer<int> num_repos(new int(repositories_.size())); // Keep track of how many repos have been fetched
-    for (QString url : repositories_.keys()) {
+    auto repos = settings_->repos();
+    QSharedPointer<int> num_repos(new int(repos.size())); // Keep track of how many repos have been fetched
+    for (QString url : repos.keys()) {
         isFetchingRemoteModels_ = true;
         emit fetchingRemoteModels();
 
@@ -705,8 +704,9 @@ std::optional<Model> ModelManager::getModelForPath(QString path) const {
 }
 
 std::optional<Repository> ModelManager::getRepository(const Model &model) const {
-    auto it = repositories_.find(model.repositoryUrl);
-    if (it == repositories_.end())
+    auto repos = settings_->repos();
+    auto it = repos.find(model.repositoryUrl);
+    if (it == repos.end())
         return std::nullopt;
     return *it;
 }

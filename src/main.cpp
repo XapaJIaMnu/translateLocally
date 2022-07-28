@@ -9,6 +9,7 @@
 #include "cli/CLIParsing.h"
 #include "cli/CommandLineIface.h"
 #include "cli/NativeMsgIface.h"
+#include "types.h"
 
 int main(int argc, char *argv[])
 {
@@ -19,9 +20,9 @@ int main(int argc, char *argv[])
     qRegisterMetaType<Translation>("Translation");
     qRegisterMetaType<QVector<WordAlignment>>("QVector<WordAlignment>");
     qRegisterMetaType<Translation::Direction>("Translation::Direction");
-    qRegisterMetaType<QList<QStringList>>("QList<QStringList>");
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
-    qRegisterMetaTypeStreamOperators<QList<QStringList>>("QList<QStringList>");
+    qRegisterMetaTypeStreamOperators<translateLocally::Repository>("translateLocally::Repository");
+    qRegisterMetaTypeStreamOperators<QMap<QString,translateLocally::Repository>>("QMap<QString,translateLocally::Repository>");
 #endif
 
     // Check for CLIOnly mode. In CLIOnly mode we create QCoreApplication that doesn't require a display plugin.
