@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <QPair>
+#include <QScopedPointer>
 #include <mutex>
 #include <optional>
 #include <type_traits>
@@ -299,7 +300,8 @@ private:
     std::condition_variable pendingOpsCV_;
 
     // Marian shared ptr. We should be using a unique ptr but including the actual header breaks QT compilation. Sue me.
-    std::shared_ptr<marian::bergamot::AsyncService> service_;
+    QScopedPointer<marian::bergamot::AsyncService> service_;
+    //std::shared_ptr<marian::bergamot::AsyncService> service_;
 
     // TranslateLocally bits
     Settings settings_;

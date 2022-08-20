@@ -89,7 +89,8 @@ NativeMsgIface::NativeMsgIface(QObject * parent) :
     marian::bergamot::AsyncService::Config serviceConfig;
     serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
     serviceConfig.cacheSize = settings_.marianSettings().translation_cache ? kTranslationCacheSize : 0;
-    service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
+    //service_ = std::make_shared<marian::bergamot::AsyncService>(serviceConfig);
+    service_.reset(new marian::bergamot::AsyncService(serviceConfig));
 
     // Pick up on network errors: Right now these are only caused by DownloadRequest
     // because of how Network.h is implemented. But in the future it might be that
@@ -414,6 +415,13 @@ bool NativeMsgIface::loadModels(TranslationRequest const &request) {
     }, *model_))
         return true;
 
+    // Reset service to clear model memory
+    // Init the marian translation service:
+    marian::bergamot::AsyncService::Config serviceConfig;
+    serviceConfig.numWorkers = settings_.marianSettings().cpu_threads;
+    serviceConfig.cacheSize = settings_.marianSettings().translation_cache ? kTranslationCacheSize : 0;
+    service_.reset();
+    service_.reset(new marian::bergamot::AsyncService(serviceConfig));
     if (!request.model.isEmpty() && !request.pivot.isEmpty()) {
         auto model = models_.getModel(request.model);
         auto pivot = models_.getModel(request.pivot);
