@@ -18,13 +18,18 @@ make -j5
 
 Requires `QT>=5 libarchive intel-mkl-static`. We make use of the `QT>=5 network`, `QT>=5 linguisticTool` and `QT>=5 svg` components. Depending on your distro, those may be split in separate package from your QT package (Eg `qt{6/7}-tools-dev`; `qt{5/6}-svg` or `libqt5svg5-dev`). QT6 is fully supported and its use is encouraged. `intel-mkl-static` may be part of `mkl` or `intel-mkl` packages.
 
-### Ubuntu 20.04 dependencies:
+### Ubuntu 20.04 build dependencies:
 ```bash
 sudo apt-get install -y libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev
+# Get MKL installed. This does mkl installation but there might be a better way to do this.
+wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB" | sudo apt-key add -
+        sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
+        sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
+        sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
 ```
-### Archlinux dependencies
+### Archlinux build dependencies
 ```
-# pacman -S libarchive pcre2 protobuf qt6-base qt6-svg
+# pacman -S libarchive pcre2 protobuf qt6-base qt6-svg intel-oneapi-mkl
 ```
 
 ## MacOS Build
