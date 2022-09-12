@@ -35,6 +35,9 @@ jobs:
           - name: "macOS Big Sur 11.0 avx"
             os: macos-11.0
             arch: "core-avx-i"
+          - name: "macOS Big Sur 11.0 x86-64"
+            os: macos-11.0
+            arch: "x86-64"
          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
          # - name: "macOS Catalina 10.15 avx2"
          #   os: macos-10.15
@@ -117,7 +120,7 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |-
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_OSX_ARCHITECTURES=x86_64 ${{ env.ccache_cmake }}
         cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
