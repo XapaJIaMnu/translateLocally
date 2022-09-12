@@ -120,7 +120,7 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |-
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_OSX_ARCHITECTURES=x86_64 ${{ env.ccache_cmake }}
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
         cmake $GITHUB_WORKSPACE -LAH
 
     - name: Build
