@@ -3,7 +3,7 @@ Fast and secure translation on your local machine with a GUI, powered by marian 
 
 ## Downloads
 
-You can download the latest automatic build for Windows, Linux and Mac from the [releases](https://github.com/XapaJIaMnu/translateLocally/releases) github tab or from the [official website](https://translatelocally.com).
+You can download the latest automatic build for Windows, Linux and Mac from the [releases](https://github.com/XapaJIaMnu/translateLocally/releases) github tab or from the [official website](https://translatelocally.com). We also have compatibility builds for Windows and Mac that aim to cover very old hardware and M1.
 
 
 ## Compile from source
