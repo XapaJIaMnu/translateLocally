@@ -25,8 +25,9 @@ Settings::Settings(QObject *parent)
                                                                                  true
                                                                              }}})
 , nativeMessagingClients(backing_, "native_messaging_clients", {
-    // Firefox browser extension: https://github.com/jelmervdl/firefox-translations
-    "{c9cdf885-0431-4eed-8e18-967b1758c951}"
+    // Firefox browser extension: https://github.com/jelmervdl/firefox-translations (unlisted & public)
+    "{c9cdf885-0431-4eed-8e18-967b1758c951}",
+    "{2fa36771-561b-452c-b6c3-7486f42c25ae}"
 }) {
     //
 }
