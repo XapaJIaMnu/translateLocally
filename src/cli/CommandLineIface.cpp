@@ -42,6 +42,11 @@ CommandLineIface::CommandLineIface(QObject * parent)
 , translator_(new MarianInterface(this))
 , instream_(stdin)
 , outstream_(stdout) {
+    // Take care of encoding according to https://doc.qt.io/qt-6/qtextstream.html#setAutoDetectUnicode
+    instream_.setEncoding(QStringConverter::Encoding::Utf8);
+    instream_.setAutoDetectUnicode(true);
+    outstream_.setEncoding(QStringConverter::Encoding::Utf8);
+    outstream_.setAutoDetectUnicode(true);
     // Take care of slots and signals
     connect(translator_, &MarianInterface::error, this, &CommandLineIface::outputError);
     connect(translator_, &MarianInterface::translationReady, this, &CommandLineIface::outputTranslation);
