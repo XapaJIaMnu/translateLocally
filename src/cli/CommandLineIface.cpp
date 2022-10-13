@@ -2,6 +2,9 @@
 #include "cli/NativeMsgManager.h"
 #include <QFile>
 #include <QProcessEnvironment>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+#include <QTextCodec>
+#endif
 
 #include <array>
 
@@ -43,9 +46,14 @@ CommandLineIface::CommandLineIface(QObject * parent)
 , instream_(stdin)
 , outstream_(stdout) {
     // Take care of encoding according to https://doc.qt.io/qt-6/qtextstream.html#setAutoDetectUnicode
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0)) // https://github.com/XapaJIaMnu/translateLocally/issues/121#issuecomment-1277762146
+    instream_.setCodec(QTextCodec::codecForName(QByteArray("UTF-8")));
+    outstream_.setCodec(QTextCodec::codecForName(QByteArray("UTF-8")));
+#else
     instream_.setEncoding(QStringConverter::Encoding::Utf8);
-    instream_.setAutoDetectUnicode(true);
     outstream_.setEncoding(QStringConverter::Encoding::Utf8);
+#endif
+    instream_.setAutoDetectUnicode(true);
     outstream_.setAutoDetectUnicode(true);
     // Take care of slots and signals
     connect(translator_, &MarianInterface::error, this, &CommandLineIface::outputError);
