@@ -204,13 +204,22 @@ void NativeMsgIface::handleRequest(TranslationRequest request) {
 void NativeMsgIface::handleRequest(ListRequest request)  {
     // Fetch remote models if necessary.
     if (request.includeRemote && models_.getRemoteModels().isEmpty()) {
+        std::shared_ptr<ListRequest> requestCopy(std::make_shared<ListRequest>(request));
+
+        // If the fetch fails, make sure remote is excluded next time.
+        QMetaObject::Connection errorConnection = connectSingleShot(&models_, &ModelManager::error, this, [this, requestCopy](QString error) {
+            requestCopy->includeRemote = false;
+        });
+
         // Note: this might pick up the completion of an earlier fetchRemoteModels()
         // request but that's okay since fetchRemoteModels() returns early if a
         // fetch is still in progress. Also, fetchedRemoteModels() is called
         // regardless of whether errors occurred during the fetching.
-        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, request]([[maybe_unused]] QVariant ignored) {
-            handleRequest(request);
+        connectSingleShot(&models_, &ModelManager::fetchedRemoteModels, this, [this, requestCopy, errorConnection]([[maybe_unused]] QVariant ignored) {
+            QObject::disconnect(errorConnection);
+            handleRequest(*requestCopy);
         });
+
         return models_.fetchRemoteModels();
     }
     
