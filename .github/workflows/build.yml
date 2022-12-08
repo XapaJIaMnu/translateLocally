@@ -19,7 +19,7 @@ env:
   ccache_compresslevel: 9
   ccache_maxsize: 200M
   ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
-  MKL_URL: "https://romang.blob.core.windows.net/mariandev/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
+  MKL_URL: "https://data.statmt.org/romang/marian-regression-tests/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
   VCPKG_DEFAULT_TRIPLET: "x64-windows-static" # Used on Windows only
   VCPKG_BUILD_TYPE: "release" # Used on windows
   
