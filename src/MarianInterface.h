@@ -11,14 +11,14 @@
 #include <memory>
 
 struct ModelDescription;
+struct TranslationInput;
 
 constexpr const size_t kTranslationCacheSize = 1 << 16;
 
 class MarianInterface : public QObject {
     Q_OBJECT
 private:
-
-    std::unique_ptr<std::string> pendingInput_;
+    std::unique_ptr<TranslationInput> pendingInput_;
     std::unique_ptr<ModelDescription> pendingModel_;
     bool pendingShutdown_;
 
@@ -32,7 +32,7 @@ public:
     ~MarianInterface();
     QString const &model() const;
     void setModel(QString path_to_model_dir, const translateLocally::marianSettings& settings);
-    void translate(QString in);
+    void translate(QString in, bool HTML=false);
 signals:
     void translationReady(Translation translation);
     void pendingChanged(bool isBusy); // Disables issuing another translation while we are busy.

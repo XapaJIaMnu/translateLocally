@@ -40,6 +40,11 @@ int countWords(std::string input) {
 
 } // Anonymous namespace
 
+struct TranslationInput {
+    std::string text;
+    marian::bergamot::ResponseOptions options;
+};
+
 struct ModelDescription {
     std::string config_file;
     translateLocally::marianSettings settings;
@@ -71,7 +76,7 @@ MarianInterface::MarianInterface(QObject *parent)
 
         while (true) {
             std::unique_ptr<ModelDescription> modelChange;
-            std::unique_ptr<std::string> input;
+            std::unique_ptr<TranslationInput> input;
 
             {
                 // Wait for work
@@ -117,17 +122,14 @@ MarianInterface::MarianInterface(QObject *parent)
                     model = std::make_shared<marian::bergamot::TranslationModel>(modelConfig, modelChange->settings.cpu_threads);
                 } else if (input) {
                     if (model) {
-                        std::future<int> wordCount = std::async(countWords, *input); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
-
-                        marian::bergamot::ResponseOptions options;
-                        options.alignment = true;
+                        std::future<int> wordCount = std::async(countWords, input->text); // @TODO we're doing an "unnecessary" string copy here (necessary because we std::move input into service->translate)
 
                         Translation translation;
 
                         // Measure the time it takes to queue and respond to the
                         // translation request
                         auto start = std::chrono::steady_clock::now(); // Time the translation
-                        service->translate(model, std::move(*input), [&] (auto &&val) {
+                        service->translate(model, std::move(input->text), [&] (auto &&val) {
                             auto end = std::chrono::steady_clock::now();
                             // Calculate translation speed in terms of words per second
                             double words = wordCount.get();
@@ -137,7 +139,7 @@ MarianInterface::MarianInterface(QObject *parent)
                             std::unique_lock<std::mutex> lock(internal_mutex);
                             translation = Translation(std::move(val), translationSpeed);
                             cv_.notify_one();
-                        }, options);
+                        }, input->options);
                         
                         
                         // Wait for either translate lambda to call back, or a reason to cancel
@@ -184,14 +186,17 @@ void MarianInterface::setModel(QString path_to_model_dir, const translateLocally
     cv_.notify_one();
 }
 
-void MarianInterface::translate(QString in) {
+void MarianInterface::translate(QString in, bool HTML) {
     // If we don't have a model yet (loaded, or queued to be loaded, doesn't matter)
     // then don't bother trying to translate something.
     if (model_.isEmpty())
         return;
 
     std::unique_lock<std::mutex> lock(mutex_);
-    std::unique_ptr<std::string> input(new std::string(in.toStdString()));
+    std::unique_ptr<TranslationInput> input(new TranslationInput{in.toStdString(), marian::bergamot::ResponseOptions{}});
+    input->options.alignment = true;
+    input->options.HTML = HTML;
+
     std::swap(pendingInput_, input);
     
     cv_.notify_one();

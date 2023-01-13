@@ -34,7 +34,7 @@ private:
 
     // Functions
     void printLocalModels();
-    void doTranslation();
+    void doTranslation(bool HTML);
     void downloadRemoteModel(QString modelID);
     inline QString &fetchData(QString &);
 

@@ -139,7 +139,7 @@ int CommandLineIface::run(QCommandLineParser const &parser) {
 
         // Init the translation model
         translator_->setModel(modelpath, settings_.marianSettings());
-        doTranslation();
+        doTranslation(parser.isSet("html"));
         return 0;
     } else if (parser.isSet("allow-client")) {
         return allowNativeMessagingClient(parser.positionalArguments());
@@ -199,10 +199,10 @@ QString &CommandLineIface::fetchData(QString &buffer) {
 /**
  * @brief CommandLineIface::doTranslation This function is pseudo blocking, via an event loop. It sends text to be translated by marian.
  */
-void CommandLineIface::doTranslation() {
+void CommandLineIface::doTranslation(bool HTML) {
     QString input;
     while (!fetchData(input).isEmpty()) {
-        translator_->translate(input);
+        translator_->translate(input, HTML);
         // Start event loop to block unit translation is ready. Translator
         // will call outputTranslation or outputError during this call, which
         // will either unblock this exec() call, or kill the program.
