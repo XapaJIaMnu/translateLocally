@@ -315,3 +315,22 @@ if(APPLE) # Apple specific installation of the app
   include(macdeployqt)
   macdeployqt(translateLocally)
 endif(APPLE)
+
+# Finally when using ARM we need to fix the build due to issues with RUY and QT's MOC
+# First detect if we are on ARM
+include(TargetArch)
+target_architecture(CMAKE_TARGET_ARCHITECTURES)
+list(LENGTH CMAKE_TARGET_ARCHITECTURES cmake_target_arch_len)
+if(NOT "${cmake_target_arch_len}" STREQUAL "1")
+    set(CMAKE_TARGET_ARCHITECTURE_UNIVERSAL TRUE)
+    set(CMAKE_TARGET_ARCHITECTURE_CODE "universal")
+else()
+    set(CMAKE_TARGET_ARCHITECTURE_UNIVERSAL FALSE)
+    set(CMAKE_TARGET_ARCHITECTURE_CODE "${CMAKE_TARGET_ARCHITECTURES}")
+endif()
+# Now echo the workaround
+if(${CMAKE_TARGET_ARCHITECTURE_CODE} MATCHES "arm")
+	message(WARNING "Building on ARM. You need to manually fix the broken build due to RUY using bad header names and QT's MOC. Please run:")
+	execute_process(COMMAND echo -e "${CMAKE_SOURCE_DIR}/cmake/fix_ruy_build.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}")
+	message(WARNING "Before building the project")
+endif()
