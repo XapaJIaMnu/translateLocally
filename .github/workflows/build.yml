@@ -38,6 +38,12 @@ jobs:
           - name: "macOS Big Sur 11.0 x86-64"
             os: macos-11.0
             arch: "x86-64"
+          - name: "macOS Monterey 12 avx"
+            os: macos-12
+            arch: "core-avx-i"
+          - name: "macOS Monterey 12 x86-64"
+            os: macos-12
+            arch: "x86-64"
          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
          # - name: "macOS Catalina 10.15 avx2"
          #   os: macos-10.15
@@ -175,12 +181,23 @@ jobs:
           - name: "Ubuntu 18.04 avx"
             os: ubuntu-18.04
             arch: "core-avx-i"
+            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
           - name: "Ubuntu 20.04 avx"
             os: ubuntu-20.04
             arch: "core-avx-i"
+            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
           - name: "Ubuntu 20.04 x86-64"
             os: ubuntu-20.04
             arch: "x86-64"
+            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
+          - name: "Ubuntu 22.04 avx"
+            os: ubuntu-22.04
+            arch: "core-avx-i"
+            qt-dependencies: "qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
+          - name: "Ubuntu 22.04 x86-64"
+            os: ubuntu-22.04
+            arch: "x86-64"
+            qt-dependencies: "qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
           # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
           # - name: "Ubuntu 18.04 avx2"
           #   os: ubuntu-18.04
@@ -202,7 +219,7 @@ jobs:
     - name: Dependencies  # @TODO should also test qt6, but it's not present yet
       run: |
        sudo apt-get update
-       sudo apt-get install -y libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev ccache
+       sudo apt-get install -y libxkbcommon-x11-dev libpcre++-dev ${{ matrix.qt-dependencies }} libarchive-dev libpcre2-dev ccache
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
