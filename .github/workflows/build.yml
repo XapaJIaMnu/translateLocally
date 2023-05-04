@@ -175,7 +175,7 @@ jobs:
           - name: "Ubuntu 22.04 avx"
             os: ubuntu-22.04
             arch: "core-avx-i"
-            qtdeps: "libqt6core6 libqt6gui6 libqt6network6 libqt6widgets6 libqt6svg6 libqt6svg6-dev libqt6svg6 qt6-base-dev qt6-tools-dev qt6-tools-private-dev qt6-tools-dev-tools qt6-base-dev-tools qt6-base-private-dev"
+            qtdeps: "libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
           - name: "Ubuntu 20.04 avx"
             os: ubuntu-20.04
             arch: "core-avx-i"
