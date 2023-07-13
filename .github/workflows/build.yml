@@ -29,8 +29,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: "macOS Catalina 10.15 avx"
-            os: macos-10.15
+          - name: "macOS Monterey 12 avx"
+            os: macos-12
             arch: "core-avx-i"
           - name: "macOS Big Sur 11.0 avx"
             os: macos-11.0
@@ -178,26 +178,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: "Ubuntu 18.04 avx"
-            os: ubuntu-18.04
-            arch: "core-avx-i"
-            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
-          - name: "Ubuntu 20.04 avx"
-            os: ubuntu-20.04
-            arch: "core-avx-i"
-            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
-          - name: "Ubuntu 20.04 x86-64"
-            os: ubuntu-20.04
-            arch: "x86-64"
-            qt-dependencies: "qttools5-dev qtbase5-dev libqt5svg5-dev"
           - name: "Ubuntu 22.04 avx"
             os: ubuntu-22.04
             arch: "core-avx-i"
-            qt-dependencies: "libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
-          - name: "Ubuntu 22.04 x86-64"
-            os: ubuntu-22.04
+            qtdeps: "libxkbcommon-x11-dev libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
+          - name: "Ubuntu 20.04 avx"
+            os: ubuntu-20.04
+            arch: "core-avx-i"
+            qtdeps: "qttools5-dev qtbase5-dev libqt5svg5-dev"
+          - name: "Ubuntu 20.04 x86-64"
+            os: ubuntu-20.04
             arch: "x86-64"
-            qt-dependencies: "libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
+            qtdeps: "qttools5-dev qtbase5-dev libqt5svg5-dev"
           # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
           # - name: "Ubuntu 18.04 avx2"
           #   os: ubuntu-18.04
@@ -216,10 +208,10 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Dependencies  # @TODO should also test qt6, but it's not present yet
+    - name: Dependencies
       run: |
        sudo apt-get update
-       sudo apt-get install -y libxkbcommon-x11-dev libpcre++-dev ${{ matrix.qt-dependencies }} libarchive-dev libpcre2-dev ccache
+       sudo apt-get install -y libpcre++-dev libarchive-dev libpcre2-dev ccache libunwind-dev libgoogle-perftools-dev ${{ matrix.qtdeps }}
       
       # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
     - name: Install MKL
