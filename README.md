@@ -21,12 +21,20 @@ Requires `QT>=5 libarchive intel-mkl-static`. We make use of the `QT>=5 network`
 ### Ubuntu 20.04 build dependencies:
 ```bash
 sudo apt-get install -y libpcre++-dev qttools5-dev qtbase5-dev libqt5svg5-dev libarchive-dev libpcre2-dev
-# Get MKL installed. This does mkl installation but there might be a better way to do this.
-wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB" | sudo apt-key add -
-        sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
-        sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
-        sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
 ```
+
+### Ubuntu 22.04 build dependencies:
+```bash
+sudo apt-get install -y libxkbcommon-x11-dev libpcre++-dev libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev libarchive-dev libpcre2-dev
+```
+#### Install MKL for Ubuntu (Any)
+```bash
+wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB" | sudo apt-key add -
+  sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
+  sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
+  sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
+```
+
 ### Archlinux build dependencies
 ```
 # pacman -S libarchive pcre2 protobuf qt6-base qt6-svg intel-oneapi-mkl

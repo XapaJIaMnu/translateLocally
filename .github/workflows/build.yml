@@ -38,6 +38,12 @@ jobs:
           - name: "macOS Big Sur 11.0 x86-64"
             os: macos-11.0
             arch: "x86-64"
+          - name: "macOS Monterey 12 avx"
+            os: macos-12
+            arch: "core-avx-i"
+          - name: "macOS Monterey 12 x86-64"
+            os: macos-12
+            arch: "x86-64"
          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
          # - name: "macOS Catalina 10.15 avx2"
          #   os: macos-10.15
@@ -52,7 +58,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
     
@@ -63,13 +69,13 @@ jobs:
 
     - name: Cache Qt
       id: cache-qt
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: "${{ github.workspace }}/qt/"
         key: qt-${{ matrix.os }}-${{ env.qt_version }}
 
     - name: Install Qt
-      uses: jurplel/install-qt-action@v2
+      uses: jurplel/install-qt-action@v3
       with:
         cached: ${{ steps.cache-qt.outputs.cache-hit }}
         version: ${{ env.qt_version }}
@@ -83,7 +89,7 @@ jobs:
         echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
     
     - name: Cache-op for build-cache through ccache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ env.ccache_dir }}
         key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
@@ -163,7 +169,7 @@ jobs:
           mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ matrix.arch }}.dmg
           ls *.dmg
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.dmg
         path: ${{github.workspace}}/build/translateLocally.*.dmg
@@ -175,7 +181,7 @@ jobs:
           - name: "Ubuntu 22.04 avx"
             os: ubuntu-22.04
             arch: "core-avx-i"
-            qtdeps: "libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
+            qtdeps: "libxkbcommon-x11-dev libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev"
           - name: "Ubuntu 20.04 avx"
             os: ubuntu-20.04
             arch: "core-avx-i"
@@ -198,7 +204,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
     
@@ -223,7 +229,7 @@ jobs:
         echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
     
     - name: Cache-op for build-cache through ccache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ env.ccache_dir }}
         key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
@@ -283,10 +289,68 @@ jobs:
         ls deb/*.deb
         dpkg -I deb/*.deb
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
         path: ${{github.workspace}}/build/deb/*.deb
+        
+  build-arm:
+    strategy:
+        matrix:
+          include:
+            - name: "Ubuntu 22.04 ARM"
+              os: ubuntu-22.04
+              arch: "aarch64"
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: Dependencies
+        run: sudo apt-get install -y libxkbcommon-x11-dev libpcre++-dev libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev libarchive-dev libpcre2-dev
+        
+      - name: Create Build Environment
+      # Some projects don't allow in-source building, so create a separate build directory
+      # We'll use this as our working directory for all subsequent commands
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        # Use a bash shell so we can use the same syntax for environment variable
+        # access regardless of the host operating system
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        run: cmake $GITHUB_WORKSPACE
+        
+      - name: Fix Arm build
+        # Not sure what the path is here but it should be something like
+        run: $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        run: cmake --build . -j4
+        
+      - name: Output test # @TODO some more complicated test, perhaps a unit test
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: ./translateLocally --version
+
+      - name: Package # Produce a .deb file using cpack
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: |
+          cpack
+          ls deb/*.deb
+          dpkg -I deb/*.deb
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
+          path: ${{github.workspace}}/build/deb/*.deb
 
   build-windows:
     strategy:
@@ -315,7 +379,7 @@ jobs:
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
         
@@ -329,7 +393,7 @@ jobs:
       shell: powershell
     
     - name: Cache vcpkg
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       env:
         cache-name: cache-vcpkg
       with:
@@ -380,7 +444,7 @@ jobs:
         mv translateLocally.exe translateLocally.${{ matrix.os }}.${{ matrix.arch }}.exe
       shell: powershell
       
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.exe
         path: ${{github.workspace}}/build/Release/*.exe
@@ -394,7 +458,7 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
      - name: Download artifacts
-       uses: actions/download-artifact@v2
+       uses: actions/download-artifact@v3
 
      - name: Update GitHub prerelease
        uses: marvinpinto/action-automatic-releases@latest
