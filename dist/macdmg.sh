@@ -4,6 +4,7 @@
 MY_DEVELOPER_ID=""
 MY_APPLE_ID=""
 MY_APPLE_PST=""
+MY_APPLE_TEAM_ID=""
 PATH_TO_BUILD_DIR=$1
 
 if [[ ! -d ${PATH_TO_BUILD_DIR}/translateLocally.app ]]
@@ -25,6 +26,11 @@ fi
 if [[ -z ${MY_APPLE_PST} ]]
 then
 	MY_APPLE_PST=${APPLE_PST}
+fi
+
+if [[ -z ${MY_APPLE_TEAM_ID} ]]
+then
+	MY_APPLE_TEAM_ID=${APPLE_TEAM_ID}
 fi
 
 # Try to get custom distributed Qt, assuming it's installed in $HOME
@@ -57,31 +63,23 @@ then
 	echo "Apple ID not defined, skipping notarization."
 else
 	echo "Notarizing .dmg..."
-	response=$(xcrun altool -t osx -f ${PATH_TO_BUILD_DIR}/translateLocally.dmg --primary-bundle-id com.translatelocally.com --notarize-app -u ${MY_APPLE_ID} -p ${MY_APPLE_PST})
-	requestUUID=$(echo "${response}" | tr ' ' '\n' | tail -1)
+	response=$(xcrun notarytool submit ${PATH_TO_BUILD_DIR}/translateLocally.dmg --apple-id ${MY_APPLE_ID} --team-id ${MY_APPLE_TEAM_ID} --password ${MY_APPLE_PST} --wait)
+	requestUUID=$(echo "${response}" | grep id | head -n1 | tr ' ' '\n' | tail -n1)
+	isAccepted=$(echo "${response}" | grep status | tail -n1 | tr ' ' '\n' | tail -n1)
 
-	while true;
-	do
-	  echo "--> Checking notarization status"
+    echo "Summary of signing..."
+	xcrun notarytool info --apple-id ${MY_APPLE_ID} --team-id ${MY_APPLE_TEAM_ID} --password ${MY_APPLE_PST} ${requestUUID}
 
-	  statusCheckResponse=$(xcrun altool --notarization-info ${requestUUID} -u ${MY_APPLE_ID} -p ${MY_APPLE_PST})
+	echo "Log of the operation..."
+	xcrun notarytool log --apple-id ${MY_APPLE_ID} --team-id ${MY_APPLE_TEAM_ID} --password ${MY_APPLE_PST} ${requestUUID}
 
-	  isSuccess=$(echo "${statusCheckResponse}" | grep "success")
-	  isFailure=$(echo "${statusCheckResponse}" | grep "invalid")
-
-	  if [[ "${isSuccess}" != "" ]]
+	if [[ "${isSuccess}" != "Accepted" ]]
 	  then
 	      echo "Notarization done!"
 	      xcrun stapler staple -v ${PATH_TO_BUILD_DIR}/translateLocally.dmg
 	      echo "Stapler done!"
-	      break
-	  fi
-	  if [[ "${isFailure}" != "" ]]
-	  then
+	  else
 	      echo "Notarization failed"
 	      exit 1
 	  fi
-	  echo "Notarization not finished yet, sleep 2m then check again..."
-	  sleep 120
-	done
 fi
