@@ -73,13 +73,13 @@ else
 	echo "Log of the operation..."
 	xcrun notarytool log --apple-id ${MY_APPLE_ID} --team-id ${MY_APPLE_TEAM_ID} --password ${MY_APPLE_PST} ${requestUUID}
 
-	if [[ "${isSuccess}" != "Accepted" ]]
-	  then
-	      echo "Notarization done!"
-	      xcrun stapler staple -v ${PATH_TO_BUILD_DIR}/translateLocally.dmg
-	      echo "Stapler done!"
-	  else
-	      echo "Notarization failed"
-	      exit 1
-	  fi
+	if [[ "${isAccepted}" == "Accepted" ]]
+	then
+	    echo "Notarization done!"
+	    xcrun stapler staple -v ${PATH_TO_BUILD_DIR}/translateLocally.dmg
+	    echo "Stapler done!"
+	else
+	    echo "Notarization failed"
+	    exit 1
+	fi
 fi
