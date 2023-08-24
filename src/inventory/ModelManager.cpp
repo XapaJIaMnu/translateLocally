@@ -7,6 +7,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QSaveFile>
+#include <QStandardPaths>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -499,6 +500,13 @@ bool ModelManager::writeModelMetaToDir(ModelMeta const &model, QString dir) cons
 }
 
 void ModelManager::startupLoad() {
+    // Scan for shared models installed through the system package manager.
+    // Those paths should only contain already-extracted models.
+    // They should be considered read-only.
+    for (const auto &sharedDir : QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString("bergamot/models"), QStandardPaths::LocateDirectory)) {
+        scanForModels(sharedDir);
+    }
+
     //Iterate over all files in the config folder and take note of available models and archives
     scanForModels(configDir_.absolutePath());
     scanForModels(QDir::current().path()); // Scan the current directory for models. @TODO archives found in this folder would not be used
