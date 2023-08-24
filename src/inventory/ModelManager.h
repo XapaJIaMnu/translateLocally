@@ -373,7 +373,7 @@ private:
      */
     bool validateModel(QString path);
 
-    QDir configDir_;
+    QDir appDataDir_;
 
     QStringList archives_; // Only archive name, not full path
     QList<Model> localModels_;
