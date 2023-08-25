@@ -114,7 +114,7 @@ Model English-Estonian type tiny successfully removed.
 ```
 
 ## Listing available models
-The avialble models can be listed with `-l`
+The available models can be listed with `-l`
 ```bash
 ./translateLocally -l
 Czech-English type: tiny version: 1; To invoke do -m cs-en-tiny
