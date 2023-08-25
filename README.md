@@ -16,7 +16,20 @@ make -j5
 ./translateLocally
 ```
 
-Requires `QT>=5 libarchive intel-mkl-static`. We make use of the `QT>=5 network`, `QT>=5 linguisticTool` and `QT>=5 svg` components. Depending on your distro, those may be split in separate package from your QT package (Eg `qt{6/7}-tools-dev`; `qt{5/6}-svg` or `libqt5svg5-dev`). QT6 is fully supported and its use is encouraged. `intel-mkl-static` may be part of `mkl` or `intel-mkl` packages.
+Build dependencies:
+
+- `qt`≥5¹ (components²: `base`, `network`, `linguisticTool`, `svg`)
+- `libarchive`
+- `pcre2`
+- `protobuf`
+- `tcmalloc` (included in `gperftools`)
+- `blas` (provided by `openblas` or `intel-mkl-static`³)
+
+¹ QT6 is fully supported and its use is encouraged.
+
+² Depending on your distro, those may be split in separate package from your QT package. (Eg `qt{6/7}-tools-dev`; `qt{5/6}-svg` or `libqt5svg5-dev`).
+
+³ Faster on Intel CPUs. `intel-mkl-static` may be part of `mkl` or `intel-mkl` packages.
 
 ### Ubuntu 20.04 build dependencies:
 ```bash
