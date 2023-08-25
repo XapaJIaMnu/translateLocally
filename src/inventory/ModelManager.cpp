@@ -505,8 +505,10 @@ void ModelManager::startupLoad() {
         scanForModels(sharedDir);
     }
 
-    //Iterate over all files in the config folder and take note of available models and archives
+    // Iterate over all files in the app's data folder and take note of available models and archives
     scanForModels(appDataDir_.absolutePath());
+    // Also scan for models located in the app's config directory in previous versions
+    scanForModels(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
     scanForModels(QDir::current().path()); // Scan the current directory for models. @TODO archives found in this folder would not be used
 }
 
