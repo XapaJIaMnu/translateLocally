@@ -153,6 +153,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PST: ${{ secrets.NOTARIZE_PST }}
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
             echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
             security create-keychain -p 1234asdf my.new.keychain
