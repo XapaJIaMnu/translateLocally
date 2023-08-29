@@ -9,6 +9,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QFileInfo>
+#include <QDirIterator>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -86,7 +87,19 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
             QDir().mkpath(appDataDir_.absolutePath());
         }
     }
-    
+
+    // Attempt to migrate model data previously located in the configuration
+    // directory to the new location. If the move operation fails, the files
+    // are left where they currently reside and are still discovered later.
+    QDir configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDirIterator configDirIter = QDirIterator(configDir);
+    while (configDirIter.hasNext()) {
+        QFileInfo fileInfo = configDirIter.nextFileInfo();
+        if (fileInfo.isDir() || fileInfo.fileName().endsWith(".tar.gz")) {
+            QFile::rename(fileInfo.absoluteFilePath(), appDataDir_.filePath(fileInfo.fileName()));
+        }
+    }
+
     connect(&(settings_->repos), &Setting::valueChanged, this, [&]{
         // I disabled the call to fetch the remote models because I'm not
         // certain that the internet access is expected (and permitted) by the
