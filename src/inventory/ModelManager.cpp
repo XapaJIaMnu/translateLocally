@@ -94,7 +94,8 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     QDir configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QDirIterator configDirIter = QDirIterator(configDir);
     while (configDirIter.hasNext()) {
-        QFileInfo fileInfo = configDirIter.nextFileInfo();
+        configDirIter.next();
+        QFileInfo fileInfo = configDirIter.fileInfo();
         if (fileInfo.isDir() || fileInfo.fileName().endsWith(".tar.gz")) {
             QFile::rename(fileInfo.absoluteFilePath(), appDataDir_.filePath(fileInfo.fileName()));
         }
