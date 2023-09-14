@@ -9,6 +9,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QFileInfo>
+#include <QDirIterator>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -78,17 +79,28 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     , settings_(settings)
     , isFetchingRemoteModels_(false)
 {
-    // Create/Load Settings and create a directory on the first run. Use mock QSEttings, because we want nativeFormat, but we don't want ini on linux.
-    // NativeFormat is not always stored in config dir, whereas ini is always stored. We used the ini format to just get a path to a dir.
-    configDir_ = QFileInfo(QSettings(QSettings::IniFormat, QSettings::UserScope, "translateLocally", "translateLocally").fileName()).absoluteDir();
-    if (!QDir(configDir_).exists()) {
-        if (QFileInfo::exists(configDir_.absolutePath())) {
-            std::cerr << "We want to store data at a directory at: " << configDir_.absolutePath().toStdString() << " but a file with the same name exists." << std::endl;
+    appDataDir_ = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (!QDir(appDataDir_).exists()) {
+        if (QFileInfo::exists(appDataDir_.absolutePath())) {
+            std::cerr << "We want to store data at a directory at: " << appDataDir_.absolutePath().toStdString() << " but a file with the same name exists." << std::endl;
         } else {
-            QDir().mkpath(configDir_.absolutePath());
+            QDir().mkpath(appDataDir_.absolutePath());
         }
     }
-    
+
+    // Attempt to migrate model data previously located in the configuration
+    // directory to the new location. If the move operation fails, the files
+    // are left where they currently reside and are still discovered later.
+    QDir configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDirIterator configDirIter = QDirIterator(configDir);
+    while (configDirIter.hasNext()) {
+        configDirIter.next();
+        QFileInfo fileInfo = configDirIter.fileInfo();
+        if (fileInfo.isDir() || fileInfo.fileName().endsWith(".tar.gz")) {
+            QFile::rename(fileInfo.absoluteFilePath(), appDataDir_.filePath(fileInfo.fileName()));
+        }
+    }
+
     connect(&(settings_->repos), &Setting::valueChanged, this, [&]{
         // I disabled the call to fetch the remote models because I'm not
         // certain that the internet access is expected (and permitted) by the
@@ -115,7 +127,7 @@ std::optional<Model> ModelManager::findModelForUpdate(Model const& model) {
 }
 
 bool ModelManager::isManagedModel(Model const &model) const {
-    return model.isLocal() && model.path.startsWith(configDir_.absolutePath());
+    return model.isLocal() && model.path.startsWith(appDataDir_.absolutePath());
 }
 
 bool ModelManager::validateModel(QString path) {
@@ -181,9 +193,9 @@ std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QStri
     // inside the target directory to make sure we're on the same filesystem.
     // Otherwise `QDir::rename()` might fail. Note that directories starting
     // with "extracting-" are explicitly skipped `scanForModels()`.
-    QTemporaryDir tempDir(configDir_.filePath("extracting-XXXXXXX"));
+    QTemporaryDir tempDir(appDataDir_.filePath("extracting-XXXXXXX"));
     if (!tempDir.isValid()) {
-        emit error(tr("Could not create temporary directory in %1 to extract the model archive to.").arg(configDir_.path()));
+        emit error(tr("Could not create temporary directory in %1 to extract the model archive to.").arg(appDataDir_.path()));
         return std::nullopt;
     }
 
@@ -216,7 +228,7 @@ std::optional<Model> ModelManager::writeModel(QFile *file, ModelMeta meta, QStri
         return std::nullopt;
 
     QString newModelDirName = QString("%1-%2").arg(filename.split(".tar.gz")[0]).arg(QDateTime::currentMSecsSinceEpoch() / 1000);
-    QString newModelDirPath = configDir_.absoluteFilePath(newModelDirName);
+    QString newModelDirPath = appDataDir_.absoluteFilePath(newModelDirName);
 
     if (!QDir().rename(prefix, newModelDirPath)) {
         emit error(tr("Could not move extracted model from %1 to %2.").arg(tempDir.path(), newModelDirPath));
@@ -507,8 +519,10 @@ void ModelManager::startupLoad() {
         scanForModels(sharedDir);
     }
 
-    //Iterate over all files in the config folder and take note of available models and archives
-    scanForModels(configDir_.absolutePath());
+    // Iterate over all files in the app's data folder and take note of available models and archives
+    scanForModels(appDataDir_.absolutePath());
+    // Also scan for models located in the app's config directory in previous versions
+    scanForModels(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
     scanForModels(QDir::current().path()); // Scan the current directory for models. @TODO archives found in this folder would not be used
 }
 
