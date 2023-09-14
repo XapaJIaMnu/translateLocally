@@ -515,7 +515,7 @@ void ModelManager::startupLoad() {
     // Scan for shared models installed through the system package manager.
     // Those paths should only contain already-extracted models.
     // They should be considered read-only.
-    for (const auto &sharedDir : QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QString("bergamot/models"), QStandardPaths::LocateDirectory)) {
+    for (const auto &sharedDir : QStandardPaths::locateAll(QStandardPaths::AppDataLocation, QString("models"), QStandardPaths::LocateDirectory)) {
         scanForModels(sharedDir);
     }
 
