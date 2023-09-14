@@ -12,6 +12,9 @@ Bringing fast and secure machine translation to the masses! To build and run
 mkdir build
 cd build
 cmake ..
+# this step is only necessary when compiling on ARM
+# cmake should give you the absolute path of the command that needs to run:
+# $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build`
 make -j5
 ./translateLocally
 ```
@@ -38,6 +41,18 @@ wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODU
 ### Archlinux build dependencies
 ```
 # pacman -S libarchive pcre2 protobuf qt6-base qt6-svg intel-oneapi-mkl
+```
+
+### OpenBlas
+We technically support building against OpenBLAS as a BLAS provider, but we **strongly discourage it**. The performance offered by OpenBLAS is significantly lower than that of Intel's MKL, regardless of the CPU manufacturer. Furthermore, OpenBLAS enables OpenMP parallelization by default, but unfortunately our matrices are too small to take advantage of OpenMP and we end up with up to 100x slowdown compared MKL in the worst case scenario with the majority of end users not aware of how to debug this issue. How sad. 
+
+If you *really* want to use OpenBLAS instead you can do:
+```bash
+mkdir build
+cd build
+cmake .. -DBLAS_LIBRARIES=-lblas -DCBLAS_LIBRARIES=-lcblas
+make -j6
+OMP_NUM_THREADS=1 ./translateLocally # disable OpenMP parallelization.
 ```
 
 ## MacOS Build
@@ -216,6 +231,14 @@ And then changing your configuration `config.intgemm8bitalpha.yml` to point to t
 You can further achive another 30\%-40\% performance boost if you precompute the quantisation multipliers of the model and you use a lexical shortlist. The process for those is described in details at the Bergamot project's [Github](https://github.com/browsermt/students/tree/master/train-student#5-8-bit-quantization). Remember that you need to use the [Bergamot](https://github.com/browsermt/marian-dev) fork of Marian.
 
 Example script that converts a marian model to the most efficient 8-bit representation can also be found at Bergamot's [Github](https://github.com/browsermt/students/blob/master/esen/esen.student.tiny11/speed.cpu.intgemm8bitalpha.sh).
+
+## External repositories
+We support custom repositories. You can add a custom repository from the Settings->Repositories menu. An example repository file can seen [here](https://translatelocally.com/models.json). Currently available repositories:
+- Bergamot: https://translatelocally.com/models.json
+- OpusMT: https://object.pouta.csc.fi/OPUS-MT-models/app/models.json
+
+The Bergamot repository is the one used by default. The OpusMT one needs to be added by the user, if the user desires to do so.
+
 # Acknowledgements
 <img src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" data-canonical-src="https://raw.githubusercontent.com/XapaJIaMnu/translateLocally/master/eu-logo.png" width=10% />
 
