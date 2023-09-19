@@ -9,7 +9,7 @@ INCLUDE_PATH=I${SRC_PATH}/3rd_party/bergamot-translator/3rd_party/marian-dev/src
 
 cd ${BUILD_DIR}
 
-# mac grep is different from GNU grep...
+# mac sed is different from GNU sed...
 # Find out the OS
 unameOut="$(uname -s)"
 case "${unameOut}" in
