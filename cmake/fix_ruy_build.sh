@@ -9,7 +9,24 @@ INCLUDE_PATH=I${SRC_PATH}/3rd_party/bergamot-translator/3rd_party/marian-dev/src
 
 cd ${BUILD_DIR}
 
+# mac grep is different from GNU grep...
+# Find out the OS
+unameOut="$(uname -s)"
+case "${unameOut}" in
+        Linux*)     machine=Linux;;
+        Darwin*)    machine=Mac;;
+        CYGWIN*)    machine=Cygwin;;
+        MINGW*)     machine=MinGw;;
+        *)          machine="UNKNOWN:${unameOut}"
+esac
+
 # Remove the extra include path
-grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i "s\\-${INCLUDE_PATH}\\\\g"
-# There's a /profiler in one of them that is not captured, so remove it manually
-grep -R " /profiler "  | cut -d ":" -f1 | xargs sed -i "s\\ /profiler \\\\g"
+if [ "$machine" = "Mac" ]; then
+  grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i '' -e  "s#-${INCLUDE_PATH}##g"
+  # There's a /profiler in one of them that is not captured, so remove it manually
+  grep -R " /profiler "  | cut -d ":" -f1 | xargs sed -i '' -e "s# /profiler ##g"
+else
+  grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i "s\\-${INCLUDE_PATH}\\\\g"
+  # There's a /profiler in one of them that is not captured, so remove it manually
+  grep -R " /profiler "  | cut -d ":" -f1 | xargs sed -i "s\\ /profiler \\\\g"
+fi

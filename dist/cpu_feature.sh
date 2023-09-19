@@ -20,7 +20,7 @@ if [ "$machine" = "Linux" ]; then
 	elif grep -q ssse3 /proc/cpuinfo; then
 		echo "ssse3"
 	else
-		echo "old_or_non_x86"
+		echo `uname -m`
 	fi
 elif [ "$machine" = "Mac" ]; then
 	if /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q AVX512; then
@@ -32,7 +32,7 @@ elif [ "$machine" = "Mac" ]; then
 	elif /usr/sbin/sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -q SSSE3; then
 		echo "ssse3"
 	else
-		echo "old_or_non_x86"
+		echo `uname -m`
 	fi
 else
 	echo "Unsupported platform"
