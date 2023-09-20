@@ -237,13 +237,40 @@ struct DownloadRequest : Request {
 Q_DECLARE_METATYPE(DownloadRequest);
 
 /**
+ * Change TranslateLocally resource usage for this session.
+ * 
+ * Request:
+ * {
+ *   "id": int,
+ *   "command": "Configure",
+ *   "data": {
+ *     "threads": int
+ *     "cacheSize": int (0 means disabled)
+ *   }
+ * }
+ * 
+ * Successful response:
+ * {
+ *   "id": int,
+ *   "success": true,
+ *   "data": {}
+ * }
+ */
+struct ConfigureRequest : Request {
+    int threads;
+    int cacheSize;
+};
+
+Q_DECLARE_METATYPE(ConfigureRequest);
+
+/**
  * Internal structure to handle a request that is missing a required field.
  */
 struct MalformedRequest : Request {
     QString error;
 };
 
-using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, MalformedRequest>;
+using request_variant = std::variant<TranslationRequest, ListRequest, DownloadRequest, ConfigureRequest, MalformedRequest>;
 
 /**
  * Internal structure to cache a loaded direct model (i.e. no pivoting)
@@ -409,6 +436,10 @@ private:
      * @param myJsonInput DownloadRequest
      */
     void handleRequest(DownloadRequest myJsonInput);
+
+    /**
+     */
+    void handleRequest(ConfigureRequest myJsonInput);
 
     /**
      * @brief handleRequest handles a request type MalformedRequest and writes to stdout
