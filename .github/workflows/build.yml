@@ -32,11 +32,11 @@ jobs:
           - name: "macOS Monterey 12 avx"
             os: macos-12
             arch: "core-avx-i"
-          - name: "macOS Big Sur 11.0 avx"
-            os: macos-11.0
+          - name: "macOS Ventura 13 avx"
+            os: macos-13
             arch: "core-avx-i"
-          - name: "macOS Big Sur 11.0 x86-64"
-            os: macos-11.0
+          - name: "macOS Ventura 13 x86-64"
+            os: macos-13
             arch: "x86-64"
           - name: "macOS Monterey 12 avx"
             os: macos-12
