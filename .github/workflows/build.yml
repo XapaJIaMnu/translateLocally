@@ -44,6 +44,9 @@ jobs:
           - name: "macOS Monterey 12 x86-64"
             os: macos-12
             arch: "x86-64"
+          - name: "macOS Sonoma 14 M1"
+            os: macos-14
+            arch: "arm64"
          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
          # - name: "macOS Catalina 10.15 avx2"
          #   os: macos-10.15
@@ -128,6 +131,11 @@ jobs:
       run: |-
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
         cmake $GITHUB_WORKSPACE -LAH
+        
+    - name: Fix Arm build
+      # Not sure what the path is here but it should be something like
+      if: ${{matrix.arch == 'arm64'}}
+      run: $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build     
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -139,7 +147,7 @@ jobs:
       run: 'ccache -s # Print current cache stats'
     
     - name: Output test # @TODO some more complicated test, perhaps a unit test
-      if: ${{matrix.arch == 'core-avx-i'}} #MacOS machines are avx so they can't run avx2 steps.
+      #if: ${{matrix.arch == 'core-avx-i'}} #MacOS machines are avx so they can't run avx2 steps.
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: ./translateLocally --version
