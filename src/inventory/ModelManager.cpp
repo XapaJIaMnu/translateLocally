@@ -79,7 +79,7 @@ ModelManager::ModelManager(QObject *parent, Settings * settings)
     , settings_(settings)
     , isFetchingRemoteModels_(false)
 {
-    appDataDir_ = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    appDataDir_.setPath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
     if (!QDir(appDataDir_).exists()) {
         if (QFileInfo::exists(appDataDir_.absolutePath())) {
             std::cerr << "We want to store data at a directory at: " << appDataDir_.absolutePath().toStdString() << " but a file with the same name exists." << std::endl;
