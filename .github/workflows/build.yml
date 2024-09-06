@@ -133,7 +133,7 @@ jobs:
 
       - name: Fix Arm build
         # Not sure what the path is here but it should be something like
-        if: ${{matrix.arch == 'arm64'}}
+        if: ${{matrix.arch == 'armv8.5-a'}}
         run: $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build
 
       - name: Build
