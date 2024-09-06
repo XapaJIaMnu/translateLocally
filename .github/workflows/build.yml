@@ -45,7 +45,7 @@ jobs:
             arch: "x86-64"
           - name: "macOS Sonoma 14 M1"
             os: macos-14
-            arch: "arm64"
+            arch: "armv8.5-a" # m1 according to wikipedia
           # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
           # - name: "macOS Catalina 10.15 avx2"
           #   os: macos-10.15
