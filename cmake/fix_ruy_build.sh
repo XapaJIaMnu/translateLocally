@@ -22,9 +22,9 @@ esac
 
 # Remove the extra include path
 if [ "$machine" = "Mac" ]; then
-  grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i '' -e  "s#-${INCLUDE_PATH}##g"
+  grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i '' -e  "s#-${INCLUDE_PATH}[^[:blank:]]*##g"
   # There's a /profiler in one of them that is not captured, so remove it manually
-  grep -R " /profiler "  | cut -d ":" -f1 | xargs sed -i '' -e "s# /profiler ##g"
+  # grep -R " /profiler "  | cut -d ":" -f1 | xargs sed -i '' -e "s# /profiler ##g"
 else
   grep -R ${INCLUDE_PATH}  | cut -d ":" -f1 | xargs sed -i "s\\-${INCLUDE_PATH}\\\\g"
   # There's a /profiler in one of them that is not captured, so remove it manually
