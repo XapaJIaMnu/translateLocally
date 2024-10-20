@@ -3,10 +3,10 @@ name: build
 on:
   push:
     branches:
-    - master
+      - master
   pull_request:
     branches:
-    - '**'
+      - "**"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -15,14 +15,13 @@ env:
   ccache_basedir: ${{ github.workspace }}
   ccache_dir: "${{ github.workspace }}/.ccache"
   ccache_compilercheck: content
-  ccache_compress: 'true'
+  ccache_compress: "true"
   ccache_compresslevel: 9
   ccache_maxsize: 200M
   ccache_cmake: -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
   MKL_URL: "https://data.statmt.org/romang/marian-regression-tests/ci/mkl-2020.1-windows-static.zip" # Used on Windows only
   VCPKG_DEFAULT_TRIPLET: "x64-windows-static" # Used on Windows only
   VCPKG_BUILD_TYPE: "release" # Used on windows
-  
 
 jobs:
   build-macos:
@@ -44,136 +43,144 @@ jobs:
           - name: "macOS Monterey 12 x86-64"
             os: macos-12
             arch: "x86-64"
-         # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
-         # - name: "macOS Catalina 10.15 avx2"
-         #   os: macos-10.15
-         #   arch: "core-avx2"
-         # - name: "macOS Big Sur 11.0 avx2"
-         #   os: macos-11.0
-         #   arch: "core-avx2"
+          - name: "macOS Sonoma 14 M1"
+            os: macos-14
+            arch: "armv8.5-a" # m1 according to wikipedia
+          # avx2 build is not any faster, since the critical codepath (intgemm) already uses the most optimal codepath for the user's PC
+          # - name: "macOS Catalina 10.15 avx2"
+          #   os: macos-10.15
+          #   arch: "core-avx2"
+          # - name: "macOS Big Sur 11.0 avx2"
+          #   os: macos-11.0
+          #   arch: "core-avx2"
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.name }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-    
-    - name: Dependencies  # This qt6 build and we suppose apple accelerate was installed, but we can use openblas as a fallback until this is merged.
-      run: | 
-           brew update
-           brew install protobuf coreutils libarchive ccache
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
-    - name: Cache Qt
-      id: cache-qt
-      uses: actions/cache@v3
-      with:
-        path: "${{ github.workspace }}/qt/"
-        key: qt-${{ matrix.os }}-${{ env.qt_version }}
+      - name: Dependencies # This qt6 build and we suppose apple accelerate was installed, but we can use openblas as a fallback until this is merged.
+        run: |
+          brew update
+          brew install protobuf coreutils libarchive ccache
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        cached: ${{ steps.cache-qt.outputs.cache-hit }}
-        version: ${{ env.qt_version }}
-        dir: "${{ github.workspace }}/qt/"
-    
-    - name: Generate ccache_vars for ccache based on machine
-      shell: bash
-      id: ccache_vars
-      run: |-
-        echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
-        echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
-    
-    - name: Cache-op for build-cache through ccache
-      uses: actions/cache@v3
-      with:
-        path: ${{ env.ccache_dir }}
-        key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
-        restore-keys: |-
-          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
-          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
-          ccache-${{ matrix.os }}
-    
-    - name: ccache environment setup
-      run: |-
-        echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
-        echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
-        echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
-        echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
-        echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
-        echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
-    
-    - name: ccache prolog
-      run: |-
-        ccache -s # Print current cache stats
-        ccache -z # Zero cache entry
-    
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{github.workspace}}/build
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v3
+        with:
+          path: "${{ github.workspace }}/qt/"
+          key: qt-${{ matrix.os }}-${{ env.qt_version }}
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{github.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: |-
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} ${{ env.ccache_cmake }}
-        cmake $GITHUB_WORKSPACE -LAH
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+          version: ${{ env.qt_version }}
+          dir: "${{ github.workspace }}/qt/"
 
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE -j3 --target translateLocally-bin translateLocally.dmg
+      - name: Generate ccache_vars for ccache based on machine
+        shell: bash
+        id: ccache_vars
+        run: |-
+          echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
+          echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
 
-    - name: ccache epilog
-      run: 'ccache -s # Print current cache stats'
-    
-    - name: Output test # @TODO some more complicated test, perhaps a unit test
-      if: ${{matrix.arch == 'core-avx-i'}} #MacOS machines are avx so they can't run avx2 steps.
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: ./translateLocally --version
+      - name: Cache-op for build-cache through ccache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.ccache_dir }}
+          key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
+          restore-keys: |-
+            ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
+            ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
+            ccache-${{ matrix.os }}
 
-    - name: Produce DMG and Sign # This overrides the previous dmg # We follow https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions
-      working-directory: ${{github.workspace}}/build               # it should be secure as those can't leak unless we accept a PR with a bad workflow.
-      shell: bash
-      env: 
+      - name: ccache environment setup
+        run: |-
+          echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
+          echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
+
+      - name: ccache prolog
+        run: |-
+          ccache -s # Print current cache stats
+          ccache -z # Zero cache entry
+
+      - name: Create Build Environment
+        # Some projects don't allow in-source building, so create a separate build directory
+        # We'll use this as our working directory for all subsequent commands
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        # Use a bash shell so we can use the same syntax for environment variable
+        # access regardless of the host operating system
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        # Note the current convention is to use the -S and -B options here to specify source
+        # and build directories, but this is only available with CMake 3.13 and higher.
+        # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+        run: |-
+          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DLibArchive_ROOT=$(brew --prefix libarchive) ${{ env.ccache_cmake }}
+          cmake $GITHUB_WORKSPACE -LAH
+
+      - name: Fix Arm build
+        # Not sure what the path is here but it should be something like
+        if: ${{matrix.arch == 'armv8.5-a'}}
+        run: $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        run: cmake --build . --config $BUILD_TYPE -j3 --target translateLocally-bin translateLocally.dmg
+
+      - name: ccache epilog
+        run: "ccache -s # Print current cache stats"
+
+      - name: Output test # @TODO some more complicated test, perhaps a unit test
+        #if: ${{matrix.arch == 'core-avx-i'}} #MacOS machines are avx so they can't run avx2 steps.
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: ./translateLocally --version
+
+      - name: Produce DMG and Sign # This overrides the previous dmg # We follow https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions
+        working-directory: ${{github.workspace}}/build # it should be secure as those can't leak unless we accept a PR with a bad workflow.
+        shell: bash
+        env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PST: ${{ secrets.NOTARIZE_PST }}
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      run: |
-            echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-            security create-keychain -p 1234asdf my.new.keychain
-            security default-keychain -s my.new.keychain
-            security unlock-keychain -p 1234asdf my.new.keychain
-            security import certificate.p12 -k my.new.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
-            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 1234asdf my.new.keychain
-            ../dist/macdmg.sh ${{github.workspace}}/build
+        run: |
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          security create-keychain -p 1234asdf my.new.keychain
+          security default-keychain -s my.new.keychain
+          security unlock-keychain -p 1234asdf my.new.keychain
+          security import certificate.p12 -k my.new.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 1234asdf my.new.keychain
+          ../dist/macdmg.sh ${{github.workspace}}/build
 
-    - name:  Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: |
+      - name: Encode the arch in the .dmg file # as we build with march=native now, record our MARCH
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: |
           mv translateLocally.dmg translateLocally.${{ matrix.os }}.${{ matrix.arch }}.dmg
           ls *.dmg
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.dmg
-        path: ${{github.workspace}}/build/translateLocally.*.dmg
+      - uses: actions/upload-artifact@v3
+        with:
+          name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.dmg
+          path: ${{github.workspace}}/build/translateLocally.*.dmg
 
   build-ubuntu:
     strategy:
@@ -204,97 +211,97 @@ jobs:
     name: ${{ matrix.name }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-    
-    - name: Dependencies
-      run: |
-       sudo apt-get update
-       sudo apt-get install -y libpcre++-dev libarchive-dev libpcre2-dev ccache libunwind-dev libgoogle-perftools-dev ${{ matrix.qtdeps }}
-      
-      # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
-    - name: Install MKL
-      run: |
-        wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" | sudo apt-key add -
-        sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
-        sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
-        sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
-    - name: Generate ccache_vars for ccache based on machine
-      shell: bash
-      id: ccache_vars
-      run: |-
-        echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
-        echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
-    
-    - name: Cache-op for build-cache through ccache
-      uses: actions/cache@v3
-      with:
-        path: ${{ env.ccache_dir }}
-        key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
-        restore-keys: |-
-          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
-          ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
-          ccache-${{ matrix.os }}
-    
-    - name: ccache environment setup
-      run: |-
-        echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
-        echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
-        echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
-        echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
-        echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
-        echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
-    
-    - name: ccache prolog
-      run: |-
-        ccache -s # Print current cache stats
-        ccache -z # Zero cache entry
-    
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{github.workspace}}/build
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpcre++-dev libarchive-dev libpcre2-dev ccache libunwind-dev libgoogle-perftools-dev ${{ matrix.qtdeps }}
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{github.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
+        # https://software.intel.com/content/www/us/en/develop/articles/installing-intel-free-libs-and-python-apt-repo.html
+      - name: Install MKL
+        run: |
+          wget -qO- "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" | sudo apt-key add -
+          sudo sh -c "echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list"
+          sudo apt-get update -o Dir::Etc::sourcelist="/etc/apt/sources.list.d/intel-mkl.list"
+          sudo apt-get install -y --no-install-recommends intel-mkl-64bit-2020.0-088
 
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE -j2
+      - name: Generate ccache_vars for ccache based on machine
+        shell: bash
+        id: ccache_vars
+        run: |-
+          echo "::set-output name=hash::$(echo ${{ env.ccache_compilercheck }})"
+          echo "::set-output name=timestamp::$(date '+%Y-%m-%dT%H.%M.%S')"
 
-    - name: ccache epilog
-      run: 'ccache -s # Print current cache stats'
-    
-    - name: Output test # @TODO some more complicated test, perhaps a unit test
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: ./translateLocally --version
+      - name: Cache-op for build-cache through ccache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.ccache_dir }}
+          key: ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}-${{ steps.ccache_vars.outputs.timestamp }}
+          restore-keys: |-
+            ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}-${{ github.ref }}
+            ccache-${{ matrix.os }}-${{ steps.ccache_vars.outputs.hash }}
+            ccache-${{ matrix.os }}
 
-    - name: Package # Produce a .deb file using cpack
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: |
-        cpack
-        ls deb/*.deb
-        dpkg -I deb/*.deb
+      - name: ccache environment setup
+        run: |-
+          echo "CCACHE_COMPILER_CHECK=${{ env.ccache_compilercheck }}" >> $GITHUB_ENV
+          echo "CCACHE_BASEDIR=${{ env.ccache_basedir }}" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=${{ env.ccache_compress }}" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESSLEVEL=${{ env.ccache_compresslevel }}" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${{ env.ccache_dir }}" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=${{ env.ccache_maxsize }}" >> $GITHUB_ENV
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
-        path: ${{github.workspace}}/build/deb/*.deb
-        
+      - name: ccache prolog
+        run: |-
+          ccache -s # Print current cache stats
+          ccache -z # Zero cache entry
+
+      - name: Create Build Environment
+        # Some projects don't allow in-source building, so create a separate build directory
+        # We'll use this as our working directory for all subsequent commands
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        # Use a bash shell so we can use the same syntax for environment variable
+        # access regardless of the host operating system
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        # Note the current convention is to use the -S and -B options here to specify source
+        # and build directories, but this is only available with CMake 3.13 and higher.
+        # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARCH=${{ matrix.arch }} -DCMAKE_INSTALL_PREFIX=/usr ${{ env.ccache_cmake }}
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        run: cmake --build . --config $BUILD_TYPE -j2
+
+      - name: ccache epilog
+        run: "ccache -s # Print current cache stats"
+
+      - name: Output test # @TODO some more complicated test, perhaps a unit test
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: ./translateLocally --version
+
+      - name: Package # Produce a .deb file using cpack
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: |
+          cpack
+          ls deb/*.deb
+          dpkg -I deb/*.deb
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.deb
+          path: ${{github.workspace}}/build/deb/*.deb
+
   # build-arm:
   #   strategy:
   #       matrix:
@@ -303,16 +310,16 @@ jobs:
   #             os: ubuntu-22.04
   #             arch: "aarch64"
   #   runs-on: self-hosted
-    
+
   #   steps:
   #     - name: Checkout
   #       uses: actions/checkout@v3
   #       with:
   #         submodules: recursive
-      
+
   #     - name: Dependencies
   #       run: sudo apt-get install -y libxkbcommon-x11-dev libpcre++-dev libvulkan-dev libgl1-mesa-dev qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-translations-l10n libqt6svg6-dev libarchive-dev libpcre2-dev
-        
+
   #     - name: Create Build Environment
   #     # Some projects don't allow in-source building, so create a separate build directory
   #     # We'll use this as our working directory for all subsequent commands
@@ -324,7 +331,7 @@ jobs:
   #       shell: bash
   #       working-directory: ${{github.workspace}}/build
   #       run: cmake $GITHUB_WORKSPACE
-        
+
   #     - name: Fix Arm build
   #       # Not sure what the path is here but it should be something like
   #       run: $GITHUB_WORKSPACE/cmake/fix_ruy_build.sh $GITHUB_WORKSPACE ${{github.workspace}}/build
@@ -334,7 +341,7 @@ jobs:
   #       shell: bash
   #       # Execute the build.  You can specify a specific target with "--target <NAME>"
   #       run: cmake --build . -j4
-        
+
   #     - name: Output test # @TODO some more complicated test, perhaps a unit test
   #       working-directory: ${{github.workspace}}/build
   #       shell: bash
@@ -377,80 +384,79 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.name }}
-    
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        
-    - name: Download MKL
-      run: |
-        # Wget retries downloading files and is faster than Invoke-WebRequest
-        C:\msys64\usr\bin\wget.exe -nv ${{ env.MKL_URL }} -O mkl.zip
-        Expand-Archive -Force mkl.zip ${{ github.workspace }}\mkl
-        # Set MKLROOT environment variable so that CMake can find MKL
-        echo "MKLROOT=${{ github.workspace }}\mkl" | Out-File -FilePath $env:GITHUB_ENV  -Encoding utf8 -Append
-      shell: powershell
-    
-    - name: Cache vcpkg
-      uses: actions/cache@v3
-      env:
-        cache-name: cache-vcpkg
-      with:
-        path: C:\vcpkg\installed # cache only the latest installed packages
-        key: ${{ matrix.os }}-build-${{ env.cache-name }}
-        restore-keys: |-
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Download MKL
+        run: |
+          # Wget retries downloading files and is faster than Invoke-WebRequest
+          C:\msys64\usr\bin\wget.exe -nv ${{ env.MKL_URL }} -O mkl.zip
+          Expand-Archive -Force mkl.zip ${{ github.workspace }}\mkl
+          # Set MKLROOT environment variable so that CMake can find MKL
+          echo "MKLROOT=${{ github.workspace }}\mkl" | Out-File -FilePath $env:GITHUB_ENV  -Encoding utf8 -Append
+        shell: powershell
+
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-vcpkg
+        with:
+          path: C:\vcpkg\installed # cache only the latest installed packages
+          key: ${{ matrix.os }}-build-${{ env.cache-name }}
+          restore-keys: |-
             ${{ matrix.os }}-build-${{ env.cache-name }}
             ${{ matrix.os }}-build
-            
-    - name: Disable debug vcpkg build
-      shell: powershell
-      working-directory: C:\vcpkg\triplets
-      run: |
-         $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8' # Powershell murders me.
-         echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows-static.cmake -Append
-         echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows.cmake -Append
-         cat x64-windows-static.cmake
-         cat x64-windows.cmake
 
-    - name: Install dependencies with vcpkg
-      working-directory: C:\vcpkg
-      run: |
-        $Env:VCPKG_BUILD_TYPE = 'release'
-        $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static' # QT6 version, linguist tools not working yet: qtbase:x64-windows-static qttools:x64-windows-static qtsvg:x64-windows-static
-        .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qt5-base:x64-windows-static qt5-tools:x64-windows-static qt5-svg:x64-windows-static
-        .\vcpkg upgrade --no-dry-run # In case there are new builds available after cache restoration
-      shell: powershell
+      - name: Disable debug vcpkg build
+        shell: powershell
+        working-directory: C:\vcpkg\triplets
+        run: |
+          $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8' # Powershell murders me.
+          echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows-static.cmake -Append
+          echo "set(VCPKG_BUILD_TYPE release)" | Tee-Object -FilePath x64-windows.cmake -Append
+          cat x64-windows-static.cmake
+          cat x64-windows.cmake
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{github.workspace}}/build
-      
-    - name: Configure
-      working-directory: ${{github.workspace}}/build #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
-      run: cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_STATIC_LIBS=ON -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
-      shell: powershell
-  
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      run: cmake --build . --config Release -j3
-      shell: powershell
-      
-    - name: Test and add architecture information to the build
-      working-directory: ${{github.workspace}}/build/Release
-      run: |
-        ./translateLocally.exe --help
-        mv translateLocally.exe translateLocally.${{ matrix.os }}.${{ matrix.arch }}.exe
-      shell: powershell
-      
-    - uses: actions/upload-artifact@v3
-      with:
-        name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.exe
-        path: ${{github.workspace}}/build/Release/*.exe
-    
-      
+      - name: Install dependencies with vcpkg
+        working-directory: C:\vcpkg
+        run: |
+          $Env:VCPKG_BUILD_TYPE = 'release'
+          $Env:VCPKG_DEFAULT_TRIPLET = 'x64-windows-static' # QT6 version, linguist tools not working yet: qtbase:x64-windows-static qttools:x64-windows-static qtsvg:x64-windows-static
+          .\vcpkg install protobuf:x64-windows-static pcre2:x64-windows-static zlib:x64-windows-static libarchive:x64-windows-static qt5-base:x64-windows-static qt5-tools:x64-windows-static qt5-svg:x64-windows-static
+          .\vcpkg upgrade --no-dry-run # In case there are new builds available after cache restoration
+        shell: powershell
+
+      - name: Create Build Environment
+        # Some projects don't allow in-source building, so create a separate build directory
+        # We'll use this as our working directory for all subsequent commands
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure
+        working-directory: ${{github.workspace}}/build #@TODO figure out how variables are accessed from power shell, as they seem to not be read.
+        run: cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_STATIC_LIBS=ON -DBUILD_ARCH=${{ matrix.arch }} -DVCPKG_TARGET_TRIPLET='x64-windows-static' -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        shell: powershell
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        run: cmake --build . --config Release -j3
+        shell: powershell
+
+      - name: Test and add architecture information to the build
+        working-directory: ${{github.workspace}}/build/Release
+        run: |
+          ./translateLocally.exe --help
+          mv translateLocally.exe translateLocally.${{ matrix.os }}.${{ matrix.arch }}.exe
+        shell: powershell
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: translateLocally.latest.${{ matrix.os }}.${{ matrix.arch }}.exe
+          path: ${{github.workspace}}/build/Release/*.exe
+
   # Try to upload a release using https://github.com/marvinpinto/actions/issues/177#issuecomment-917605585 as a model
   release:
     name: Release build
@@ -458,17 +464,17 @@ jobs:
     needs: [build-macos, build-ubuntu, build-windows]
     if: github.ref == 'refs/heads/master'
     steps:
-     - name: Download artifacts
-       uses: actions/download-artifact@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
 
-     - name: Update GitHub prerelease
-       uses: marvinpinto/action-automatic-releases@latest
-       with:
-         repo_token: ${{ secrets.GITHUB_TOKEN }}
-         automatic_release_tag: latest
-         prerelease: true
-         title: "Latest Build"
-         files: |
-                /home/runner/work/translateLocally/translateLocally/*.dmg/*.dmg
-                /home/runner/work/translateLocally/translateLocally/*.deb/*.deb
-                /home/runner/work/translateLocally/translateLocally/*.exe/*.exe
+      - name: Update GitHub prerelease
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Latest Build"
+          files: |
+            /home/runner/work/translateLocally/translateLocally/*.dmg/*.dmg
+            /home/runner/work/translateLocally/translateLocally/*.deb/*.deb
+            /home/runner/work/translateLocally/translateLocally/*.exe/*.exe
