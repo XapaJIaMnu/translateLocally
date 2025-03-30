@@ -236,6 +236,7 @@ Example script that converts a marian model to the most efficient 8-bit represen
 We support custom repositories. You can add a custom repository from the Settings->Repositories menu. An example repository file can seen [here](https://translatelocally.com/models.json). Currently available repositories:
 - Bergamot: https://translatelocally.com/models.json
 - OpusMT: https://object.pouta.csc.fi/OPUS-MT-models/app/models.json
+- HPLT: https://raw.githubusercontent.com/hplt-project/bitextor-mt-models/refs/heads/main/models.json
 
 The Bergamot repository is the one used by default. The OpusMT one needs to be added by the user, if the user desires to do so.
 
