@@ -117,6 +117,14 @@ class TranslateLocally(Client):
     async def download_model(self, model_id, *, update=lambda data: None):
         return await self.request("DownloadModel", {"modelID": str(model_id)}, update=update)
 
+    async def configure(self, *, threads:int = None, cache_size:int = None):
+        options = {}
+        if threads is not None:
+            options["threads"] = int(threads)
+        if cache_size is not None:
+            options["cacheSize"] = int(cache_size)
+        return await self.request("Configure", options)
+
 
 def first(iterable, *default):
     """Returns the first value of anything iterable, or throws StopIteration
@@ -194,6 +202,8 @@ async def test():
             for model in models
             if model["id"] == selected_model["id"]
         )
+
+        await tl.configure(threads=1, cache_size=0)
 
         # Perform some translations, switching between the models
         translations = await asyncio.gather(
